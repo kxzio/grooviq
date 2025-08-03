@@ -40,7 +40,6 @@ class SearchViewModel : ViewModel() {
     )
     val uiState: StateFlow < searchState > = _uiState.asStateFlow()
 
-
     //results getter
     private var searchJob: Job? = null
     fun getResultsOfSearchByString(context: Context, request: String) {
@@ -264,7 +263,6 @@ class SearchViewModel : ViewModel() {
             }
         }
     }
-
     fun parseArtistJson(jsonStr: String, url: String): ArtistDto {
         val json = JSONObject(jsonStr)
 

@@ -18,11 +18,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.groviq.frontEnd.appScreens.searchingScreen.drawSearchScreen
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    object Home : Screen("home", "Главная", Icons.Rounded.Home)
-    object Albums : Screen("albums", "Альбомы", Icons.Rounded.Home)
-    object Playlists : Screen("playlists", "Плейлисты", Icons.Rounded.Home)
-    object Searching : Screen("searching", "Поиск", Icons.Rounded.Home)
-    object Settings : Screen("settings", "Настройки", Icons.Rounded.Home)
+    object Home         : Screen("home",        "Главная",      Icons.Rounded.Home)
+    object Albums       : Screen("albums",      "Альбомы",      Icons.Rounded.Home)
+    object Playlists    : Screen("playlists",   "Плейлисты",    Icons.Rounded.Home)
+    object Searching    : Screen("searching",   "Поиск",        Icons.Rounded.Home)
+    object Settings     : Screen("settings",    "Настройки",    Icons.Rounded.Home)
 }
 
 
