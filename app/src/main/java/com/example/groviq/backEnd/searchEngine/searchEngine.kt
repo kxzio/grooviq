@@ -123,7 +123,7 @@ class SearchViewModel : ViewModel() {
         mainViewModel: PlayerViewModel
     ) {
         if (!hasInternetConnection(context)) {
-            _uiState.update { it.copy(gettersInProcess = false) }
+            _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
             return
         }
 
@@ -166,10 +166,12 @@ class SearchViewModel : ViewModel() {
                 }
 
             } catch (e: CancellationException) {
+
             } catch (e: Exception) {
+
                 Log.e("getAlbum", "getter error", e)
             } finally {
-                _uiState.update { it.copy(gettersInProcess = false) }
+                _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
             }
         }
     }
@@ -189,8 +191,10 @@ class SearchViewModel : ViewModel() {
                 val artistJson = artistsJson.getJSONObject(j)
                 artists.add(
                     ArtistDto(
-                        name = artistJson.optString("name", ""),
-                        url = artistJson.optString("url", "")
+                        title = artistJson.optString("name", ""),
+                        url = artistJson.optString("url", ""),
+                        imageUrl = "",
+                        albums = emptyList()
                     )
                 )
             }
@@ -213,7 +217,83 @@ class SearchViewModel : ViewModel() {
             artist_url = json.optString("artist_url", ""),
             year = json.optString("year", ""),
             image_url = json.optString("image_url", ""),
-            tracks = tracks
+            tracks = tracks,
+            link = ""
+        )
+    }
+
+    //artist getter with one job active
+    private var currentArtistJob: Job? = null
+    fun getArtist(
+        context: Context,
+        request: String,
+    ) {
+        if (!hasInternetConnection(context)) {
+            _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
+            return
+        }
+
+        // отмена предыдущего запроса, если был активен
+        currentArtistJob?.cancel()
+
+        _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
+
+        currentArtistJob = viewModelScope.launch {
+            try {
+                val artistJson = withContext(Dispatchers.IO) {
+                    getPythonModule(context)
+                        .callAttr("getArtist", request)
+                        .toString()
+                }
+
+                val artist = parseArtistJson(artistJson, request)
+
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(currentArtist = artist) }
+                }
+
+            } catch (e: CancellationException) {
+                // Игнор, если отменили
+            } catch (e: Exception) {
+                Log.e("getArtist", "Artist load error", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                _uiState.update { it.copy(gettersInProcess = false) }
+            }
+        }
+    }
+
+    fun parseArtistJson(jsonStr: String, url: String): ArtistDto {
+        val json = JSONObject(jsonStr)
+
+        val artistName = json.optString("artist", "")
+        val imageUrl = json.optString("image_url", "").takeIf { it.isNotBlank() }
+        val monthlyListeners = json.optInt("monthly_listeners", 0)
+
+        val albumsJson = json.optJSONArray("albums") ?: JSONArray()
+        val albums = mutableListOf<AlbumResponse>()
+        for (i in 0 until albumsJson.length()) {
+            val a = albumsJson.getJSONObject(i)
+            albums.add(
+                AlbumResponse(
+                    album = a.optString("name", ""),
+                    artist = artistName,
+                    artist_url = "",
+                    tracks = emptyList(),
+                    image_url = a.optString("image_url", ""),
+                    link = a.optString("url", null),
+                    year = a.optString("year", null)
+                )
+            )
+        }
+
+        return ArtistDto(
+            title = artistName,
+            imageUrl = imageUrl,
+            albums = albums,
+            url = url
         )
     }
 }

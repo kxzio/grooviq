@@ -18,7 +18,13 @@ data class searchInfo(
     var image_url : String = ""
 )
 
-data class ArtistDto(val name: String = "", val url: String = "")
+data class ArtistDto(
+    val title: String,
+    val imageUrl: String?,
+    val albums: List<AlbumResponse>,
+    val url: String = "",
+    val topTracks: List<TrackDto> = emptyList(),
+)
 data class TrackDto(
     val id: String,
     val title: String,
@@ -33,7 +39,8 @@ data class AlbumResponse(
     val artist_url: String,
     val year: String,
     val image_url: String,
-    val tracks: List<TrackDto>
+    val tracks: List<TrackDto>,
+    val link : String //for artist albums
 )
 
 enum class publucErrors {
@@ -46,6 +53,9 @@ data class searchState(
 
     //search structures
     var searchResults: MutableList < searchInfo > = mutableListOf(),
+
+    //curent opened artist in browser
+    var currentArtist: ArtistDto = ArtistDto("", "", emptyList(), "", emptyList()),
 
     //indicators
     var searchInProcess  : Boolean = false,

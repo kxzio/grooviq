@@ -33,19 +33,31 @@ class PlayerViewModel : ViewModel() {
     val uiState: StateFlow<playerState> = _uiState
 
 
-    fun setAlbumTracks(request: String, tracks: List<songData>) {
-
+    fun setAlbumTracks(request: String, tracks: List<songData>)
+    {
         val newAll = _uiState.value.allAudioData.toMutableMap()
-        tracks.forEach { newAll[it.link] = it }
+        tracks.forEach {
+            if (newAll[it.link] == null) {
+                newAll[it.link] = it
+            }
+        }
 
         val newAudioData = _uiState.value.audioData.toMutableMap()
-        newAudioData[request] = audioSource().apply {
-            songIds = tracks.map { it.link }.toMutableList()
+        if (newAudioData[request] == null) {
+            newAudioData[request] = audioSource().apply {
+                songIds = tracks.map { it.link }.toMutableList()
+            }
         }
 
         _uiState.value = _uiState.value.copy(
             allAudioData = newAll,
-            audioData   = newAudioData
+            audioData = newAudioData
         )
+    }
+
+
+    fun clearUnusedAudioSourcedAndTracks()
+    {
+
     }
 }

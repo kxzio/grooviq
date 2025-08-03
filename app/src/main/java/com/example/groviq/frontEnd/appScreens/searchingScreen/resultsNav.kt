@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,7 +68,7 @@ fun searchResultsNavigation()
 
                 // Запускаем новую через 1 секунду
                 searchJob = CoroutineScope(Dispatchers.Main).launch {
-                    delay(500L)
+                    delay(350L)
                     if (globalContext != null) {
                         searchViewModel.getResultsOfSearchByString(
                             globalContext!!,
@@ -85,8 +86,10 @@ fun searchResultsNavigation()
             ),
             keyboardActions = KeyboardActions(
                 onSearch = {
+
                     focusManager.clearFocus()
                     searchJob?.cancel()
+
                     if (globalContext != null) {
                         searchViewModel.getResultsOfSearchByString(
                             globalContext!!,
@@ -113,71 +116,94 @@ fun searchResultsNavigation()
 
         val listState = rememberLazyListState()
 
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(searchUiState.searchResults) { result ->
+        Column()
+        {
+            if (searchUiState.searchInProcess == true)
+            {
+                CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                return@Column
+            }
 
-                Row(Modifier.clickable {
-                    val link = "https://music.youtube.com/browse/${result.link_id}"
-                    val encoded = Uri.encode(link)
-                    searchingScreenNav.navigate("album/$encoded")
-                })
-                {
-                    AsyncImage(
-                        model = result.image_url,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(
-                                65.dp
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(
+                    searchUiState.searchResults
+                ) { result ->
+
+                    Row(Modifier.clickable
+                    {
+                        if (result.type == searchType.ALBUM) {
+                            val link = "https://music.youtube.com/browse/${result.link_id}"
+                            val encoded = Uri.encode(link)
+                            searchingScreenNav.navigate(
+                                "album/$encoded"
                             )
-                            .clip(
-                                RoundedCornerShape(
-                                    4.dp
+                        }
+                        else if (result.type == searchType.ARTIST) {
+                            val link = "https://music.youtube.com/channel/${result.link_id}"
+                            val encoded = Uri.encode(link)
+                            searchingScreenNav.navigate(
+                                "artist/$encoded"
+                            )
+                        }
+                    })
+                    {
+                        AsyncImage(
+                            model = result.image_url,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(
+                                    65.dp
+                                )
+                                .clip(
+                                    RoundedCornerShape(
+                                        4.dp
+                                    )
+                                )
+                        )
+                        Column()
+                        {
+                            Text(
+                                text = result.title
+                            )
+                            Text(
+                                text = result.author,
+                                color = Color(
+                                    255,
+                                    255,
+                                    255,
+                                    150
                                 )
                             )
-                    )
-                    Column()
-                    {
-                        Text(
-                            text = result.title
-                        )
-                        Text(
-                            text = result.author,
-                            color = Color(
-                                255,
-                                255,
-                                255,
-                                150
-                            )
-                        )
 
-                        var typeText =
-                            ""
-                        if (result.type == searchType.SONG) {
-                            typeText =
-                                "Композиция"
-                        } else if (result.type == searchType.ALBUM) {
-                            typeText =
-                                "Альбом"
-                        } else if (result.type == searchType.ARTIST) {
-                            typeText =
-                                "Артист"
+                            var typeText =
+                                ""
+                            if (result.type == searchType.SONG) {
+                                typeText =
+                                    "Композиция"
+                            } else if (result.type == searchType.ALBUM) {
+                                typeText =
+                                    "Альбом"
+                            } else if (result.type == searchType.ARTIST) {
+                                typeText =
+                                    "Артист"
+                            }
+
+                            Text(
+                                text = typeText,
+                                color = Color(
+                                    255,
+                                    255,
+                                    255,
+                                    60
+                                )
+                            )
                         }
-
-                        Text(
-                            text = typeText,
-                            color = Color(
-                                255,
-                                255,
-                                255,
-                                60
-                            )
-                        )
                     }
-                }
 
+                }
             }
         }
 

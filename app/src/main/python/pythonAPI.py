@@ -243,3 +243,115 @@ def getAlbum(ytmusic_url: str) -> str:
     }
 
     return json.dumps(result, ensure_ascii=False, default=str)
+
+
+def getArtist(ytmusic_url: str) -> str:
+    """
+    Возвращает JSON-строку с метаданными артиста:
+    - имя, ссылка, обложка
+    - полный список альбомов и синглов (с помощью continuation, если нужно)
+    - топ-5 треков
+    """
+    try:
+        # Извлекаем artist_id из URL
+        match = re.search(r"(channel/|browse/)?(UC[\w-]+)", ytmusic_url)
+        artist_id = match.group(2) if match else ytmusic_url.strip()
+        art = _ytm.get_artist(artist_id)
+        if not art:
+            return "{}"
+
+        image_url = (art.get("thumbnails") or [{"url": ""}])[-1].get("url", "")
+
+        albums = []
+        seen = set()
+
+        def fetch_albums(browse_id: str, params: str):
+            """Выкачивает и добавляет в albums все итемы по одному browseId+params."""
+            try:
+                items = _ytm.get_artist_albums(browse_id, params, limit=None)
+            except Exception:
+                return
+            for item in items:
+                sbid = item.get("browseId")
+                if not sbid or sbid in seen:
+                    continue
+                seen.add(sbid)
+                year = (item.get("year") or "")[:4]
+                # Определяем, является ли item синглом по title секции
+                is_single = False
+                albums.append({
+                    "id": sbid,
+                    "name": item.get("title", ""),
+                    "image_url": (item.get("thumbnails") or [{}])[0].get("url", ""),
+                    "url": f"https://music.youtube.com/browse/{sbid}",
+                    "is_single": is_single,
+                    "year": year
+                })
+
+        # 1) Пробуем стандартные поля albums/singles
+        for key in ("albums", "singles", "albumReleases", "singleReleases"):
+            sec = art.get(key, {})
+            bid = sec.get("browseId")
+            params = sec.get("params")
+            if bid and params:
+                fetch_albums(bid, params)
+
+        # 2) Если всё ещё пусто, ищем continuation в секциях «Top releases»
+        if not albums:
+            for section in art.get("sections", []):
+                cont = section.get("continuations")
+                if not cont:
+                    continue
+                # continuation может быть в nextContinuationData или nextEndpoint
+                token = (
+                    cont[0].get("nextContinuationData", {}).get("continuation")
+                    or cont[0].get("nextEndpoint", {}).get("params")
+                )
+                if token:
+                    try:
+                        items = _ytm.get_artist_albums_continuation(token)
+                    except Exception:
+                        continue
+                    for item in items:
+                        sbid = item.get("browseId")
+                        if not sbid or sbid in seen:
+                            continue
+                        seen.add(sbid)
+                        year = (item.get("year") or "")[:4]
+                        albums.append({
+                            "id": sbid,
+                            "name": item.get("title", ""),
+                            "image_url": (item.get("thumbnails") or [{}])[0].get("url", ""),
+                            "url": f"https://music.youtube.com/browse/{sbid}",
+                            "is_single": False,
+                            "year": year
+                        })
+                    break
+
+        # Топ-5 треков
+        top_tracks = []
+        for t in art.get("songs", {}).get("results", [])[:5]:
+            top_tracks.append({
+                "id": t.get("videoId", ""),
+                "name": t.get("title", ""),
+                "album": t.get("album", {}).get("name", ""),
+                "album_image_url": (t.get("thumbnails") or [{}])[0].get("url", ""),
+                "preview_url": None,
+                "spotify_url": f"https://music.youtube.com/watch?v={t.get('videoId','')}",
+                "popularity": 0
+            })
+
+        result = {
+            "type": "artist",
+            "artist": art.get("name", ""),
+            "link": f"https://music.youtube.com/channel/{artist_id}",
+            "image_url": image_url,
+            "monthly_listeners": art.get("stats", {}).get("subscriberCount", 0),
+            "albums": albums,
+            "top_tracks": top_tracks
+        }
+        return json.dumps(result, ensure_ascii=False, indent=2)
+
+    except Exception:
+        traceback.print_exc()
+        return "{}"
