@@ -1,24 +1,19 @@
 package com.example.groviq
 
+import android.app.Application
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
+import com.example.groviq.frontEnd.drawLayout
 import com.example.groviq.ui.theme.GroviqTheme
-import okhttp3.Cache
-import okhttp3.ConnectionPool
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import java.util.concurrent.TimeUnit
-import android.app.Application
-import java.net.URL
+import kotlin.system.exitProcess
+
+var globalContext : Context? = null
 
 class MainActivity :
     ComponentActivity() {
@@ -30,18 +25,49 @@ class MainActivity :
             savedInstanceState
         )
 
+        //start python
+        if (!Python.isStarted()) {
+            Python.start(
+                AndroidPlatform(this.applicationContext)
+            )
+        }
+
+        globalContext = this.applicationContext
+
         enableEdgeToEdge()
         setContent {
             GroviqTheme {
-                main()
+                start()
             }
         }
     }
 
 }
 
-fun main()
-{
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
 
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            appendLog(
+                this,
+                "UncaughtException",
+                "Crash in thread ${thread.name}: ${throwable.message}",
+                throwable
+            )
+
+            Thread.sleep(500)
+
+            android.os.Process.killProcess(android.os.Process.myPid())
+            exitProcess(10)
+        }
+
+    }
+}
+
+@Composable
+fun start()
+{
+    drawLayout()
 }
 

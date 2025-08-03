@@ -1,6 +1,7 @@
 package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
+import com.example.groviq.backEnd.searchEngine.ArtistDto
 
 enum class audioEnterPoint {
     STREAM,
@@ -16,8 +17,12 @@ data class songProgressStatus(
 
 data class songData(
 
+    //KEY
+    var link: String = "",
+
     var title  : String = "",
-    var author : String = "",
+
+    var artists: List<ArtistDto> = emptyList(),
 
     //stream that app uses for playing not saved audio
     var stream : String = "",

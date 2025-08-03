@@ -9,4 +9,5 @@ plugins {
     alias(
         libs.plugins.kotlin.compose
     ) apply false
+    id("com.chaquo.python") version "16.1.0" apply false
 }

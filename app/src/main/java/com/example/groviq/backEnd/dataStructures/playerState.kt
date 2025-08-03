@@ -1,5 +1,8 @@
 package com.example.groviq.backEnd.dataStructures
 
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,18 +29,23 @@ data class playerState(
 
 class PlayerViewModel : ViewModel() {
 
-    private val _uiState = MutableStateFlow(
-        playerState()
-    )
+    private val _uiState = MutableStateFlow(playerState())
+    val uiState: StateFlow<playerState> = _uiState
 
-    val uiState: StateFlow<playerState> = _uiState.asStateFlow()
 
-    //updating current player status
-    fun updateStatus(reqPlayerStatus: playerStatus) {
+    fun setAlbumTracks(request: String, tracks: List<songData>) {
+
+        val newAll = _uiState.value.allAudioData.toMutableMap()
+        tracks.forEach { newAll[it.link] = it }
+
+        val newAudioData = _uiState.value.audioData.toMutableMap()
+        newAudioData[request] = audioSource().apply {
+            songIds = tracks.map { it.link }.toMutableList()
+        }
+
         _uiState.value = _uiState.value.copy(
-            currentStatus = reqPlayerStatus
+            allAudioData = newAll,
+            audioData   = newAudioData
         )
     }
-
-
 }
