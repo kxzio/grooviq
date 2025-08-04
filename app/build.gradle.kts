@@ -88,11 +88,17 @@ chaquopy {
         }
     }
 }
-
+configurations.all {
+    resolutionStrategy {
+        //force("com.github.teamnewpipe:NewPipeExtractor:0.24.6")
+        force("com.github.TeamNewPipe:NewPipeExtractor:dev-SNAPSHOT")
+    }
+}
 dependencies {
 
+    implementation("com.github.HaarigerHarald:android-youtubeExtractor:master-SNAPSHOT")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
-
+    implementation("org.jsoup:jsoup:1.15.3")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
@@ -109,6 +115,19 @@ dependencies {
 
     implementation("androidx.compose.material:material-icons-extended:1.0.1")
 
+    implementation("com.github.shalva97:NewValve:1.5")
+
+    //implementation("com.github.TeamNewPipe.NewPipeExtractor:extractor:v0.24.6")
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:dev-SNAPSHOT")
+
+
+    //EXOPLAYER
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.media3:media3-common:1.3.1")
+    implementation("androidx.media3:media3-session:1.3.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.3.1") // если используешь HLS потоки
+    
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

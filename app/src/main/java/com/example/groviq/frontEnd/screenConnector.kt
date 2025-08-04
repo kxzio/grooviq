@@ -15,6 +15,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.playerState
+import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.appScreens.searchingScreen.drawSearchScreen
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
@@ -27,7 +31,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 
 
 @Composable
-fun connectScreens()
+fun connectScreens(
+    searchViewModel : SearchViewModel, //search view
+    mainViewModel   : PlayerViewModel, //player view
+)
 {
     val items = listOf(
         Screen.Home,
@@ -92,7 +99,9 @@ fun connectScreens()
                 innerPadding
             )
         ) {
-            composable(Screen.Searching.route) { drawSearchScreen() }
+            composable(Screen.Searching.route) { drawSearchScreen(
+                searchViewModel,
+                mainViewModel,) }
         }
     }
 

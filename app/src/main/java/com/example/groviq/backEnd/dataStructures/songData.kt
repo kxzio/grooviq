@@ -2,6 +2,7 @@ package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
 import com.example.groviq.backEnd.searchEngine.ArtistDto
+import java.util.concurrent.TimeUnit
 
 enum class audioEnterPoint {
     STREAM,
@@ -15,6 +16,12 @@ data class songProgressStatus(
     var downloadingHandled : Boolean = false
 )
 
+data class streamInfo(
+    var streamUrl : String = "",
+    var setTime   : Long   = 0L
+)
+
+
 data class songData(
 
     //KEY
@@ -25,7 +32,7 @@ data class songData(
     var artists: List<ArtistDto> = emptyList(),
 
     //stream that app uses for playing not saved audio
-    var stream : String = "",
+    var stream : streamInfo = streamInfo(),
 
     //shows if thread already getting the stream or downloading song
     var progressStatus : songProgressStatus = songProgressStatus(),
@@ -43,3 +50,10 @@ data class songData(
     var number : Int? = null
 
 )
+{
+    fun shouldGetStream(ttlMillis: Long = TimeUnit.HOURS.toMillis(5)): Boolean {
+        if (stream.streamUrl.isNullOrEmpty()) return true
+        val now = System.currentTimeMillis()
+        return now - stream.setTime >= ttlMillis
+    }
+}

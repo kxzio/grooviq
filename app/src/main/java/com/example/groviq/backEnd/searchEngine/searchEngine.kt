@@ -15,9 +15,11 @@ import com.example.groviq.backEnd.dataStructures.audioSource
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
+import com.example.groviq.backEnd.dataStructures.streamInfo
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
+import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -144,18 +146,20 @@ class SearchViewModel : ViewModel() {
                 //parsing
                 val albumDto = parseAlbumJson(albumMetaJson)
 
+                val albumBitmap = loadBitmapFromUrl(albumDto.image_url)
+
                 //mapping the results from parsed values
                 val tracks = albumDto.tracks.map { t ->
                     songData(
                         link = t.url,
                         title = t.title,
                         artists = t.artists,
-                        stream = "",
+                        stream = streamInfo(),
                         duration = t.duration_ms,
                         number = t.track_num,
                         progressStatus = songProgressStatus(),
                         playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-                        art = null
+                        art = albumBitmap
                     )
                 }
 

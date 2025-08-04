@@ -9,11 +9,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import com.example.groviq.backEnd.playEngine.AudioPlayerManager
 import com.example.groviq.frontEnd.drawLayout
 import com.example.groviq.ui.theme.GroviqTheme
+import io.github.shalva97.initNewPipe
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.localization.Localization
+import java.util.Locale
 import kotlin.system.exitProcess
 
 var globalContext : Context? = null
+
+lateinit var playerManager: AudioPlayerManager
 
 class MainActivity :
     ComponentActivity() {
@@ -31,6 +38,18 @@ class MainActivity :
                 AndroidPlatform(this.applicationContext)
             )
         }
+
+        //start pipe for streams
+        initNewPipe()
+
+        //player init
+        playerManager = AudioPlayerManager(this)
+
+
+        val locale = Locale("en", "US")
+        NewPipe.setupLocalization(
+            Localization.fromLocale(locale)
+        )
 
         globalContext = this.applicationContext
 

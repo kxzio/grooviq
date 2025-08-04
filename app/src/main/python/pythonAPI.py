@@ -19,6 +19,20 @@ from typing import Any, Dict
 
 _ytm = YTMusic()
 
+def getStream(youtube_url: str) -> str:
+    ydl_opts = {
+      'quiet': True,
+      'skip_download': True,
+      'format': 'bestaudio/best',
+      'noplaylist': True,
+      'extractor_args': {'youtube': {'player_client': ['web']}}
+    }
+
+    with YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(youtube_url, download=False)
+        audio_url = info['url']
+        return audio_url
+
 def searchOnServer(q: str) -> str:
     q = q.strip()
     if not q:

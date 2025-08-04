@@ -21,18 +21,21 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import coil.compose.AsyncImage
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
+import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.searchingNavigation
 import com.example.groviq.globalContext
 
 @Composable
-fun showArtistFromSurf(backStackEntry: NavBackStackEntry)
+fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
+                       searchViewModel : SearchViewModel, //search view
+                       mainViewModel   : PlayerViewModel, //player view
+)
 {
-    var searchViewModel:    SearchViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val searchUiState   by searchViewModel.uiState.collectAsState()
 
-    var mainViewModel:      PlayerViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val searchUiState   by searchViewModel.uiState.collectAsState()
     val mainUiState     by mainViewModel.uiState.collectAsState()
 
     val searchingScreenNav = searchingNavigation.current

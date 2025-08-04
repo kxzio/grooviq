@@ -1,12 +1,25 @@
 package com.example.groviq
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.BufferedInputStream
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 fun getPythonModule(context: Context): PyObject {
 
@@ -33,5 +46,48 @@ fun hasInternetConnection(context: Context): Boolean {
     } else {
         val networkInfo = connectivityManager.activeNetworkInfo ?: return false
         return networkInfo.isConnected
+    }
+}
+
+suspend fun loadBitmapFromUrl(imageUrl: String): Bitmap? = withContext(
+    Dispatchers.IO) {
+    var connection: HttpURLConnection? = null
+    var input: BufferedInputStream? = null
+
+    try {
+        val url = URL(imageUrl)
+        connection = url.openConnection() as HttpURLConnection
+        connection.connectTimeout = 5000
+        connection.readTimeout = 5000
+        connection.instanceFollowRedirects = true
+        connection.doInput = true
+        connection.connect()
+
+        if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
+
+        input = BufferedInputStream(connection.inputStream)
+        return@withContext BitmapFactory.decodeStream(input)
+
+    } catch (e: IOException) {
+        e.printStackTrace()
+        return@withContext null
+    } finally {
+        try {
+            input?.close()
+        } catch (_: IOException) { }
+        connection?.disconnect()
+    }
+}
+
+@Composable
+fun LocalActivity(): ComponentActivity {
+    val context = LocalContext.current
+    return remember(context) {
+        var ctx = context
+        while (ctx is ContextWrapper) {
+            if (ctx is ComponentActivity) return@remember ctx
+            ctx = ctx.baseContext
+        }
+        error("LocalActivity not found")
     }
 }

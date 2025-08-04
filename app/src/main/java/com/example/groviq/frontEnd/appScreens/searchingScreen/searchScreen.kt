@@ -8,7 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showArtistFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceFromSurf
 import com.example.groviq.frontEnd.searchingNavigation
@@ -18,14 +20,14 @@ sealed class searchTabs(val route: String) {
 }
 
 @Composable
-fun drawSearchScreen()
+fun drawSearchScreen(
+    searchViewModel : SearchViewModel, //search view
+    mainViewModel   : PlayerViewModel, //player view
+)
 {
     val searchingScreenNav = searchingNavigation.current
 
-    var searchViewModel:    SearchViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val searchUiState   by searchViewModel.uiState.collectAsState()
-
-    var mainViewModel:      PlayerViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val mainUiState     by mainViewModel.uiState.collectAsState()
 
     NavHost(
@@ -41,7 +43,10 @@ fun drawSearchScreen()
             type = NavType.StringType
         })
         ) { backStackEntry ->
-            showAudioSourceFromSurf(backStackEntry)
+            showAudioSourceFromSurf(backStackEntry,
+                searchViewModel,
+                mainViewModel,
+            )
         }
 
         //artist page - browsing
@@ -49,7 +54,10 @@ fun drawSearchScreen()
             type = NavType.StringType
         })
         ) { backStackEntry ->
-            showArtistFromSurf(backStackEntry)
+            showArtistFromSurf(backStackEntry,
+                searchViewModel,
+                mainViewModel,
+                )
         }
     }
 
