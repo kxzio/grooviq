@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
+import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
@@ -108,6 +109,8 @@ fun showDefaultAudioSource(audioSourcePath : String, searchViewModel : SearchVie
             Row(Modifier.clickable
             {
                 mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
+                updatePosInQueue(mainViewModel, song.link)
+
                 playerManager.play(song.link, mainViewModel)
             })
             {

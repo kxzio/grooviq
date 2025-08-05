@@ -21,6 +21,19 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
     mainViewModel.setQueue(queue)
     mainViewModel.setPosInQueue( queue.indexOfFirst { it == requstedHash } )
 }
+fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
+{
+    //dont update if queue is empty
+    if (mainViewModel.uiState.value.currentQueue.isEmpty())
+        return
+
+    //dont update pos in queue, because queue is not updated and still can be about old data
+    if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash)
+        return
+
+
+    mainViewModel.setPosInQueue(  mainViewModel.uiState.value.currentQueue.indexOfFirst { it == hash } )
+}
 
 fun moveToNextPosInQueue(mainViewModel : PlayerViewModel)
 {
