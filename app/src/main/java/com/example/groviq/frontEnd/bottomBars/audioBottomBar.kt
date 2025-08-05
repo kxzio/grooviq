@@ -22,6 +22,9 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.BottomSheetScaffold
@@ -54,6 +57,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
+import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.dataStructures.songProgressState
 import com.example.groviq.formatTime
@@ -310,6 +314,41 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             }
 
 
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick =
+                                {
+                                    mainViewModel.toogleShuffleMode()
+                                },
+                            ) {
+                                Icon(
+                                    imageVector =
+                                    Icons.Rounded.Shuffle,
+                                    contentDescription = "SkipPrev",
+                                    tint = Color(255, 255, 255, if (mainUiState.isShuffle) 255 else 100)
+                                )
+                            }
+
+                            IconButton(
+                                onClick =
+                                {
+                                    mainViewModel.toogleRepeatMode()
+                                },
+                            ) {
+                                Icon(
+                                    imageVector =
+                                    if (mainUiState.repeatMode == repeatMods.REPEAT_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                                    contentDescription = "SkipPrev",
+                                    tint = Color(255, 255, 255,
+                                        if (mainUiState.repeatMode == repeatMods.NO_REPEAT)       100
+                                        else if (mainUiState.repeatMode == repeatMods.REPEAT_ALL) 255
+                                        else 255)
+                                )
+                            }
                         }
 
                     }

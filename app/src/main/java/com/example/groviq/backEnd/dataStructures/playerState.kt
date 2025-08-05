@@ -21,6 +21,12 @@ enum class playerStatus {
     BUFFERING
 }
 
+enum class repeatMods {
+    NO_REPEAT,
+    REPEAT_ONE,
+    REPEAT_ALL
+}
+
 data class playerState(
 
     //current state of audio player
@@ -41,8 +47,11 @@ data class playerState(
     var posInQueue  : Int = -1,
     var lastSourceBuilded : String = "",
 
+    //player mods
+    var isShuffle   : Boolean = false,
+    var repeatMode  : repeatMods = repeatMods.NO_REPEAT,
 
-)
+    )
 
 class PlayerViewModel : ViewModel() {
 
@@ -71,6 +80,19 @@ class PlayerViewModel : ViewModel() {
 
     fun setLastSourceBuilded(newSource : String) {
         _uiState.value =_uiState.value.copy(lastSourceBuilded = newSource)
+    }
+
+    fun toogleShuffleMode()
+    {
+        _uiState.value =_uiState.value.copy(isShuffle = !_uiState.value.isShuffle )
+    }
+
+    fun toogleRepeatMode()
+    {
+        _uiState.value =_uiState.value.copy(repeatMode =
+            if (_uiState.value.repeatMode == repeatMods.NO_REPEAT)          repeatMods.REPEAT_ALL
+            else if (_uiState.value.repeatMode == repeatMods.REPEAT_ALL)    repeatMods.REPEAT_ONE
+            else repeatMods.NO_REPEAT)
     }
 
     fun setAlbumTracks(request: String, tracks: List<songData>) {
@@ -124,6 +146,33 @@ class PlayerViewModel : ViewModel() {
             .map { state -> state.allAudioData[hash]?.stream?.streamUrl?.takeIf { it.isNotEmpty() } }
             .filterNotNull()
             .firstOrNull()
+    }
+
+    fun clearUnusedAudioSourcedAndSongs()
+    {
+        val currentPlayingAudioSource   = _uiState.value.playingAudioSourceHash
+
+        //the main logic of filter motion
+        //logic operation :
+        // 1. audiosource playing
+        _uiState.value.audioData = _uiState.value.audioData.filter {
+
+            //we play this audioSource
+            it.key == currentPlayingAudioSource
+
+        }.toMutableMap()
+
+
+        //dont touch this logic, it just repeat the logic of delete
+        val usedSongIds = _uiState.value.audioData.values
+            .flatMap { it.songIds }
+            .toSet()
+
+        _uiState.value.allAudioData = _uiState.value.allAudioData
+            .filter { usedSongIds.contains(it.key) }
+            .toMutableMap()
+
+
     }
 
 }

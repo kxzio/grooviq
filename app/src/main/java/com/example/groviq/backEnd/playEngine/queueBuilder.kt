@@ -21,6 +21,7 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
     mainViewModel.setQueue(queue)
     mainViewModel.setPosInQueue( queue.indexOfFirst { it == requstedHash } )
 }
+
 fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
 {
     //dont update if queue is empty

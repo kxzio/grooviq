@@ -5,6 +5,7 @@ import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
@@ -62,6 +63,10 @@ class AudioPlayerManager(context: Context) {
 
         //current playing index in hash value
         mainViewModel.setPlayingHash(hashkey)
+
+        //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
+        mainViewModel.clearUnusedAudioSourcedAndSongs()
+
         setSongProgress(0f, 0L)
 
         //build a queue
@@ -130,6 +135,7 @@ class AudioPlayerManager(context: Context) {
 
     fun nextSong(mainViewModel: PlayerViewModel)
     {
+
         //move the index of queue pos
         moveToNextPosInQueue(mainViewModel)
 
@@ -144,6 +150,10 @@ class AudioPlayerManager(context: Context) {
 
     fun prevSong(mainViewModel: PlayerViewModel)
     {
+        //it means, we dont move to pres song if we have no prev song
+        if (mainViewModel.uiState.value.posInQueue - 1 < 0)
+            return
+
         //move the index of queue pos
         moveToPrevPosInQueue(mainViewModel)
 
