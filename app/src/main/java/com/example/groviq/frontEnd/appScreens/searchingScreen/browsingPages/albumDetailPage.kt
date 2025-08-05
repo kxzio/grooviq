@@ -105,7 +105,11 @@ fun showDefaultAudioSource(audioSourcePath : String, searchViewModel : SearchVie
             songs
         ) { song ->
 
-            Row(Modifier.clickable { playerManager.play(song.link, mainViewModel) })
+            Row(Modifier.clickable
+            {
+                mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
+                playerManager.play(song.link, mainViewModel)
+            })
             {
                 if (song.art != null) {
                     Image(song.art!!.asImageBitmap(), null, Modifier.size(35.dp))
@@ -116,9 +120,8 @@ fun showDefaultAudioSource(audioSourcePath : String, searchViewModel : SearchVie
 
                     Text(
                         song.title,
-                        Modifier.padding(
-                            5.dp
-                        )
+                        maxLines = 1,
+                        fontSize = 10.sp,
                     )
                     Row()
                     {
@@ -126,19 +129,14 @@ fun showDefaultAudioSource(audioSourcePath : String, searchViewModel : SearchVie
 
                             Text(
                                 artist.title + if (artist != song.artists.last()) ", " else "",
-                                Modifier.padding(
-                                    5.dp
-                                ),
-                                maxLines = 1
+                                maxLines = 1,
+                                fontSize = 10.sp,
                             )
 
                         }
                     }
                     Text(
                         song.stream.streamUrl,
-                        Modifier.padding(
-                            5.dp
-                        ),
                         maxLines = 1,
                         fontSize = 10.sp,
                         color = Color(255, 255, 255, 100)

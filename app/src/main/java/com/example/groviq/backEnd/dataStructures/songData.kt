@@ -2,6 +2,8 @@ package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
 import com.example.groviq.backEnd.searchEngine.ArtistDto
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.TimeUnit
 
 enum class audioEnterPoint {
@@ -56,4 +58,17 @@ data class songData(
         val now = System.currentTimeMillis()
         return now - stream.setTime >= ttlMillis
     }
+}
+
+data class CurrentSongTimeProgress(
+    val progress: Float,
+    val position: Long
+)
+
+// current song progress state
+private val _progressState = MutableStateFlow(CurrentSongTimeProgress(0f, 0L))
+val songProgressState: StateFlow<CurrentSongTimeProgress> = _progressState
+
+fun setSongProgress(progress: Float, position: Long) {
+    _progressState.value = CurrentSongTimeProgress(progress, position)
 }

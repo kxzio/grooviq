@@ -5,6 +5,7 @@ import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import kotlinx.coroutines.CoroutineScope
@@ -53,10 +54,24 @@ class AudioPlayerManager(context: Context) {
             //cancel all threads
             currentPlaybackJob?.cancel()
             currentFetchJob   ?.cancel()
+            mainViewModel.updateStatusForSong(
+                hashkey,
+                mainViewModel.uiState.value.allAudioData[hashkey]!!.progressStatus.copy(streamHandled = false)
+            )
         }
 
         //current playing index in hash value
         mainViewModel.setPlayingHash(hashkey)
+        setSongProgress(0f, 0L)
+
+        //build a queue
+        if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash)
+        {
+            //if the audio source changed, we have to rebuild the queue
+            createQueueOnAudioSourceHash(mainViewModel, hashkey)
+            //update last built audio source
+            mainViewModel.setLastSourceBuilded(mainViewModel.uiState.value.playingAudioSourceHash)
+        }
 
         currentPlaybackJob = playbackScope.launch {
 
@@ -75,7 +90,6 @@ class AudioPlayerManager(context: Context) {
                     //request to get the new one
                     fetchAudioStream(mainViewModel, hashkey)
                 }
-
 
             }
 
@@ -112,6 +126,34 @@ class AudioPlayerManager(context: Context) {
 
     fun release() {
         player.release()
+    }
+
+    fun nextSong(mainViewModel: PlayerViewModel)
+    {
+        //move the index of queue pos
+        moveToNextPosInQueue(mainViewModel)
+
+        //play index
+        val viewState = mainViewModel.uiState.value
+
+        if (viewState.currentQueue.isEmpty() ||
+            viewState.posInQueue !in viewState.currentQueue.indices) return
+
+        play(viewState.currentQueue[viewState.posInQueue], mainViewModel)
+    }
+
+    fun prevSong(mainViewModel: PlayerViewModel)
+    {
+        //move the index of queue pos
+        moveToPrevPosInQueue(mainViewModel)
+
+        //play index
+        val viewState = mainViewModel.uiState.value
+
+        if (viewState.currentQueue.isEmpty() ||
+            viewState.posInQueue !in viewState.currentQueue.indices) return
+
+        play(viewState.currentQueue[viewState.posInQueue], mainViewModel)
     }
 
     fun isPlaying(): Boolean = player.isPlaying

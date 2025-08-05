@@ -21,23 +21,23 @@ var currentFetchJob: Job? = null
 fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
     val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 
-    //if it already in handle - exit
+    // Skip if already being handled
     if (song.progressStatus.streamHandled) return
 
-    //flag that we handlded by this thread
+    // Mark as handled
     mainViewModel.updateStatusForSong(
         songKey,
         song.progressStatus.copy(streamHandled = true)
     )
 
-    //cancel the old one
+    // Cancel previous job
     currentFetchJob?.cancel()
 
     currentFetchJob = CoroutineScope(Dispatchers.IO).launch {
         try {
             val audioUrl = getBestAudioStreamUrl(song.link)
 
-            if (!isActive) return@launch
+            if (!isActive) return@launch // if coroutine was cancelled, stop here
 
             if (audioUrl != null) {
                 withContext(Dispatchers.Main) {
@@ -53,11 +53,14 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
 
         } finally {
             withContext(Dispatchers.Main) {
+                // Always reset streamHandled, even on cancel
                 val latestSong = mainViewModel.uiState.value.allAudioData[songKey] ?: return@withContext
-                mainViewModel.updateStatusForSong(
-                    songKey,
-                    latestSong.progressStatus.copy(streamHandled = false)
-                )
+                if (latestSong.progressStatus.streamHandled) {
+                    mainViewModel.updateStatusForSong(
+                        songKey,
+                        latestSong.progressStatus.copy(streamHandled = false)
+                    )
+                }
             }
         }
     }

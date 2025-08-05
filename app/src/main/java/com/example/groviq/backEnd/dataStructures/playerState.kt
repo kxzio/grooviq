@@ -32,7 +32,15 @@ data class playerState(
     //keys of songs in albums, playlists. for example. use key for album (link of album) or use name of playlist as key
     var audioData     : MutableMap<String, audioSource> = mutableMapOf(),
 
-    var playingHash   : String = ""
+    //curent played data
+    var playingHash              : String = "",
+    var playingAudioSourceHash   : String = "",
+
+    //queue info
+    var currentQueue: MutableList<String> = mutableListOf(),
+    var posInQueue  : Int = -1,
+    var lastSourceBuilded : String = "",
+
 
 )
 
@@ -47,6 +55,22 @@ class PlayerViewModel : ViewModel() {
 
     fun setPlayingHash(songLink: String) {
         _uiState.value =_uiState.value.copy(playingHash = songLink)
+    }
+
+    fun setPlayingAudioSourceHash(audioSourceLink: String) {
+        _uiState.value =_uiState.value.copy(playingAudioSourceHash = audioSourceLink)
+    }
+
+    fun setQueue(newQueue: MutableList<String>) {
+        _uiState.value =_uiState.value.copy(currentQueue = newQueue)
+    }
+
+    fun setPosInQueue(newPos : Int) {
+        _uiState.value =_uiState.value.copy(posInQueue = newPos)
+    }
+
+    fun setLastSourceBuilded(newSource : String) {
+        _uiState.value =_uiState.value.copy(lastSourceBuilded = newSource)
     }
 
     fun setAlbumTracks(request: String, tracks: List<songData>) {
