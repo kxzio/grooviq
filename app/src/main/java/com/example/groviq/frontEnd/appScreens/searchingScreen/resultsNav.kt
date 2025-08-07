@@ -27,11 +27,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchType
-import com.example.groviq.frontEnd.searchingNavigation
 import com.example.groviq.globalContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun searchResultsNavigation()
+fun searchResultsNavigation(searchingScreenNav: NavHostController)
 {
     //user input of result he wants to get
     var searchingRequest by remember { mutableStateOf("") }
@@ -53,8 +54,6 @@ fun searchResultsNavigation()
 
     var searchViewModel: SearchViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val searchUiState by searchViewModel.uiState.collectAsState()
-
-    val searchingScreenNav = searchingNavigation.current
 
     Column()
     {

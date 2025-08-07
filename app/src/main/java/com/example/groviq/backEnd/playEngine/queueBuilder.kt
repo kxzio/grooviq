@@ -2,6 +2,13 @@ package com.example.groviq.backEnd.playEngine
 
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 
+data class queueElement(
+    val hashKey     : String,
+    val audioSource : String,
+    val addedByUser : Boolean = false
+)
+
+
 fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash : String)
 {
 
@@ -10,25 +17,30 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
     if (mainViewModel.uiState.value.allAudioData[requstedHash] == null)
         return
 
+    val isPlayingFromPlaylist = view.playingAudioSourceHash.contains("http")
+
     val songsHashesInSource = mainViewModel.uiState.value.audioData[view.playingAudioSourceHash]!!.songIds
 
-    val sortedSongs = songsHashesInSource
+    var sortedSongs = songsHashesInSource
         .mapNotNull { songId -> mainViewModel.uiState.value.allAudioData[songId] }
-        .sortedBy { it.number }
 
-    var queue: MutableList<String> = sortedSongs.map { it.link }.toMutableList()
+
+    val queue: MutableList<queueElement> = sortedSongs.mapIndexed { index, song ->
+        queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash )
+    }.toMutableList()
 
     mainViewModel.setOriginalQueue(queue.toList())
+    mainViewModel.setLastSourceBuilded(view.playingAudioSourceHash)
 
     val originalQueue = mainViewModel.uiState.value.originalQueue.toMutableList()
 
     val newQueue = if (view.isShuffle) {
 
         var withoutCurrent = originalQueue.toMutableList()
-        withoutCurrent.remove(requstedHash)
+        withoutCurrent.removeIf { it.hashKey == requstedHash }
 
         var newShuffled = withoutCurrent.shuffled().toMutableList()
-        newShuffled.add(0, requstedHash)
+        newShuffled.add(0, queueElement(requstedHash, view.playingAudioSourceHash))
 
         newShuffled
 
@@ -37,7 +49,7 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
     }
 
     mainViewModel.setQueue(newQueue)
-    mainViewModel.setPosInQueue( newQueue.indexOfFirst { it == requstedHash } )
+    mainViewModel.setPosInQueue( newQueue.indexOfFirst { it.hashKey == requstedHash } )
 }
 
 fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
@@ -50,8 +62,16 @@ fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
     if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash)
         return
 
+    //clear all user added requests
+    val base = mainViewModel.uiState.value.originalQueue.toMutableList()
+    val rebuilt = if (mainViewModel.uiState.value.isShuffle)
+        base.shuffled()
+    else
+        base
 
-    mainViewModel.setPosInQueue(  mainViewModel.uiState.value.currentQueue.indexOfFirst { it == hash } )
+    mainViewModel.setQueue(rebuilt.toMutableList())
+    mainViewModel.setPosInQueue(rebuilt.indexOfFirst { it.hashKey == hash })
+
 }
 
 fun moveToNextPosInQueue(mainViewModel : PlayerViewModel)
@@ -73,4 +93,36 @@ fun moveToPrevPosInQueue(mainViewModel : PlayerViewModel)
 fun onShuffleToogle(mainViewModel: PlayerViewModel)
 {
     createQueueOnAudioSourceHash(mainViewModel, mainViewModel.uiState.value.playingHash)
+}
+
+fun addToCurrentQueue(
+    mainViewModel: PlayerViewModel,
+    hash: String,
+    audioSourceFrom: String
+) {
+    val view = mainViewModel.uiState.value
+
+    // если очередь пуста — выходим
+    if (view.currentQueue.isEmpty()) return
+
+    val elem = queueElement(hash, audioSourceFrom, addedByUser = true)
+    val basePos = view.posInQueue
+
+    // 1) считаем, сколько user-added песен уже стоит после текущей позиции
+    val existingAddsAfter = view.currentQueue
+        .drop(basePos + 1)
+        .count { it.addedByUser }
+
+    // 2) вычисляем индекс вставки в currentQueue: сразу после current + смещение
+    val insertPosCurrent = basePos + 1 + existingAddsAfter
+    view.currentQueue.add(insertPosCurrent, elem)
+
+    // 3) аналогично для originalQueue (чтобы вставки не терялись при shuffle/пересборке)
+    val origList = view.originalQueue.toMutableList()
+    val existingOrigAddsAfter = origList
+        .drop(basePos + 1)
+        .count { it.addedByUser }
+    val insertPosOriginal = basePos + 1 + existingOrigAddsAfter
+    origList.add(insertPosOriginal, elem)
+    mainViewModel.setOriginalQueue(origList)
 }

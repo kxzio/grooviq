@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
@@ -13,7 +14,6 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showArtistFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceFromSurf
-import com.example.groviq.frontEnd.searchingNavigation
 
 sealed class searchTabs(val route: String) {
     object results : searchTabs("results")
@@ -25,7 +25,7 @@ fun drawSearchScreen(
     mainViewModel   : PlayerViewModel, //player view
 )
 {
-    val searchingScreenNav = searchingNavigation.current
+    val searchingScreenNav        = rememberNavController()
 
     val searchUiState   by searchViewModel.uiState.collectAsState()
     val mainUiState     by mainViewModel.uiState.collectAsState()
@@ -36,7 +36,7 @@ fun drawSearchScreen(
     ) {
 
         //home page - searching
-        composable(searchTabs.results.route) { searchResultsNavigation() }
+        composable(searchTabs.results.route) { searchResultsNavigation(searchingScreenNav) }
 
         //album page - browsing
         composable(route = "album/{album_url}", arguments = listOf(navArgument("album_url") {
@@ -46,6 +46,7 @@ fun drawSearchScreen(
             showAudioSourceFromSurf(backStackEntry,
                 searchViewModel,
                 mainViewModel,
+                searchingScreenNav
             )
         }
 
@@ -57,6 +58,7 @@ fun drawSearchScreen(
             showArtistFromSurf(backStackEntry,
                 searchViewModel,
                 mainViewModel,
+                searchingScreenNav
                 )
         }
     }

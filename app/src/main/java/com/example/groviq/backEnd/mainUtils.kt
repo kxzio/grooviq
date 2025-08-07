@@ -7,6 +7,9 @@ import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -97,4 +100,16 @@ fun formatTime(milliseconds: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%02d:%02d".format(minutes, seconds)
+}
+
+fun vibrateLight(context: Context) {
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val vibrationEffect = VibrationEffect.createOneShot(
+            100,
+            150
+        )
+        vibrator.vibrate(vibrationEffect)
+    }
 }

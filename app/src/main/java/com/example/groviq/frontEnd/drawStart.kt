@@ -25,16 +25,11 @@ import com.example.groviq.LocalActivity
 val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
     error("NavController not provided")
 }
-//global nav controller for screens
-val searchingNavigation = staticCompositionLocalOf<NavHostController> {
-    error("NavController not provided")
-}
 
 @Composable
 fun drawLayout()
 {
     val screenConnectorNavigationLocal = rememberNavController()
-    val searchingNavigationLocal       = rememberNavController()
 
     var searchViewModel: SearchViewModel = viewModel(viewModelStoreOwner = LocalActivity() )
     val searchUiState   by searchViewModel.uiState.collectAsState()
@@ -50,8 +45,6 @@ fun drawLayout()
     //local provider for globalization
     CompositionLocalProvider(
         screenConnectorNavigation provides screenConnectorNavigationLocal,
-        searchingNavigation       provides searchingNavigationLocal
-
     ) {
         Box(Modifier.fillMaxSize())
         {

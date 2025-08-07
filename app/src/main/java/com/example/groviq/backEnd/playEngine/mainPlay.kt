@@ -37,7 +37,7 @@ class AudioPlayerManager(context: Context) {
     private var lastPlayTimeMs = 0L
     private val PLAY_COOLDOWN_MS = 10L
 
-    fun play(hashkey : String, mainViewModel: PlayerViewModel) {
+    fun play(hashkey : String, mainViewModel: PlayerViewModel, userPressed : Boolean = false) {
 
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)
@@ -71,7 +71,8 @@ class AudioPlayerManager(context: Context) {
         setSongProgress(0f, 0L)
 
         //build a queue
-        if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash)
+        if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash ||
+            (userPressed && mainViewModel.uiState.value.isShuffle))
         {
             //if the audio source changed, we have to rebuild the queue
             createQueueOnAudioSourceHash(mainViewModel, hashkey)
@@ -145,7 +146,7 @@ class AudioPlayerManager(context: Context) {
 
         if (repeatMode == repeatMods.REPEAT_ONE) {
             // Повтор одного трека
-            playerManager.play(currentQueue[pos], mainViewModel)
+            playerManager.play(currentQueue[pos].hashKey, mainViewModel)
             return
         }
 
@@ -154,7 +155,7 @@ class AudioPlayerManager(context: Context) {
         if (nextIndex < currentQueue.size) {
             moveToNextPosInQueue(mainViewModel)
             val newPos = mainViewModel.uiState.value.posInQueue
-            playerManager.play(currentQueue[newPos], mainViewModel)
+            playerManager.play(currentQueue[newPos].hashKey, mainViewModel)
             return
         }
 
@@ -168,7 +169,7 @@ class AudioPlayerManager(context: Context) {
 
             mainViewModel.setQueue(newQueue)
             mainViewModel.setPosInQueue(0)
-            playerManager.play(newQueue[0], mainViewModel)
+            playerManager.play(newQueue[0].hashKey, mainViewModel)
             return
         }
 
@@ -190,7 +191,7 @@ class AudioPlayerManager(context: Context) {
         if (viewState.currentQueue.isEmpty() ||
             viewState.posInQueue !in viewState.currentQueue.indices) return
 
-        play(viewState.currentQueue[viewState.posInQueue], mainViewModel)
+        play(viewState.currentQueue[viewState.posInQueue].hashKey, mainViewModel)
     }
 
     fun isPlaying(): Boolean = player.isPlaying

@@ -3,18 +3,28 @@ package com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -22,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
@@ -37,6 +48,7 @@ import com.example.groviq.playerManager
 fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                             searchViewModel : SearchViewModel, //search view
                             mainViewModel   : PlayerViewModel, //player view
+                            searchingScreenNav: NavHostController
                             )
 {
 
@@ -81,7 +93,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                 return@Column
             }
 
-            showDefaultAudioSource(albumUrl, searchViewModel, mainViewModel)
+            showDefaultAudioSource(albumUrl, mainViewModel)
 
         }
     }
@@ -89,10 +101,9 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
 //render albums or playlists detail screens
 @Composable
-fun showDefaultAudioSource(audioSourcePath : String, searchViewModel : SearchViewModel, mainViewModel : PlayerViewModel)
+fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewModel)
 {
 
-    val searchUiState   by searchViewModel.uiState.collectAsState()
     val mainUiState     by mainViewModel.uiState.collectAsState()
 
     val audioSource = mainUiState.audioData[audioSourcePath]
@@ -101,52 +112,24 @@ fun showDefaultAudioSource(audioSourcePath : String, searchViewModel : SearchVie
         ?.mapNotNull { mainUiState.allAudioData[it] }
         ?: emptyList()
 
+    //update focus to prevent deleting the audio source if this path is UI opened
+    mainViewModel.updateBrowserHashFocus(audioSourcePath)
+
     LazyColumn {
         items(
             songs
         ) { song ->
 
-            Row(Modifier.clickable
-            {
-                mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
-                updatePosInQueue(mainViewModel, song.link)
-
-                playerManager.play(song.link, mainViewModel)
-            })
-            {
-                if (song.art != null) {
-                    Image(song.art!!.asImageBitmap(), null, Modifier.size(35.dp))
-                }
-
-                Column()
+            SwipeToQueueItem(audioSource = audioSourcePath, song = song, mainViewModel = mainViewModel,
+                Modifier.clickable
                 {
+                    mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
+                    updatePosInQueue(mainViewModel, song.link)
+                    mainViewModel.deleteUserAdds()
 
-                    Text(
-                        song.title,
-                        maxLines = 1,
-                        fontSize = 10.sp,
-                    )
-                    Row()
-                    {
-                        song.artists.forEach { artist ->
+                    playerManager.play(song.link, mainViewModel, true)
+                })
 
-                            Text(
-                                artist.title + if (artist != song.artists.last()) ", " else "",
-                                maxLines = 1,
-                                fontSize = 10.sp,
-                            )
-
-                        }
-                    }
-                    Text(
-                        song.stream.streamUrl,
-                        maxLines = 1,
-                        fontSize = 10.sp,
-                        color = Color(255, 255, 255, 100)
-                    )
-                }
-
-            }
         }
     }
 
