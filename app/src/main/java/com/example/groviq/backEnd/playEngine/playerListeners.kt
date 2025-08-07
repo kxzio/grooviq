@@ -4,6 +4,7 @@ import android.os.Looper
 import androidx.media3.common.Player
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
+import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.playerManager
@@ -64,7 +65,9 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
                 }
                 Player.STATE_ENDED -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
+
                     playerManager.nextSong(mainViewModel)
+
                 }
                 Player.STATE_IDLE -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)

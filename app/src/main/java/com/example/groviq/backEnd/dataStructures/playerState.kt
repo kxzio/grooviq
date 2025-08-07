@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
+import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +45,7 @@ data class playerState(
 
     //queue info
     var currentQueue: MutableList<String> = mutableListOf(),
+    val originalQueue: List<String> = emptyList(), // for shuffle mode
     var posInQueue  : Int = -1,
     var lastSourceBuilded : String = "",
 
@@ -74,6 +76,10 @@ class PlayerViewModel : ViewModel() {
         _uiState.value =_uiState.value.copy(currentQueue = newQueue)
     }
 
+    fun setOriginalQueue(newQueue: List<String>) {
+        _uiState.value =_uiState.value.copy(originalQueue = newQueue)
+    }
+
     fun setPosInQueue(newPos : Int) {
         _uiState.value =_uiState.value.copy(posInQueue = newPos)
     }
@@ -85,6 +91,9 @@ class PlayerViewModel : ViewModel() {
     fun toogleShuffleMode()
     {
         _uiState.value =_uiState.value.copy(isShuffle = !_uiState.value.isShuffle )
+
+        onShuffleToogle(mainViewModel = this)
+
     }
 
     fun toogleRepeatMode()
@@ -93,6 +102,7 @@ class PlayerViewModel : ViewModel() {
             if (_uiState.value.repeatMode == repeatMods.NO_REPEAT)          repeatMods.REPEAT_ALL
             else if (_uiState.value.repeatMode == repeatMods.REPEAT_ALL)    repeatMods.REPEAT_ONE
             else repeatMods.NO_REPEAT)
+
     }
 
     fun setAlbumTracks(request: String, tracks: List<songData>) {

@@ -9,6 +9,7 @@ import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
+import com.example.groviq.playerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -133,19 +134,45 @@ class AudioPlayerManager(context: Context) {
         player.release()
     }
 
-    fun nextSong(mainViewModel: PlayerViewModel)
-    {
+    fun nextSong(mainViewModel: PlayerViewModel) {
+        val view = mainViewModel.uiState.value
 
-        //move the index of queue pos
-        moveToNextPosInQueue(mainViewModel)
+        val repeatMode = view.repeatMode
+        val isShuffle = view.isShuffle
+        val currentQueue = view.currentQueue
+        val originalQueue = view.originalQueue
+        val pos = view.posInQueue
 
-        //play index
-        val viewState = mainViewModel.uiState.value
+        if (repeatMode == repeatMods.REPEAT_ONE) {
+            // Повтор одного трека
+            playerManager.play(currentQueue[pos], mainViewModel)
+            return
+        }
 
-        if (viewState.currentQueue.isEmpty() ||
-            viewState.posInQueue !in viewState.currentQueue.indices) return
+        val nextIndex = pos + 1
 
-        play(viewState.currentQueue[viewState.posInQueue], mainViewModel)
+        if (nextIndex < currentQueue.size) {
+            moveToNextPosInQueue(mainViewModel)
+            val newPos = mainViewModel.uiState.value.posInQueue
+            playerManager.play(currentQueue[newPos], mainViewModel)
+            return
+        }
+
+        // reached end of queue
+        if (repeatMode == repeatMods.REPEAT_ALL) {
+            val newQueue = if (isShuffle) {
+                originalQueue.shuffled().toMutableList()
+            } else {
+                originalQueue.toMutableList()
+            }
+
+            mainViewModel.setQueue(newQueue)
+            mainViewModel.setPosInQueue(0)
+            playerManager.play(newQueue[0], mainViewModel)
+            return
+        }
+
+        // Если NO_REPEAT и конец очереди — ничего не делаем
     }
 
     fun prevSong(mainViewModel: PlayerViewModel)

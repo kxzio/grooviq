@@ -18,8 +18,26 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
 
     var queue: MutableList<String> = sortedSongs.map { it.link }.toMutableList()
 
-    mainViewModel.setQueue(queue)
-    mainViewModel.setPosInQueue( queue.indexOfFirst { it == requstedHash } )
+    mainViewModel.setOriginalQueue(queue.toList())
+
+    val originalQueue = mainViewModel.uiState.value.originalQueue.toMutableList()
+
+    val newQueue = if (view.isShuffle) {
+
+        var withoutCurrent = originalQueue.toMutableList()
+        withoutCurrent.remove(requstedHash)
+
+        var newShuffled = withoutCurrent.shuffled().toMutableList()
+        newShuffled.add(0, requstedHash)
+
+        newShuffled
+
+    } else {
+        originalQueue
+    }
+
+    mainViewModel.setQueue(newQueue)
+    mainViewModel.setPosInQueue( newQueue.indexOfFirst { it == requstedHash } )
 }
 
 fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
@@ -50,4 +68,9 @@ fun moveToPrevPosInQueue(mainViewModel : PlayerViewModel)
         return
 
     mainViewModel.setPosInQueue(  mainViewModel.uiState.value.posInQueue - 1 )
+}
+
+fun onShuffleToogle(mainViewModel: PlayerViewModel)
+{
+    createQueueOnAudioSourceHash(mainViewModel, mainViewModel.uiState.value.playingHash)
 }
