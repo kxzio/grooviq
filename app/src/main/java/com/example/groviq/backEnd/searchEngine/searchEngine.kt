@@ -159,7 +159,8 @@ class SearchViewModel : ViewModel() {
                         number = t.track_num,
                         progressStatus = songProgressStatus(),
                         playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-                        art = albumBitmap
+                        art = albumBitmap,
+                        album_original_link = request
                     )
                 }
 
@@ -178,6 +179,7 @@ class SearchViewModel : ViewModel() {
             }
         }
     }
+
     fun parseAlbumJson(jsonStr: String): AlbumResponse {
 
         val json = JSONObject(jsonStr)

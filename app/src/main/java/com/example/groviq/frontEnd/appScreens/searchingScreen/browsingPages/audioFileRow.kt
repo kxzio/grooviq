@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
+import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.globalContext
 import com.example.groviq.vibrateLight
 
@@ -112,7 +114,7 @@ fun SwipeToQueueItem(
             }
         }
 
-        // Контент трека со смещением
+        //the content of song
         Row(
             modifier = Modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
@@ -145,20 +147,35 @@ fun SwipeToQueueItem(
             val liked by mainViewModel.isAudioSourceContainsSong(song.link, "Favourite")
                 .collectAsState(initial = false)
 
-            IconButton(
-                onClick = {
-                    if (liked)
-                        mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
-                    else
-                        mainViewModel.addSongToAudioSource(song.link, "Favourite")
+            Row()
+            {
+                IconButton(
+                    onClick = {
+                        if (liked)
+                            mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
+                        else
+                            mainViewModel.addSongToAudioSource(song.link, "Favourite")
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = "fav",
+                        tint = Color(255, 255, 255, if (liked) 255 else 100)
+                    )
                 }
-            ) {
-                Icon(
-                    imageVector = if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "fav",
-                    tint = Color(255, 255, 255, if (liked) 255 else 100)
-                )
+                IconButton(
+                    onClick = {
+                        openTrackSettingsBottomBar(song.link)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = "fav",
+                        tint = Color(255, 255, 255, 255)
+                    )
+                }
             }
+
         }
     }
 }

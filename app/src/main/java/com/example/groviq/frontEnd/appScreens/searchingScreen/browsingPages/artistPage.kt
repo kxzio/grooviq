@@ -26,6 +26,7 @@ import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.frontEnd.Screen
 import com.example.groviq.globalContext
 
 @Composable
@@ -105,7 +106,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                         val link = album.link
                         val encoded = Uri.encode(link)
                         searchingScreenNav.navigate(
-                            "album/$encoded"
+                            "${Screen.Searching.route}/album/$encoded"
                         )
                     })
                     {

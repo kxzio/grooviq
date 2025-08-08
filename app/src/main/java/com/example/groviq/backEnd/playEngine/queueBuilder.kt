@@ -17,13 +17,10 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
     if (mainViewModel.uiState.value.allAudioData[requstedHash] == null)
         return
 
-    val isPlayingFromPlaylist = view.playingAudioSourceHash.contains("http")
-
     val songsHashesInSource = mainViewModel.uiState.value.audioData[view.playingAudioSourceHash]!!.songIds
 
     var sortedSongs = songsHashesInSource
         .mapNotNull { songId -> mainViewModel.uiState.value.allAudioData[songId] }
-
 
     val queue: MutableList<queueElement> = sortedSongs.mapIndexed { index, song ->
         queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash )
@@ -34,6 +31,7 @@ fun createQueueOnAudioSourceHash(mainViewModel : PlayerViewModel, requstedHash :
 
     val originalQueue = mainViewModel.uiState.value.originalQueue.toMutableList()
 
+    //reconstruct queue for shuffle or cancel shuffling and return original queue
     val newQueue = if (view.isShuffle) {
 
         var withoutCurrent = originalQueue.toMutableList()

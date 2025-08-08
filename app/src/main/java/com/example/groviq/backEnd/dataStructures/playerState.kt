@@ -229,15 +229,20 @@ class PlayerViewModel : ViewModel() {
         // 1. audiosource playing
         // 2. song in playlist
         // 3. browser focus
+        // 4. queue have song in audiosource
 
         val playlists    = _uiState.value.audioData.filter { !it.key.contains("http") }
+
+        //var for queue check
+        val currentQueueAudioSources = _uiState.value.currentQueue.map { it.audioSource }.toSet()
 
         _uiState.value.audioData = _uiState.value.audioData.filter {
 
 
-            it.key == currentPlayingAudioSource ||      //we play this audioSource
-            playlists.containsKey(it.key)       ||      //this audioSource is playlist
-            it.key == uiState.value.searchBroserFocus   //this audiosource is UI focused
+            it.key == currentPlayingAudioSource         ||      //we play this audioSource
+            playlists.containsKey(it.key)               ||      //this audioSource is playlist
+            it.key == uiState.value.searchBroserFocus   ||      //this audiosource is UI focused
+            currentQueueAudioSources.contains(it.key)           //this audiosource is used for queue building
 
         }.toMutableMap()
 

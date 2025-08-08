@@ -33,6 +33,7 @@ import coil.compose.AsyncImage
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchType
+import com.example.groviq.frontEnd.Screen
 import com.example.groviq.globalContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,11 +41,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+//the request of search navigation
+val searchingRequest = mutableStateOf<String>("")
+
 @Composable
 fun searchResultsNavigation(searchingScreenNav: NavHostController)
 {
-    //user input of result he wants to get
-    var searchingRequest by remember { mutableStateOf("") }
 
     //focus manager to reset keyboard
     val focusManager = LocalFocusManager.current
@@ -58,9 +60,9 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController)
     Column()
     {
         OutlinedTextField(
-            value = searchingRequest,
+            value = searchingRequest.value,
             onValueChange = { newValue ->
-                searchingRequest = newValue
+                searchingRequest.value = newValue
 
                 // Отменяем предыдущую задачу поиска
                 searchJob?.cancel()
@@ -71,7 +73,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController)
                     if (globalContext != null) {
                         searchViewModel.getResultsOfSearchByString(
                             globalContext!!,
-                            searchingRequest
+                            searchingRequest.value
                         )
                     }
                 }
@@ -92,7 +94,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController)
                     if (globalContext != null) {
                         searchViewModel.getResultsOfSearchByString(
                             globalContext!!,
-                            searchingRequest
+                            searchingRequest.value
                         )
                     }
                 }
@@ -137,14 +139,14 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController)
                             val link = "https://music.youtube.com/browse/${result.link_id}"
                             val encoded = Uri.encode(link)
                             searchingScreenNav.navigate(
-                                "album/$encoded"
+                                "${Screen.Searching.route}/album/$encoded"
                             )
                         }
                         else if (result.type == searchType.ARTIST) {
                             val link = "https://music.youtube.com/channel/${result.link_id}"
                             val encoded = Uri.encode(link)
                             searchingScreenNav.navigate(
-                                "artist/$encoded"
+                                "${Screen.Searching.route}/artist/$encoded"
                             )
                         }
                     })

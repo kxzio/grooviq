@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.frontEnd.Screen
 
 @Composable
 fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHostController)
@@ -53,7 +54,7 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                                     result.key
                                 )
                             playlistNavigationLocal.navigate(
-                                "playlist/" + encoded
+                                "${Screen.Playlists.route}/playlist/" + encoded
                             )
 
                         })

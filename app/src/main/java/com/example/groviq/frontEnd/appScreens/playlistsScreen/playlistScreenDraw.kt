@@ -30,39 +30,5 @@ import com.example.groviq.backEnd.searchEngine.searchType
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showArtistFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchResultsNavigation
-import com.example.groviq.frontEnd.appScreens.searchingScreen.searchTabs
-
-sealed class playlistTabs(val route: String) {
-    object results : playlistTabs("playlist_list")
-}
-
-@Composable
-fun drawPlaylistScreen(
-    mainViewModel   : PlayerViewModel, //player view
-) {
-
-    val playlistNavigationLocal        = rememberNavController()
-
-    val mainUiState     by mainViewModel.uiState.collectAsState()
-
-    NavHost(
-        navController =  playlistNavigationLocal,
-        startDestination = playlistTabs.results.route,
-    ) {
-
-        //home page - list of playlists
-        composable(playlistTabs.results.route) { playlistList(mainViewModel, playlistNavigationLocal) }
-
-        //playlist page
-        composable(route = "playlist/{playlist_name}", arguments = listOf(navArgument("playlist_name") {
-            type = NavType.StringType
-        })
-        ) { backStackEntry ->
-            playlistDetailList(backStackEntry, mainViewModel)
-        }
 
 
-    }
-
-
-}

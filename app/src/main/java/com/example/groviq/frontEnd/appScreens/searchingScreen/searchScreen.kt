@@ -1,67 +1,31 @@
 package com.example.groviq.frontEnd.appScreens.searchingScreen
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.frontEnd.Screen
+import com.example.groviq.frontEnd.appScreens.artistPendingNavigation
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showArtistFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceFromSurf
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
-sealed class searchTabs(val route: String) {
-    object results : searchTabs("results")
-}
-
-@Composable
-fun drawSearchScreen(
-    searchViewModel : SearchViewModel, //search view
-    mainViewModel   : PlayerViewModel, //player view
-)
-{
-    val searchingScreenNav        = rememberNavController()
-
-    val searchUiState   by searchViewModel.uiState.collectAsState()
-    val mainUiState     by mainViewModel.uiState.collectAsState()
-
-    NavHost(
-        navController = searchingScreenNav,
-        startDestination = searchTabs.results.route,
-    ) {
-
-        //home page - searching
-        composable(searchTabs.results.route) { searchResultsNavigation(searchingScreenNav) }
-
-        //album page - browsing
-        composable(route = "album/{album_url}", arguments = listOf(navArgument("album_url") {
-            type = NavType.StringType
-        })
-        ) { backStackEntry ->
-            showAudioSourceFromSurf(backStackEntry,
-                searchViewModel,
-                mainViewModel,
-                searchingScreenNav
-            )
-        }
-
-        //artist page - browsing
-        composable(route = "artist/{artist_url}", arguments = listOf(navArgument("artist_url") {
-            type = NavType.StringType
-        })
-        ) { backStackEntry ->
-            showArtistFromSurf(backStackEntry,
-                searchViewModel,
-                mainViewModel,
-                searchingScreenNav
-                )
-        }
-    }
-
-
-}

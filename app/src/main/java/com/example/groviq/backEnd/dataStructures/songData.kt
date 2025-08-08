@@ -49,7 +49,10 @@ data class songData(
     var art    : Bitmap? = null,
 
     //number of song
-    var number : Int? = null
+    var number : Int? = null,
+
+    //it helps to easily move to original album in browse
+    var album_original_link : String = ""
 
 )
 {
