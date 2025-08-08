@@ -94,8 +94,6 @@ fun connectScreens(
                                         popUpTo(
                                             navController.graph.startDestinationId
                                         ) {
-                                            inclusive = true
-
                                             saveState =
                                                 true
                                         }

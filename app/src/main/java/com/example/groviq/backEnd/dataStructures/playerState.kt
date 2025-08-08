@@ -6,6 +6,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
+import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
 import kotlinx.coroutines.flow.Flow
@@ -116,7 +117,11 @@ class PlayerViewModel : ViewModel() {
 
     }
 
-    fun setAlbumTracks(request: String, tracks: List<songData>) {
+    fun setAlbumTracks(request: String, tracks: List<songData>,
+                       audioSourceName      : String,
+                       audioSourceArtist    : ArtistDto,
+                       audioSourceYear      : String,
+    ) {
 
         //function for browsing to add new audiosource and chain audiofiles to new audiosource
         val currentUiState = _uiState.value
@@ -130,12 +135,15 @@ class PlayerViewModel : ViewModel() {
 
         val updatedAudioData = currentUiState.audioData.toMutableMap()
         updatedAudioData[request] = audioSource().apply {
-            songIds = tracks.map { it.link }.toMutableList()
+            songIds             = tracks.map { it.link }.toMutableList()
+            nameOfAudioSource   = audioSourceName
+            artistOfAudioSource = audioSourceArtist
+            yearOfAudioSource   = audioSourceYear
         }
 
         _uiState.value = currentUiState.copy(
             allAudioData = updatedAllAudio,
-            audioData = updatedAudioData
+            audioData    = updatedAudioData
         )
     }
 

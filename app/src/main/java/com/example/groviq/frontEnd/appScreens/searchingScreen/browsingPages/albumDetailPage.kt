@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -41,6 +42,7 @@ import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.getStreamForAudio
+import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.globalContext
 import com.example.groviq.playerManager
 
@@ -93,6 +95,9 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                 return@Column
             }
 
+            //update focus to prevent deleting the audio source if this path is UI opened
+            mainViewModel.updateBrowserHashFocus(albumUrl)
+
             showDefaultAudioSource(albumUrl, mainViewModel)
 
         }
@@ -108,29 +113,71 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
     val audioSource = mainUiState.audioData[audioSourcePath]
 
+    if (audioSource == null)
+        return
+
     val songs = mainUiState.audioData[audioSourcePath]?.songIds
         ?.mapNotNull { mainUiState.allAudioData[it] }
         ?: emptyList()
 
-    //update focus to prevent deleting the audio source if this path is UI opened
-    mainViewModel.updateBrowserHashFocus(audioSourcePath)
+    Column {
 
-    LazyColumn {
-        items(
-            songs
-        ) { song ->
+        Column()
+        {
+            val mainArt = songs.first().art
 
-            SwipeToQueueItem(audioSource = audioSourcePath, song = song, mainViewModel = mainViewModel,
-                Modifier.clickable
-                {
-                    mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
-                    updatePosInQueue(mainViewModel, song.link)
-                    mainViewModel.deleteUserAdds()
+            if (mainArt != null)
+            {
+                Image(mainArt.asImageBitmap(), null, Modifier.size(80.dp))
+            }
+            else
+            {
+                Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(80.dp))
+            }
 
-                    playerManager.play(song.link, mainViewModel, true)
+            if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
+            {
+                Text(audioSourcePath)
+            }
+            else
+            {
+                Text(audioSource!!.nameOfAudioSource)
+            }
+
+            if (audioSource!!.artistOfAudioSource != null)
+            {
+                Text(audioSource!!.artistOfAudioSource.title, Modifier.clickable {
+                    openArtist(audioSource!!.artistOfAudioSource.url)
                 })
+            }
+
+
+            if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
+            {
+                Text(audioSource!!.yearOfAudioSource)
+            }
 
         }
+
+
+        LazyColumn {
+            items(
+                songs
+            ) { song ->
+
+                SwipeToQueueItem(audioSource = audioSourcePath, song = song, mainViewModel = mainViewModel,
+                    Modifier.clickable
+                    {
+                        mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
+                        updatePosInQueue(mainViewModel, song.link)
+                        mainViewModel.deleteUserAdds()
+
+                        playerManager.play(song.link, mainViewModel, true)
+                    })
+
+            }
+        }
     }
+
 
 }

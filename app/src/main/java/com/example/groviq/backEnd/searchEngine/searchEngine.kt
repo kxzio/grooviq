@@ -166,7 +166,17 @@ class SearchViewModel : ViewModel() {
 
                 //update UI value
                 withContext(Dispatchers.Main) {
-                    mainViewModel.setAlbumTracks(request, tracks)
+                    mainViewModel.setAlbumTracks(request, tracks,
+                    //next we add the information about album
+                        albumDto.album,
+                        ArtistDto(
+                            title = albumDto.artist,
+                            url =   albumDto.artist_url,
+                            imageUrl = "",
+                            albums = emptyList(),
+                        ),
+                        albumDto.year
+                    )
                 }
 
             } catch (e: CancellationException) {

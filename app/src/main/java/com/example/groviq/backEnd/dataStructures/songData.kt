@@ -52,7 +52,7 @@ data class songData(
     var number : Int? = null,
 
     //it helps to easily move to original album in browse
-    var album_original_link : String = ""
+    var album_original_link : String = "",
 
 )
 {
