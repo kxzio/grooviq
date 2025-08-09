@@ -20,6 +20,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -87,23 +88,20 @@ fun connectScreens(
                             },
                             selected = currentRoute?.startsWith(screen.route) == true,
                             onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(
-                                        screen.route
-                                    ) {
-                                        popUpTo(
-                                            navController.graph.startDestinationId
-                                        ) {
-                                            saveState =
-                                                true
+                                val isInsideThisTab = currentRoute?.startsWith(screen.route) == true
+
+                                if (!isInsideThisTab) {
+                                    // Переход на другую вкладку без сброса её вложенных экранов
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
                                         }
-
-                                        launchSingleTop =
-                                            true
-                                        restoreState =
-                                            true
-
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
+                                } else {
+                                    // Уже в этой вкладке — сброс к её корню
+                                    navController.popBackStack(screen.route, inclusive = false)
                                 }
                             }
                         )

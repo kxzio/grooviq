@@ -48,8 +48,9 @@ data class playerState(
     var searchBroserFocus        : String = "", // to not delete the data we currently see on the browser screen
 
     //queue info
-    var currentQueue    : MutableList   < queueElement > = mutableListOf(),
-    val originalQueue   : List          < queueElement > = emptyList(), // for shuffle mode
+    var currentQueue    : MutableList   < queueElement > = mutableListOf(), // the queue we have in current
+    var originalQueue   : List          < queueElement > = emptyList(),     // the queue we had before the shuffle
+    var shouldRebuild   : Boolean = false,                                  // indicate if we have to rebuild the queue from zero
 
     var posInQueue  : Int = -1,
     var lastSourceBuilded : String = "",
@@ -90,6 +91,11 @@ class PlayerViewModel : ViewModel() {
     fun setOriginalQueue(newQueue: List < queueElement > ) {
         _uiState.value =_uiState.value.copy(originalQueue = newQueue)
     }
+
+    fun setShouldRebuild(b : Boolean) {
+        _uiState.value =_uiState.value.copy(shouldRebuild = b)
+    }
+
 
 
     fun setPosInQueue(newPos : Int) {
@@ -246,7 +252,6 @@ class PlayerViewModel : ViewModel() {
 
         _uiState.value.audioData = _uiState.value.audioData.filter {
 
-
             it.key == currentPlayingAudioSource         ||      //we play this audioSource
             playlists.containsKey(it.key)               ||      //this audioSource is playlist
             it.key == uiState.value.searchBroserFocus   ||      //this audiosource is UI focused
@@ -263,7 +268,6 @@ class PlayerViewModel : ViewModel() {
         _uiState.value.allAudioData = _uiState.value.allAudioData
             .filter { usedSongIds.contains(it.key) }
             .toMutableMap()
-
 
     }
 

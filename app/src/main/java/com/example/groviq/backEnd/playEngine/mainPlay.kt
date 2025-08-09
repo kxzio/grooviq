@@ -70,8 +70,17 @@ class AudioPlayerManager(context: Context) {
 
         setSongProgress(0f, 0L)
 
-        //build a queue
-        if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash ||
+        if (mainViewModel.uiState.value.shouldRebuild && userPressed)
+        {
+            //reset all
+            mainViewModel.uiState.value.currentQueue    = mutableListOf()
+            mainViewModel.uiState.value.originalQueue   = emptyList()
+
+            //if queue was changed and user pressed, we have to recover original queue
+            createQueueOnAudioSourceHash(mainViewModel, hashkey)
+            mainViewModel.setShouldRebuild(false)
+        }
+        else if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash ||
             (userPressed && mainViewModel.uiState.value.isShuffle))
         {
             //if the audio source changed, we have to rebuild the queue

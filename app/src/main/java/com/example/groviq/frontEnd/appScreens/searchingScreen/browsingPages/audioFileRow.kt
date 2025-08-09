@@ -67,6 +67,9 @@ fun SwipeToQueueItem(
 
     val scope = rememberCoroutineScope()
 
+    val liked by mainViewModel.isAudioSourceContainsSong(song.link, "Favourite")
+        .collectAsState(initial = false)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -92,7 +95,12 @@ fun SwipeToQueueItem(
                             if (offsetX.value < addToLikesSwipeThreshold) {
 
                                 //Swipe accepted
-                                mainViewModel.addSongToAudioSource(song.link, "Favourite")
+
+                                if ( liked )
+                                    mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
+                                else
+                                    mainViewModel.addSongToAudioSource(song.link, "Favourite")
+
                                 vibrateLight(globalContext!!)
                             }
                             offsetX.animateTo(0f)
@@ -144,8 +152,6 @@ fun SwipeToQueueItem(
                 }
             }
 
-            val liked by mainViewModel.isAudioSourceContainsSong(song.link, "Favourite")
-                .collectAsState(initial = false)
 
             Row()
             {
