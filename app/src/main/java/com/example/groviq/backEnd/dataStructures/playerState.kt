@@ -111,7 +111,7 @@ class PlayerViewModel : ViewModel() {
         _uiState.value =_uiState.value.copy(isShuffle = !_uiState.value.isShuffle )
 
         //rebuild the queue
-        onShuffleToogle(mainViewModel = this)
+        onShuffleToogle(mainViewModel = this, _uiState.value.isShuffle)
     }
 
     fun toogleRepeatMode()

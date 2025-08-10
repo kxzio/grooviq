@@ -22,32 +22,32 @@ fun createQueueOnAudioSourceHash(mainViewModel: PlayerViewModel, requstedHash: S
 
     val oldOriginal = mainViewModel.uiState.value.originalQueue
 
-    // Словарь базовых песен для быстрого создания queueElement по hashKey
+    // the map of all base songs by hash
     val baseMap = baseSongs.associateBy { it.link }
 
     val newQueue = mutableListOf<queueElement>()
 
-    // Множество уже добавленных базовых песен, чтобы не добавить дубликаты
+    //already added hashes
     val addedBaseHashes = mutableSetOf<String>()
 
-    // Идём по старому originalQueue и вставляем элементы в новый список
+    //take original queue and take used ADDED requests
     for (elem in oldOriginal) {
         if (elem.addedByUser) {
-            // Пользовательский трек — просто вставляем на место
+            //user added
             newQueue.add(elem)
         } else {
-            // Базовый трек
+            //base track
             if (baseHashSet.contains(elem.hashKey) && !addedBaseHashes.contains(elem.hashKey)) {
-                // Создаём queueElement из актуальных данных (без addedByUser)
+                //create base track
                 val song = baseMap[elem.hashKey]!!
                 newQueue.add(queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash))
                 addedBaseHashes.add(elem.hashKey)
             }
-            // Если базовый трек не найден в новом списке, не добавляем — его возможно убрали из источника
+            //if base track not found - dont touch
         }
     }
 
-    // Добавляем базовые треки, которые не были добавлены (новые в источнике)
+    //add all songs that belong to this source
     for (song in baseSongs) {
         if (!addedBaseHashes.contains(song.link)) {
             newQueue.add(queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash))
@@ -55,6 +55,7 @@ fun createQueueOnAudioSourceHash(mainViewModel: PlayerViewModel, requstedHash: S
         }
     }
 
+    //save original queue
     mainViewModel.setOriginalQueue(newQueue)
     mainViewModel.setLastSourceBuilded(view.playingAudioSourceHash)
 
@@ -72,10 +73,10 @@ fun createQueueOnAudioSourceHash(mainViewModel: PlayerViewModel, requstedHash: S
         originalQueue
     }
 
+    //set queue
     mainViewModel.setQueue(newCurrentQueue)
     mainViewModel.setPosInQueue(newCurrentQueue.indexOfFirst { it.hashKey == requstedHash })
 }
-
 
 fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
 {
@@ -115,9 +116,32 @@ fun moveToPrevPosInQueue(mainViewModel : PlayerViewModel)
     mainViewModel.setPosInQueue(  mainViewModel.uiState.value.posInQueue - 1 )
 }
 
-fun onShuffleToogle(mainViewModel: PlayerViewModel)
+fun toggleShuffle(mainViewModel: PlayerViewModel, isShuffle : Boolean) {
+    val view = mainViewModel.uiState.value
+    val current = view.currentQueue.toMutableList()
+
+    val newQueue = if (isShuffle) {
+        //shuffle current
+        val shuffled = current.shuffled().toMutableList()
+        val index = shuffled.indexOfFirst { it.id == current[view.posInQueue].id }
+        if (index > 0) {
+            val elem = shuffled.removeAt(index)
+            shuffled.add(0, elem)
+        }
+        shuffled
+    } else {
+        //save added by user
+        val ordered = view.originalQueue.toMutableList()
+        ordered
+    }
+
+    mainViewModel.setQueue(newQueue)
+    mainViewModel.setPosInQueue(0)
+}
+
+fun onShuffleToogle(mainViewModel: PlayerViewModel, isShuffle : Boolean)
 {
-    createQueueOnAudioSourceHash(mainViewModel, mainViewModel.uiState.value.playingHash)
+    toggleShuffle(mainViewModel, isShuffle)
 }
 
 fun addToCurrentQueue(
@@ -161,13 +185,13 @@ fun removeFromQueue (mainViewModel: PlayerViewModel, currentIndex: Int) {
     if (origIndex != -1) {
         newOriginal.removeAt(origIndex)
     } else {
-        // запасной план: удалить первое подходящее по тройке полей (если id нет)
+        //if id delete was filed, we can delete it by hash, but this way is bad
         val fallback = newOriginal.indexOfFirst { it.hashKey == target.hashKey && it.audioSource == target.audioSource && it.addedByUser == target.addedByUser }
         if (fallback != -1) newOriginal.removeAt(fallback)
     }
     mainViewModel.setOriginalQueue(newOriginal)
 
-    // корректировка позиции
+    //fix position in queue
     val newPos = when {
         view.currentQueue.isEmpty() -> 0
         view.posInQueue == currentIndex -> currentIndex.coerceAtMost(newCurrent.lastIndex.coerceAtLeast(0))
@@ -177,42 +201,29 @@ fun removeFromQueue (mainViewModel: PlayerViewModel, currentIndex: Int) {
     mainViewModel.setPosInQueue(newPos)
     mainViewModel.setShouldRebuild(true)
 }
-fun moveInQueue     (mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
+fun moveInQueue(mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
     val view = mainViewModel.uiState.value
     if (fromIndex !in view.currentQueue.indices) return
     if (toIndex !in 0..view.currentQueue.lastIndex) return
     if (fromIndex == toIndex) return
 
-    // 1) currentQueue
+    // Работаем с currentQueue
     val newCurrent = view.currentQueue.toMutableList()
     val elem = newCurrent.removeAt(fromIndex)
     newCurrent.add(toIndex, elem)
     mainViewModel.setQueue(newCurrent)
 
-    // 2) originalQueue — перемещаем соответствующий элемент
+    // Работаем с originalQueue — перемещаем на ту же позицию toIndex
     val newOriginal = view.originalQueue.toMutableList()
     val origFrom = newOriginal.indexOfFirst { it.id == elem.id }
-
     if (origFrom != -1) {
         val elemOrig = newOriginal.removeAt(origFrom)
-
-        // найти "соседа" в новой currentQueue, чтобы понять, куда вставить в originalQueue
-        val successor = newCurrent.getOrNull(toIndex + 1) // элемент, который теперь идёт после перемещённого (если есть)
-        val insertBefore = if (successor != null) {
-            newOriginal.indexOfFirst { it.id == successor.id }.let { if (it == -1) newOriginal.size else it }
-        } else {
-            newOriginal.size // вставляем в конец
-        }
-
-        // если мы удалили элемент слева от целевой позиции, индекс вставки смещается на -1
-        val adjustedInsert = if (origFrom < insertBefore) (insertBefore - 1).coerceIn(0, newOriginal.size) else insertBefore.coerceIn(0, newOriginal.size)
-        newOriginal.add(adjustedInsert, elemOrig)
+        val insertPos = toIndex.coerceIn(0, newOriginal.size)
+        newOriginal.add(insertPos, elemOrig)
         mainViewModel.setOriginalQueue(newOriginal)
-    } else {
-        // fallback: если не нашли по id — ничего не делаем или пытаемся найти по тройке полей (редкий случай)
     }
 
-    // 3) корректируем posInQueue
+    // Корректируем posInQueue
     val currentPos = view.posInQueue
     val newPos = when {
         currentPos == fromIndex -> toIndex

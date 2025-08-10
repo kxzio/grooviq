@@ -251,64 +251,86 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 }
 
 @Composable
-fun drawQueuePage(mainViewModel : PlayerViewModel, onScreenMove : (settingPages) -> Unit)
-{
-    val mainUiState     by mainViewModel.uiState.collectAsState()
-
-    var queue = mainUiState.currentQueue
-
-    // update local queue when the ViewModel's queue changes
-    LaunchedEffect(mainUiState.currentQueue) {
-        queue = mainUiState.currentQueue
-    }
+fun drawQueuePage(
+    mainViewModel: PlayerViewModel,
+    onScreenMove: (settingPages) -> Unit
+) {
+    val mainUiState by mainViewModel.uiState.collectAsState()
 
     val lazyListState = rememberLazyListState()
     var isReordering by remember { mutableStateOf(false) }
 
-    LaunchedEffect(mainUiState.currentQueue) {
-        if (!isReordering) {
-            queue = mainUiState.currentQueue
+    val filteredQueue = remember(mainUiState.currentQueue, mainUiState.posInQueue) {
+        mainUiState.currentQueue.filterIndexed { index, element ->
+            index > mainUiState.posInQueue && index < 40
         }
     }
 
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        // Reorder the local queue
-        queue = queue.toMutableList().apply {
-            add(to.index, removeAt(from.index))
+        println("Moving from ${from.index} to ${to.index}")
+        if (mainUiState.currentQueue.isEmpty()) {
+            println("Queue is empty, aborting move")
+            return@rememberReorderableLazyListState
         }
-        // Update the ViewModel with the new queue order
-        moveInQueue(mainViewModel, from.index, to.index)
+
+        val currentFiltered = mainUiState.currentQueue.filterIndexed { index, element ->
+            index > mainUiState.posInQueue && index < 40
+        }
+
+        if (from.index !in currentFiltered.indices || to.index !in currentFiltered.indices) {
+            println("Invalid filtered indices: from=${from.index}, to=${to.index}, filtered size=${currentFiltered.size}")
+            return@rememberReorderableLazyListState
+        }
+
+        val fromOriginalIndex = mainUiState.currentQueue.indexOf(currentFiltered[from.index])
+        val toOriginalIndex = mainUiState.currentQueue  .indexOf(currentFiltered[to.index])
+
+        if (fromOriginalIndex == -1 || toOriginalIndex == -1 ||
+            fromOriginalIndex >= mainUiState.currentQueue.size || toOriginalIndex >= mainUiState.currentQueue.size) {
+            println("Invalid original indices: from=$fromOriginalIndex, to=$toOriginalIndex, queue size=${mainUiState.currentQueue.size}")
+            return@rememberReorderableLazyListState
+        }
+
+        moveInQueue(mainViewModel, fromOriginalIndex, toOriginalIndex)
     }
+
     val haptic = LocalHapticFeedback.current
+
+    Text("Далее в очереди...", color = Color(255, 255, 255), modifier = Modifier.padding(15.dp))
 
     LazyColumn(
         state = lazyListState,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
     ) {
+
         itemsIndexed(
-            items = queue,
-            key = { _, queueElement -> queueElement.hashKey } // Assuming hashKey is unique
-        ) { indexInQueue, queueElement ->
+            items = filteredQueue,
+            key = { _, queueElement -> queueElement.id }
+        ) { indexFiltered, queueElement ->
             val track = mainUiState.allAudioData[queueElement.hashKey]
 
-            ReorderableItem(reorderableState, key = queueElement.hashKey) { isDragging ->
-                val elevation by animateDpAsState(if (isDragging) 4.dp else 0.dp)
-                val scale by animateFloatAsState(if (isDragging) 1.05f else 1f)
+
+            ReorderableItem(reorderableState, key = queueElement.id) { isDragging ->
+                val elevation   by animateDpAsState(    if (isDragging) 4.dp else 0.dp  )
+                val scale       by animateFloatAsState( if (isDragging) 1.05f else 1f   )
 
                 Row(
                     modifier = Modifier
                         .shadow(elevation)
                         .scale(scale)
                 ) {
+                    //detele using original index
                     IconButton(
                         onClick = {
-                            removeFromQueue(mainViewModel, indexInQueue)
+                            val originalIndex = mainUiState.currentQueue.indexOf(filteredQueue[indexFiltered])
+                            removeFromQueue(mainViewModel, originalIndex)
                         }
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = "delete from queue",
-                            tint = Color(255, 255, 255, 255)
+                            tint = Color.White
                         )
                     }
 
@@ -318,7 +340,11 @@ fun drawQueuePage(mainViewModel : PlayerViewModel, onScreenMove : (settingPages)
                         modifier = Modifier.size(35.dp)
                     )
 
-                    Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp)
+                    ) {
                         Text(track.title, color = Color.White)
                         Text(
                             text = track.artists.joinToString { it.title },
@@ -328,7 +354,6 @@ fun drawQueuePage(mainViewModel : PlayerViewModel, onScreenMove : (settingPages)
                         )
                     }
 
-                    // Drag handle for reordering
                     IconButton(
                         modifier = Modifier.draggableHandle(
                             onDragStarted = {
@@ -340,7 +365,7 @@ fun drawQueuePage(mainViewModel : PlayerViewModel, onScreenMove : (settingPages)
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             }
                         ),
-                        onClick = {} // No click action needed, just for drag
+                        onClick = {}
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.DragHandle,
@@ -352,6 +377,4 @@ fun drawQueuePage(mainViewModel : PlayerViewModel, onScreenMove : (settingPages)
             }
         }
     }
-
-
 }
