@@ -40,7 +40,8 @@ data class TrackDto(
     val track_num: Int,
     val url: String,
     val duration_ms: Long,
-    val artists: List<ArtistDto>
+    val artists: List<ArtistDto>,
+    val imageUrl: String? = null,
 )
 data class AlbumResponse(
     val album: String,
@@ -68,6 +69,6 @@ data class searchState(
     //indicators
     var searchInProcess  : Boolean = false,
     var gettersInProcess : Boolean = false,
-    var publicErrors    : publucErrors = publucErrors.CLEAN
+    var publicErrors     : publucErrors = publucErrors.CLEAN
 
 )

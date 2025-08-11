@@ -39,6 +39,7 @@ class AudioPlayerManager(context: Context) {
 
     fun play(hashkey : String, mainViewModel: PlayerViewModel, userPressed : Boolean = false) {
 
+
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)
             return

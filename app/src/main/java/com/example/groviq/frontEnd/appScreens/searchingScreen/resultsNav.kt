@@ -151,15 +151,19 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                             )
                         }
                         else if (result.type == searchType.SONG) {
-                            val link = "${result.album_url}"
-                            val encoded = Uri.encode(link)
-                            searchingScreenNav.navigate(
-                                "${Screen.Searching.route}/album/$encoded"
-                            )
+                            //val link = "${result.album_url}"
+                            //val encoded = Uri.encode(link)
+                            //searchingScreenNav.navigate(
+                            //    "${Screen.Searching.route}/album/$encoded"
+                            //)
+
                             val trackLink = "https://music.youtube.com/watch?v=${result.link_id}"
 
+                            //request to get info
+                            searchViewModel.getTrack(globalContext!!, trackLink, mainViewModel)
+
                             //wait track and play
-                            mainViewModel.waitTrackAndPlay(trackLink, songData(title = result.title), link)
+                            mainViewModel.waitTrackAndPlay(trackLink, trackLink)
 
                         }
                     })

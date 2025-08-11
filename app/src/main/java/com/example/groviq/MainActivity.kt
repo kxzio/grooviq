@@ -17,6 +17,16 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.Localization
 import java.util.Locale
 import kotlin.system.exitProcess
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.example.groviq.backEnd.headerTaker.YTMusicWebView
 
 var globalContext : Context? = null
 
@@ -24,6 +34,9 @@ lateinit var playerManager: AudioPlayerManager
 
 class MainActivity :
     ComponentActivity() {
+
+    private lateinit var webView: WebView
+    private var capturedHeaders: String? = null
 
     override fun onCreate(
         savedInstanceState: Bundle?

@@ -17,6 +17,8 @@ import time
 from difflib import SequenceMatcher
 from typing import Any, Dict
 from ytmusicapi.parsers.browsing import parse_related_artist
+from ytmusicapi.setup import setup_browser
+from ytmusicapi.navigation import nav
 
 _ytm = YTMusic()
 
@@ -268,6 +270,39 @@ def getAlbum(ytmusic_url: str) -> str:
 
     return json.dumps(result, ensure_ascii=False, default=str)
 
+def getTrack(track_url: str) -> str:
+    def duration_to_millis(dur: str) -> int:
+        parts = [int(p) for p in dur.split(':')]
+        if len(parts) == 3:
+            h, m, s = parts
+        else:
+            h = 0; m, s = parts
+        return (h*3600 + m*60 + s) * 1000
+
+    video_id_match = re.search(r"v=([\w-]+)", track_url)
+    video_id = video_id_match.group(1) if video_id_match else track_url.strip()
+
+    # Используйте get_watch_playlist для лучшей поддержки метаданных
+    watch_playlist = _ytm.get_watch_playlist(video_id)
+    if not watch_playlist or not watch_playlist.get('tracks'):
+        return json.dumps({"title": "", "artists": [], "duration_ms": 0, "image_url": "", "url": track_url})
+
+    track = watch_playlist['tracks'][0]  # Первый трек — наш
+    title = track.get('title', '')
+    duration_ms = int(track.get('lengthSeconds', 0)) * 1000
+    artists_info = [{'name': ar.get('name', ''), 'url': f"https://music.youtube.com/channel/{ar.get('channelId', '')}" if ar.get('channelId') else ''} for ar in track.get('artists', [])]
+    image_url = track.get('thumbnail', [{}])[-1].get('url', '') if track.get('thumbnail') else ''
+
+    result = {
+        'title': title,
+        'artists': artists_info,
+        'duration_ms': duration_ms,
+        'image_url': image_url,
+        'url': track_url
+    }
+    return json.dumps(result, ensure_ascii=False)
+
+
 def getArtist(ytmusic_url: str) -> str:
     """
     Возвращает JSON-строку с метаданными артиста:
@@ -288,7 +323,7 @@ def getArtist(ytmusic_url: str) -> str:
         albums = []
         seen = set()
 
-        def fetch_albums(browse_id: str, params: str):
+        def fetch_albums(browse_id: str, params: str, is_single_section: bool):
             """Выкачивает и добавляет в albums все итемы по одному browseId+params."""
             try:
                 items = _ytm.get_artist_albums(browse_id, params, limit=None)
@@ -300,14 +335,12 @@ def getArtist(ytmusic_url: str) -> str:
                     continue
                 seen.add(sbid)
                 year = (item.get("year") or "")[:4]
-                # Определяем, является ли item синглом по title секции
-                is_single = False
                 albums.append({
                     "id": sbid,
                     "name": item.get("title", ""),
                     "image_url": (item.get("thumbnails") or [{}])[0].get("url", ""),
                     "url": f"https://music.youtube.com/browse/{sbid}",
-                    "is_single": is_single,
+                    "is_single": is_single_section,
                     "year": year
                 })
 
@@ -317,55 +350,93 @@ def getArtist(ytmusic_url: str) -> str:
             bid = sec.get("browseId")
             params = sec.get("params")
             if bid and params:
-                fetch_albums(bid, params)
+                is_single_section = "single" in key.lower()
+                fetch_albums(bid, params, is_single_section)
 
-        # 2) Если всё ещё пусто, ищем continuation в секциях «Top releases»
+        # 2) Если всё ещё пусто, ищем в секциях (e.g., «Top releases», «Albums»)
         if not albums:
             for section in art.get("sections", []):
-                cont = section.get("continuations")
-                if not cont:
-                    continue
-                # continuation может быть в nextContinuationData или nextEndpoint
-                token = (
-                    cont[0].get("nextContinuationData", {}).get("continuation")
-                    or cont[0].get("nextEndpoint", {}).get("params")
-                )
-                if token:
-                    try:
-                        items = _ytm.get_artist_albums_continuation(token)
-                    except Exception:
+                title = section.get("title", "")
+                if title.lower() not in ["albums", "singles", "album releases", "single releases", "top releases", "discography"]:
+                    continue  # Только релевантные секции
+
+                is_single_section = "single" in title.lower()
+
+                # Добавляем initial contents
+                contents = section.get("contents", [])
+                for item in contents:
+                    sbid = item.get("browseId")
+                    if not sbid or sbid in seen:
                         continue
-                    for item in items:
-                        sbid = item.get("browseId")
-                        if not sbid or sbid in seen:
-                            continue
-                        seen.add(sbid)
-                        year = (item.get("year") or "")[:4]
-                        albums.append({
-                            "id": sbid,
-                            "name": item.get("title", ""),
-                            "image_url": (item.get("thumbnails") or [{}])[0].get("url", ""),
-                            "url": f"https://music.youtube.com/browse/{sbid}",
-                            "is_single": False,
-                            "year": year
-                        })
-                    break
+                    seen.add(sbid)
+                    year = (item.get("year") or item.get("subtitle") or "")[-4:]  # Иногда year в subtitle
+                    albums.append({
+                        "id": sbid,
+                        "name": item.get("title", ""),
+                        "image_url": (item.get("thumbnails") or [{}])[0].get("url", ""),
+                        "url": f"https://music.youtube.com/browse/{sbid}",
+                        "is_single": is_single_section,
+                        "year": year
+                    })
+
+                # Обрабатываем continuation, если есть
+                cont = section.get("continuations") or []
+                if cont:
+                    token = cont[0].get("nextContinuationData", {}).get("continuation") or cont[0].get("nextEndpoint", {}).get("params")
+                    if token:
+                        # Фетчим все continuations
+                        more_items = fetch_continuations(token)
+                        for item in more_items:
+                            sbid = item.get("browseId")
+                            if not sbid or sbid in seen:
+                                continue
+                            seen.add(sbid)
+                            year = (item.get("year") or item.get("subtitle") or "")[-4:]
+                            albums.append({
+                                "id": sbid,
+                                "name": item.get("title", ""),
+                                "image_url": (item.get("thumbnails") or [{}])[0].get("url", ""),
+                                "url": f"https://music.youtube.com/browse/{sbid}",
+                                "is_single": is_single_section,
+                                "year": year
+                            })
 
         # Топ-5 треков
         top_tracks = []
         for t in art.get("songs", {}).get("results", [])[:5]:
+            # Конвертация длительности в миллисекунды
+            def duration_to_millis(dur: str) -> int:
+                parts = [int(p) for p in dur.split(':')]
+                if len(parts) == 3:
+                    h, m, s = parts
+                else:
+                    h = 0; m, s = parts
+                return (h*3600 + m*60 + s) * 1000
+
+            duration_ms = duration_to_millis(t.get("duration", "0:00"))
+
+            # Формируем массив артистов
+            artists_raw = t.get('artists', [])
+            artists_info = []
+            for ar in artists_raw:
+                name = ar.get('name', '')
+                ar_id = ar.get('id')
+                url = f"https://music.youtube.com/channel/{ar_id}" if ar_id else ''
+                artists_info.append({'name': name, 'url': url})
+
             top_tracks.append({
                 "id": t.get("videoId", ""),
                 "name": t.get("title", ""),
                 "album": t.get("album", {}).get("name", ""),
                 "album_image_url": (t.get("thumbnails") or [{}])[0].get("url", ""),
                 "preview_url": None,
-                "spotify_url": f"https://music.youtube.com/watch?v={t.get('videoId','')}",
-                "popularity": 0
+                "url": f"https://music.youtube.com/watch?v={t.get('videoId','')}",
+                "popularity": 0,
+                "duration_ms": duration_ms,
+                "artists": artists_info
             })
 
-
-        # 1) try direct helper if exists
+        # Related artists
         related = []
         related_data = art.get("related", {}).get("results", [])
         for item in related_data:
@@ -378,7 +449,7 @@ def getArtist(ytmusic_url: str) -> str:
         result = {
             "type": "artist",
             "artist": art.get("name", ""),
-            "related_artists":  related,
+            "related_artists": related,
             "link": f"https://music.youtube.com/channel/{artist_id}",
             "image_url": image_url,
             "monthly_listeners": art.get("stats", {}).get("subscriberCount", 0),
@@ -390,3 +461,19 @@ def getArtist(ytmusic_url: str) -> str:
     except Exception:
         traceback.print_exc()
         return "{}"
+
+
+def fetch_continuations(token: str) -> list:
+    """Custom функция для фетча всех continuation items (предполагаем carousel для releases)."""
+    items = []
+    renderer = 'musicCarouselShelfContinuation'  # Или 'musicShelfContinuation', если секция shelf
+    while token:
+        body = {"context": _ytm.context, "continuation": token}
+        try:
+            response = _ytm._send_request("browse", body)
+            cont_contents = nav(response, ['continuationContents', renderer, 'contents'], true_req=True)
+            items.extend(cont_contents)
+            token = nav(response, ['continuationContents', renderer, 'continuations', 0, 'nextContinuationData', 'continuation'], true_req=False)
+        except Exception:
+            break  # Если ошибка (e.g., неправильный renderer), остановиться
+    return items

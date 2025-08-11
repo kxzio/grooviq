@@ -80,6 +80,7 @@ class PlayerViewModel : ViewModel() {
         _uiState.value =_uiState.value.copy(playingHash = songLink)
     }
 
+
     fun setPlayingAudioSourceHash(audioSourceLink: String) {
         _uiState.value =_uiState.value.copy(playingAudioSourceHash = audioSourceLink)
     }
@@ -156,6 +157,30 @@ class PlayerViewModel : ViewModel() {
         )
     }
 
+    fun setTrack(request: String, song : songData,
+    ) {
+
+        //function for browsing to add new audiosource and chain audiofiles to new audiosource
+        val currentUiState = _uiState.value
+
+        val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
+        if (!updatedAllAudio.containsKey(request)) {
+            updatedAllAudio[request] = song
+        }
+
+
+        val updatedAudioData = currentUiState.audioData.toMutableMap()
+        updatedAudioData[request] = audioSource().apply {
+            songIds             = listOf(song.link).toMutableList()
+            nameOfAudioSource   = request
+        }
+
+        _uiState.value = currentUiState.copy(
+            allAudioData = updatedAllAudio,
+            audioData    = updatedAudioData
+        )
+    }
+
 
     fun updateStreamForSong(songLink: String, streamUrl: String) {
 
@@ -169,6 +194,20 @@ class PlayerViewModel : ViewModel() {
             _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
+
+    fun updateDurationForSong(songLink: String, duration: Long) {
+
+        val currentState = _uiState.value
+
+        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+
+        val song = updatedAllAudioData[songLink]
+        if (song != null) {
+            updatedAllAudioData[songLink] = song.copy(duration = duration)
+            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        }
+    }
+
 
     fun addSongToAudioSource(songLink: String, audioSource: String) {
 
@@ -280,15 +319,15 @@ class PlayerViewModel : ViewModel() {
         _uiState.value =_uiState.value.copy(searchBroserFocus = hash )
     }
 
-    fun waitTrackAndPlay(hash: String, songData: songData, audioSourcePath: String) {
+    fun waitTrackAndPlay(hash: String, audioSourcePath: String) {
+
+        playerManager.player.stop()
+
         viewModelScope.launch {
 
             //wait
             val track = uiState
-                .map { state ->
-                    state.allAudioData[hash]
-                        ?: state.allAudioData.values.firstOrNull { it.title == songData.title }
-                }
+                .map { state -> state.allAudioData[hash] }
                 .filterNotNull()
                 .first()
 

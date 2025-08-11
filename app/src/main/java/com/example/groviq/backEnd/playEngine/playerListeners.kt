@@ -59,6 +59,13 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
                 Player.STATE_READY -> {
                     if (playerManager.player.playWhenReady) {
                         mainViewModel.setPlayerStatus(playerStatus.PLAYING)
+
+                        val ui = mainViewModel.uiState.value
+                        if (ui.allAudioData[ui.playingHash]!!.duration == 0L)
+                        {
+                            mainViewModel.updateDurationForSong(ui.playingHash, playerManager.player.duration)
+                        }
+
                     } else {
                         mainViewModel.setPlayerStatus(playerStatus.PAUSE)
                     }

@@ -15,8 +15,8 @@ fun createQueueOnAudioSourceHash(mainViewModel: PlayerViewModel, requstedHash: S
     if (mainViewModel.uiState.value.allAudioData[requstedHash] == null)
         return
 
-    val baseSongs = mainViewModel.uiState.value.audioData[view.playingAudioSourceHash]!!.songIds
-        .mapNotNull { songId -> mainViewModel.uiState.value.allAudioData[songId] }
+    val baseSongs = mainViewModel.uiState.value.audioData[view.playingAudioSourceHash]?.songIds
+        ?.mapNotNull { songId -> mainViewModel.uiState.value.allAudioData[songId] } ?: emptyList()
 
     val baseHashSet = baseSongs.map { it.link }.toSet()
 

@@ -61,6 +61,7 @@ import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.dataStructures.songProgressState
 import com.example.groviq.formatTime
+import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.playerManager
 import kotlinx.coroutines.launch
@@ -226,7 +227,11 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             Image(song!!.art!!.asImageBitmap(), null)
                         }
 
-                        Text(song.title)
+
+                        Text(song.title, Modifier.clickable {
+                            openAlbum(song.album_original_link)
+                            onToogleSheet()
+                        })
 
                         Row()
                         {

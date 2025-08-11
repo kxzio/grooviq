@@ -36,12 +36,14 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
+import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.globalContext
+import com.example.groviq.playerManager
 
 @Composable
 fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
@@ -65,133 +67,132 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
         ?: return
 
     if (globalContext != null) {
-
         LaunchedEffect(artistUrl) {
             searchViewModel.getArtist(
                 context = globalContext!!,
                 request = artistUrl,
+                mainViewModel
             )
         }
 
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-        )  {
-
-            if (searchUiState.publicErrors != publucErrors.CLEAN)
-            {
-                if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
-                {
-                    Text(text = "Нет подключения к интернету")
-                }
-                else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
-                {
-                    Text(text = "Ничего не найдено")
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Ошибки и прогресс
+            if (searchUiState.publicErrors != publucErrors.CLEAN) {
+                item {
+                    when (searchUiState.publicErrors) {
+                        publucErrors.NO_INTERNET -> Text("Нет подключения к интернету")
+                        publucErrors.NO_RESULTS -> Text("Ничего не найдено")
+                        else -> Unit
+                    }
                 }
             }
 
-            if (searchUiState.gettersInProcess == true)
-            {
-                CircularProgressIndicator(modifier = Modifier.size(100.dp))
-                return@Column
+            if (searchUiState.gettersInProcess == true) {
+                item {
+                    CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                }
+                return@LazyColumn
             }
 
-            AsyncImage(
-                model = searchUiState.currentArtist.imageUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(
-                        120.dp
-                    )
-                    .clip(
-                        RoundedCornerShape(
-                            4.dp
-                        )
-                    )
-            )
+            // Обложка артиста
+            item {
+                AsyncImage(
+                    model = searchUiState.currentArtist.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                )
+            }
 
-            Text(searchUiState.currentArtist.title)
+            // Название артиста
+            item {
+                Text(searchUiState.currentArtist.title)
+            }
 
-            Text("Альбомы : ")
+            // Топ треки
+            val topSongs = mainUiState.audioData[artistUrl]?.songIds
+                ?.mapNotNull { mainUiState.allAudioData[it] }
+                ?: emptyList()
 
-            LazyRow {
-                items(
-                    searchUiState.currentArtist.albums
-                ) { album ->
+            items(topSongs) { song ->
+                SwipeToQueueItem(
+                    audioSource = artistUrl,
+                    song = song,
+                    mainViewModel = mainViewModel,
+                    modifier = Modifier.clickable {
+                        mainViewModel.setPlayingAudioSourceHash(artistUrl)
+                        updatePosInQueue(mainViewModel, song.link)
+                        mainViewModel.deleteUserAdds()
+                        playerManager.play(song.link, mainViewModel, true)
+                    }
+                )
+            }
 
-                    Column(Modifier.clickable {
-                        val link = album.link
-                        val encoded = Uri.encode(link)
-                        searchingScreenNav.navigate(
-                            "${Screen.Searching.route}/album/$encoded"
-                        )
-                    })
-                    {
-                        AsyncImage(
-                            model = album.image_url,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(
-                                    110.dp
-                                )
-                                .clip(
-                                    RoundedCornerShape(
-                                        4.dp
-                                    )
-                                )
-                        )
 
-                        Column()
-                        {
-                            Text(
-                                album.album,
-                                Modifier.padding(
-                                    top = 5.dp
-                                )
+            // Альбомы заголовок
+            item {
+                Text("Альбомы : ")
+            }
+
+            // Альбомы - LazyRow
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(searchUiState.currentArtist.albums) { album ->
+                        Column(
+                            Modifier.clickable {
+                                val link = album.link
+                                val encoded = Uri.encode(link)
+                                searchingScreenNav.navigate("${Screen.Searching.route}/album/$encoded")
+                            }
+                        ) {
+                            AsyncImage(
+                                model = album.image_url,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(110.dp)
+                                    .clip(RoundedCornerShape(4.dp))
                             )
-                            Text(
-                                album.year,
-                                Modifier.padding(
-                                    top = 5.dp
-                                )
-                            )
+                            Text(album.album, Modifier.padding(top = 5.dp))
+                            Text(album.year ?: "", Modifier.padding(top = 5.dp))
                         }
                     }
-
                 }
             }
 
-            Text("Похожие артисты : ")
+            // Похожие артисты заголовок
+            item {
+                Text("Похожие артисты : ")
+            }
 
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(searchUiState.currentArtist.relatedArtists) { item ->
-                    Column(Modifier.clickable {
-                        openArtist(item.url)
-                    }) {
-
-                        AsyncImage(
-                            model = item.imageUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(
-                                    120.dp
-                                )
-                                .clip(
-                                    CircleShape
-                                )
-                        )
-
-                        Text(text = item.title, color = Color(255, 255, 255))
+            // Похожие артисты - LazyRow
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(searchUiState.currentArtist.relatedArtists) { item ->
+                        Column(Modifier.clickable { openArtist(item.url) }) {
+                            AsyncImage(
+                                model = item.imageUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(CircleShape)
+                            )
+                            Text(text = item.title, color = Color.White)
+                        }
                     }
                 }
             }
-
         }
     }
 

@@ -1,6 +1,7 @@
 package com.example.groviq.backEnd.searchEngine
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -23,6 +24,8 @@ import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -251,7 +254,7 @@ class SearchViewModel : ViewModel() {
     private var currentArtistJob: Job? = null
     fun getArtist(
         context: Context,
-        request: String,
+        request: String, mainViewModel: PlayerViewModel
     ) {
         if (!hasInternetConnection(context)) {
             _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
@@ -275,6 +278,14 @@ class SearchViewModel : ViewModel() {
 
                 withContext(Dispatchers.Main) {
                     _uiState.update { it.copy(currentArtist = artist) }
+                    mainViewModel.setAlbumTracks(
+                        request,
+                        artist.topTracks.map { track -> async { trackDtoToSongData(track) } }.awaitAll(),
+                        "Popular tracks",
+                        audioSourceArtist = emptyList(),
+                        audioSourceYear = "",
+                    )
+
                 }
 
             } catch (e: CancellationException) {
@@ -321,7 +332,7 @@ class SearchViewModel : ViewModel() {
             )
         }
 
-        //related artists
+        // related artists
         val relatedArtistsJson = json.optJSONArray("related_artists") ?: JSONArray()
         val relatedArtists = mutableListOf<miniArtistDto>()
         for (i in 0 until relatedArtistsJson.length()) {
@@ -335,19 +346,36 @@ class SearchViewModel : ViewModel() {
             )
         }
 
-        //top tracks (dont work yet)
+        // top tracks
         val topTracksJson = json.optJSONArray("top_tracks") ?: JSONArray()
         val topTracks = mutableListOf<TrackDto>()
         for (i in 0 until topTracksJson.length()) {
             val t = topTracksJson.getJSONObject(i)
+
+            val artistsJson = t.optJSONArray("artists") ?: JSONArray()
+            val artists = mutableListOf<ArtistDto>()
+            for (j in 0 until artistsJson.length()) {
+                val ar = artistsJson.getJSONObject(j)
+                artists.add(
+                    ArtistDto(
+                        title = ar.optString("name", ""),
+                        url = ar.optString("url", ""),
+                        imageUrl = null,
+                        albums = emptyList(),
+                        topTracks = emptyList()
+                    )
+                )
+            }
+
             topTracks.add(
                 TrackDto(
                     id = t.optString("id", ""),
                     title = t.optString("name", ""),
+                    imageUrl = t.optString("album_image_url", ""),
                     track_num = 0,
-                    url = t.optString("spotify_url", ""),
-                    duration_ms = 0L,
-                    artists = emptyList()
+                    url = t.optString("url", ""),
+                    duration_ms = t.optLong("duration_ms", 0L),
+                    artists = artists
                 )
             )
         }
@@ -359,6 +387,107 @@ class SearchViewModel : ViewModel() {
             url = url,
             topTracks = topTracks,
             relatedArtists = relatedArtists
+        )
+    }
+
+    fun parseTrackJson(jsonStr: String): TrackDto {
+        val json = JSONObject(jsonStr)
+
+        // Артисты
+        val artistsJson = json.optJSONArray("artists") ?: JSONArray()
+        val artists = mutableListOf<ArtistDto>()
+        for (i in 0 until artistsJson.length()) {
+            val artistJson = artistsJson.getJSONObject(i)
+            artists.add(
+                ArtistDto(
+                    title = artistJson.optString("name", ""),
+                    url = artistJson.optString("url", ""),
+                    imageUrl = "",
+                    albums = emptyList()
+                )
+            )
+        }
+
+        return TrackDto(
+            title = json.optString("title", ""),
+            artists = artists,
+            duration_ms = json.optLong("duration_ms", 0),
+            imageUrl = json.optString("image_url", ""),
+            url = json.optString("url", ""),
+            id = "",
+            track_num = 0
+        )
+    }
+
+    private var currentTrackJob: Job? = null
+
+    fun getTrack(
+        context: Context,
+        request: String,
+        mainViewModel: PlayerViewModel
+    ) {
+        if (!hasInternetConnection(context)) {
+            _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
+            return
+        }
+
+        currentTrackJob?.cancel()
+
+        _uiState.update { it.copy(gettersInProcess = true) }
+
+        currentTrackJob = viewModelScope.launch {
+            try {
+                val trackMetaJson = withContext(Dispatchers.IO) {
+                    getPythonModule(context)
+                        .callAttr("getTrack", request)
+                        .toString()
+                }
+
+                val trackDto = parseTrackJson(trackMetaJson)
+
+                val trackBitmap = loadBitmapFromUrl(trackDto.imageUrl!!)
+
+                val trackData = songData(
+                    link = trackDto.url,
+                    title = trackDto.title,
+                    artists = trackDto.artists,
+                    stream = streamInfo(),
+                    duration = trackDto.duration_ms,
+                    number = 1,
+                    progressStatus = songProgressStatus(),
+                    playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
+                    art = trackBitmap,
+                    album_original_link = request
+                )
+
+                withContext(Dispatchers.Main) {
+                    mainViewModel.setTrack(request, trackData)
+                }
+
+            } catch (e: CancellationException) {
+
+            } catch (e: Exception) {
+                Log.e("getTrack", "getter error", e)
+            } finally {
+                _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
+            }
+        }
+    }
+
+    suspend fun trackDtoToSongData(track: TrackDto): songData {
+        val albumBitmap = loadBitmapFromUrl(track.imageUrl ?: "")
+
+        return songData(
+            link = track.url,
+            title = track.title,
+            artists = track.artists,
+            stream = streamInfo(),
+            duration = track.duration_ms,
+            number = track.track_num,
+            progressStatus = songProgressStatus(),
+            playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
+            art = albumBitmap,
+            album_original_link = ""
         )
     }
 }
