@@ -111,7 +111,8 @@ class SearchViewModel : ViewModel() {
                 link_id     = item.optString("id"),
                 title       = item.optString("name"),
                 author      = if (type == searchType.ARTIST) "" else item.optString("artist"),
-                image_url   = item.optString("image_url")
+                image_url   = item.optString("image_url"),
+                album_url   = if (type == searchType.SONG) item.optString("album_url") else "",
             )
         }
     }
@@ -166,15 +167,11 @@ class SearchViewModel : ViewModel() {
 
                 //update UI value
                 withContext(Dispatchers.Main) {
-                    mainViewModel.setAlbumTracks(request, tracks,
-                    //next we add the information about album
+                    mainViewModel.setAlbumTracks(
+                        request,
+                        tracks,
                         albumDto.album,
-                        ArtistDto(
-                            title = albumDto.artist,
-                            url =   albumDto.artist_url,
-                            imageUrl = "",
-                            albums = emptyList(),
-                        ),
+                        albumDto.artists,
                         albumDto.year
                     )
                 }
@@ -191,12 +188,11 @@ class SearchViewModel : ViewModel() {
     }
 
     fun parseAlbumJson(jsonStr: String): AlbumResponse {
-
         val json = JSONObject(jsonStr)
 
+        //track parse
         val tracksJson = json.optJSONArray("tracks") ?: JSONArray()
         val tracks = mutableListOf<TrackDto>()
-
         for (i in 0 until tracksJson.length()) {
             val trackJson = tracksJson.getJSONObject(i)
 
@@ -226,10 +222,24 @@ class SearchViewModel : ViewModel() {
             )
         }
 
+        //album parse
+        val albumArtistsJson = json.optJSONArray("artist") ?: JSONArray()
+        val albumArtists = mutableListOf<ArtistDto>()
+        for (i in 0 until albumArtistsJson.length()) {
+            val artistJson = albumArtistsJson.getJSONObject(i)
+            albumArtists.add(
+                ArtistDto(
+                    title = artistJson.optString("name", ""),
+                    url = artistJson.optString("url", ""),
+                    imageUrl = "",
+                    albums = emptyList()
+                )
+            )
+        }
+
         return AlbumResponse(
             album = json.optString("album", ""),
-            artist = json.optString("artist", ""),
-            artist_url = json.optString("artist_url", ""),
+            artists = albumArtists,
             year = json.optString("year", ""),
             image_url = json.optString("image_url", ""),
             tracks = tracks,
@@ -248,7 +258,7 @@ class SearchViewModel : ViewModel() {
             return
         }
 
-        // отмена предыдущего запроса, если был активен
+        //cancel previous job
         currentArtistJob?.cancel()
 
         _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
@@ -268,7 +278,7 @@ class SearchViewModel : ViewModel() {
                 }
 
             } catch (e: CancellationException) {
-                // Игнор, если отменили
+                //cancel
             } catch (e: Exception) {
                 Log.e("getArtist", "Artist load error", e)
                 withContext(Dispatchers.Main) {
@@ -279,6 +289,7 @@ class SearchViewModel : ViewModel() {
             }
         }
     }
+
     fun parseArtistJson(jsonStr: String, url: String): ArtistDto {
         val json = JSONObject(jsonStr)
 
@@ -293,8 +304,15 @@ class SearchViewModel : ViewModel() {
             albums.add(
                 AlbumResponse(
                     album = a.optString("name", ""),
-                    artist = artistName,
-                    artist_url = "",
+                    artists = listOf(
+                        ArtistDto(
+                            title = artistName,
+                            url = url,
+                            imageUrl = "",
+                            albums = emptyList(),
+                            topTracks = emptyList()
+                        )
+                    ),
                     tracks = emptyList(),
                     image_url = a.optString("image_url", ""),
                     link = a.optString("url", null),
@@ -303,11 +321,44 @@ class SearchViewModel : ViewModel() {
             )
         }
 
+        //related artists
+        val relatedArtistsJson = json.optJSONArray("related_artists") ?: JSONArray()
+        val relatedArtists = mutableListOf<miniArtistDto>()
+        for (i in 0 until relatedArtistsJson.length()) {
+            val ar = relatedArtistsJson.getJSONObject(i)
+            relatedArtists.add(
+                miniArtistDto(
+                    title = ar.optString("name", ""),
+                    imageUrl = ar.optString("image_url").takeIf { it.isNotBlank() },
+                    url = ar.optString("url", "")
+                )
+            )
+        }
+
+        //top tracks (dont work yet)
+        val topTracksJson = json.optJSONArray("top_tracks") ?: JSONArray()
+        val topTracks = mutableListOf<TrackDto>()
+        for (i in 0 until topTracksJson.length()) {
+            val t = topTracksJson.getJSONObject(i)
+            topTracks.add(
+                TrackDto(
+                    id = t.optString("id", ""),
+                    title = t.optString("name", ""),
+                    track_num = 0,
+                    url = t.optString("spotify_url", ""),
+                    duration_ms = 0L,
+                    artists = emptyList()
+                )
+            )
+        }
+
         return ArtistDto(
             title = artistName,
             imageUrl = imageUrl,
             albums = albums,
-            url = url
+            url = url,
+            topTracks = topTracks,
+            relatedArtists = relatedArtists
         )
     }
 }

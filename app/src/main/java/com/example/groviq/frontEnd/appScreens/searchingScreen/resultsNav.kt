@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchType
@@ -45,7 +47,7 @@ import kotlinx.coroutines.launch
 val searchingRequest = mutableStateOf<String>("")
 
 @Composable
-fun searchResultsNavigation(searchingScreenNav: NavHostController)
+fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewModel : SearchViewModel, mainViewModel : PlayerViewModel)
 {
 
     //focus manager to reset keyboard
@@ -54,7 +56,6 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController)
     //search job to update results the second after user entered his request
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    var searchViewModel: SearchViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val searchUiState by searchViewModel.uiState.collectAsState()
 
     Column()
@@ -148,6 +149,18 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController)
                             searchingScreenNav.navigate(
                                 "${Screen.Searching.route}/artist/$encoded"
                             )
+                        }
+                        else if (result.type == searchType.SONG) {
+                            val link = "${result.album_url}"
+                            val encoded = Uri.encode(link)
+                            searchingScreenNav.navigate(
+                                "${Screen.Searching.route}/album/$encoded"
+                            )
+                            val trackLink = "https://music.youtube.com/watch?v=${result.link_id}"
+
+                            //wait track and play
+                            mainViewModel.waitTrackAndPlay(trackLink, songData(title = result.title), link)
+
                         }
                     })
                     {

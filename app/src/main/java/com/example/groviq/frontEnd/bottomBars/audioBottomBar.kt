@@ -61,6 +61,7 @@ import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.dataStructures.songProgressState
 import com.example.groviq.formatTime
+import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.playerManager
 import kotlinx.coroutines.launch
 
@@ -233,7 +234,10 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                                 Text(
                                     artist.title + if (artist != song.artists.last()) ", " else "",
-                                    maxLines = 1, color = Color(255, 255, 255)
+                                    maxLines = 1, color = Color(255, 255, 255), modifier = Modifier.clickable {
+                                        openArtist(artist.url)
+                                        onToogleSheet()
+                                    }
                                 )
 
                             }
@@ -242,11 +246,13 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         Slider(
                             value = songProgressUi.value.progress,
                             onValueChange = { newProgress ->
+
                                 val duration = playerManager.player.duration
                                 val newPosition = (duration * newProgress).toLong()
 
                                 setSongProgress(newProgress, newPosition)
                                 playerManager.player.seekTo(newPosition)
+
                             },
                             modifier = Modifier.fillMaxWidth(),
                             steps = 0,
@@ -258,7 +264,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(text = formatTime(songProgressUi.value.position))
-                            Text(text =  formatTime(song.duration))
+                            Text(text = formatTime(song.duration))
                         }
 
                         Row(

@@ -14,8 +14,15 @@ data class searchInfo(
     var type      : searchType = searchType.NONE,
     var title     : String = "",
     var author    : String = "",
-    var link_id      : String = "",
-    var image_url : String = ""
+    var link_id   : String = "",
+    var image_url : String = "",
+    var album_url : String = ""
+)
+
+data class miniArtistDto(
+    val title: String,
+    val imageUrl: String?,
+    val url: String = "",
 )
 
 data class ArtistDto(
@@ -24,7 +31,9 @@ data class ArtistDto(
     val albums: List<AlbumResponse>,
     val url: String = "",
     val topTracks: List<TrackDto> = emptyList(),
+    val relatedArtists : List<miniArtistDto> = emptyList()
 )
+
 data class TrackDto(
     val id: String,
     val title: String,
@@ -35,10 +44,9 @@ data class TrackDto(
 )
 data class AlbumResponse(
     val album: String,
-    val artist: String,
-    val artist_url: String,
     val year: String,
     val image_url: String,
+    val artists: List<ArtistDto>,
     val tracks: List<TrackDto>,
     val link : String //for artist albums
 )

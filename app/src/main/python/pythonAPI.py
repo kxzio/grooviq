@@ -16,6 +16,7 @@ from typing import Tuple
 import time
 from difflib import SequenceMatcher
 from typing import Any, Dict
+from ytmusicapi.parsers.browsing import parse_related_artist
 
 _ytm = YTMusic()
 
@@ -150,7 +151,6 @@ def searchOnServer(q: str) -> str:
     }
     return json.dumps(result)
 
-
 def getAlbum(ytmusic_url: str) -> str:
     def extract_id(url: str) -> str:
         m = re.search(r"(?:browse/|album/)([\w-]+)", url)
@@ -173,8 +173,7 @@ def getAlbum(ytmusic_url: str) -> str:
     if not album:
         return json.dumps({
             "album":     "",
-            "artist":    "",
-            "artist_url":"",
+            "artist":    [],
             "year":      "",
             "image_url": "",
             "tracks":    []
@@ -239,25 +238,35 @@ def getAlbum(ytmusic_url: str) -> str:
             'artists': artists_info
         })
 
-    # Сбор метаданных артиста альбома
-    artists_all = [ar.get('name', '') for ar in album.get('artists', [])]
-    artist_url = ''
-    if album.get('artists'):
-        aid = album['artists'][0].get('id', '')
-        if aid:
-            artist_url = f"https://music.youtube.com/channel/{aid}"
+    album_artist_name = album.get('artist', '').lower()
+
+    if True :
+        # Собираем уникальных артистов из всех треков
+        unique_artists = {}
+        for track in tracks:
+            for ar in track['artists']:
+                key = ar['url'] or ar['name']  # уникальный ключ
+                if key not in unique_artists:
+                    unique_artists[key] = ar
+        artists_all = list(unique_artists.values())
+    else:
+        # Просто берём артистов альбома из метаданных
+        artists_all = []
+        for ar in album.get('artists', []):
+            name = ar.get('name', '')
+            ar_id = ar.get('id')
+            url = f"https://music.youtube.com/channel/{ar_id}" if ar_id else ''
+            artists_all.append({'name': name, 'url': url})
 
     result = {
         'album': album_title,
-        'artist': ", ".join(artists_all),
-        'artist_url': artist_url,
+        'artist': artists_all,
         'year': str(album.get('year', ''))[:4],
         'image_url': (album.get('thumbnails') or [{}])[-1].get('url', ''),
         'tracks': tracks
     }
 
     return json.dumps(result, ensure_ascii=False, default=str)
-
 
 def getArtist(ytmusic_url: str) -> str:
     """
@@ -355,9 +364,21 @@ def getArtist(ytmusic_url: str) -> str:
                 "popularity": 0
             })
 
+
+        # 1) try direct helper if exists
+        related = []
+        related_data = art.get("related", {}).get("results", [])
+        for item in related_data:
+            related.append({
+                "name": item.get("title", ""),
+                "url": f"https://music.youtube.com/channel/{item.get('browseId', '')}",
+                "image_url": (item.get("thumbnails") or [{}])[-1].get("url", "")
+            })
+
         result = {
             "type": "artist",
             "artist": art.get("name", ""),
+            "related_artists":  related,
             "link": f"https://music.youtube.com/channel/{artist_id}",
             "image_url": image_url,
             "monthly_listeners": art.get("stats", {}).get("subscriberCount", 0),

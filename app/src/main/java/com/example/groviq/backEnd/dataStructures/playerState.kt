@@ -4,18 +4,23 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
+import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.playerManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 enum class playerStatus {
     IDLE,
@@ -96,8 +101,6 @@ class PlayerViewModel : ViewModel() {
         _uiState.value =_uiState.value.copy(shouldRebuild = b)
     }
 
-
-
     fun setPosInQueue(newPos : Int) {
         _uiState.value =_uiState.value.copy(posInQueue = newPos)
     }
@@ -125,7 +128,7 @@ class PlayerViewModel : ViewModel() {
 
     fun setAlbumTracks(request: String, tracks: List<songData>,
                        audioSourceName      : String,
-                       audioSourceArtist    : ArtistDto,
+                       audioSourceArtist    : List<ArtistDto>,
                        audioSourceYear      : String,
     ) {
 
@@ -143,7 +146,7 @@ class PlayerViewModel : ViewModel() {
         updatedAudioData[request] = audioSource().apply {
             songIds             = tracks.map { it.link }.toMutableList()
             nameOfAudioSource   = audioSourceName
-            artistOfAudioSource = audioSourceArtist
+            artistsOfAudioSource = audioSourceArtist
             yearOfAudioSource   = audioSourceYear
         }
 
@@ -152,6 +155,7 @@ class PlayerViewModel : ViewModel() {
             audioData    = updatedAudioData
         )
     }
+
 
     fun updateStreamForSong(songLink: String, streamUrl: String) {
 
@@ -274,6 +278,26 @@ class PlayerViewModel : ViewModel() {
     fun updateBrowserHashFocus(hash: String)
     {
         _uiState.value =_uiState.value.copy(searchBroserFocus = hash )
+    }
+
+    fun waitTrackAndPlay(hash: String, songData: songData, audioSourcePath: String) {
+        viewModelScope.launch {
+
+            //wait
+            val track = uiState
+                .map { state ->
+                    state.allAudioData[hash]
+                        ?: state.allAudioData.values.firstOrNull { it.title == songData.title }
+                }
+                .filterNotNull()
+                .first()
+
+            //start
+            setPlayingAudioSourceHash(audioSourcePath)
+            updatePosInQueue(this@PlayerViewModel, track.link)
+            deleteUserAdds()
+            playerManager.play(track.link, this@PlayerViewModel, true)
+        }
     }
 
 }

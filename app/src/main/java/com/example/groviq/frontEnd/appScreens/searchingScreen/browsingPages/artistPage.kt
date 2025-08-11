@@ -2,13 +2,25 @@ package com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages
 
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
@@ -27,6 +40,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.Screen
+import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.globalContext
 
 @Composable
@@ -59,8 +73,12 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
             )
         }
 
-        Column()
-        {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        )  {
+
             if (searchUiState.publicErrors != publucErrors.CLEAN)
             {
                 if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
@@ -95,14 +113,14 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
 
             Text(searchUiState.currentArtist.title)
 
-            Text("Albums : ")
+            Text("Альбомы : ")
 
-            LazyColumn {
+            LazyRow {
                 items(
                     searchUiState.currentArtist.albums
                 ) { album ->
 
-                    Row(Modifier.clickable {
+                    Column(Modifier.clickable {
                         val link = album.link
                         val encoded = Uri.encode(link)
                         searchingScreenNav.navigate(
@@ -115,7 +133,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                             contentDescription = null,
                             modifier = Modifier
                                 .size(
-                                    65.dp
+                                    110.dp
                                 )
                                 .clip(
                                     RoundedCornerShape(
@@ -129,13 +147,13 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                             Text(
                                 album.album,
                                 Modifier.padding(
-                                    16.dp
+                                    top = 5.dp
                                 )
                             )
                             Text(
                                 album.year,
                                 Modifier.padding(
-                                    16.dp
+                                    top = 5.dp
                                 )
                             )
                         }
@@ -144,6 +162,35 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 }
             }
 
+            Text("Похожие артисты : ")
+
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(searchUiState.currentArtist.relatedArtists) { item ->
+                    Column(Modifier.clickable {
+                        openArtist(item.url)
+                    }) {
+
+                        AsyncImage(
+                            model = item.imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(
+                                    120.dp
+                                )
+                                .clip(
+                                    CircleShape
+                                )
+                        )
+
+                        Text(text = item.title, color = Color(255, 255, 255))
+                    }
+                }
+            }
 
         }
     }

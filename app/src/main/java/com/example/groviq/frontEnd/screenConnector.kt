@@ -143,7 +143,7 @@ fun connectScreens(
 
             //searching - results
             composable("${Screen.Searching.route}") {
-                searchResultsNavigation(navController)
+                searchResultsNavigation(navController, searchViewModel, mainViewModel)
             }
 
             //searching - album

@@ -1,8 +1,10 @@
 package com.example.groviq.frontEnd.bottomBars
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Check
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Shuffle
@@ -164,6 +168,7 @@ fun buttonForSettingBar(title : String, imageVector: ImageVector, onClick : () -
 enum class settingPages{
     MAIN_PAGE_SCREEN,
     QUEUE_SHOW_LIST_SCREEN,
+    SELECT_ARTIST_TO_MOVE,
     ADD_TO_PLAYLIST_SCREEN
 }
 
@@ -187,11 +192,16 @@ fun drawSettingsBottomBar(mainViewModel : PlayerViewModel, requestHash : String,
     val liked by mainViewModel.isAudioSourceContainsSong(track!!.link, "Favourite")
         .collectAsState(initial = false)
 
+    BackHandler {
+        settingPage = settingPages.MAIN_PAGE_SCREEN
+    }
+
     when (settingPage)
     {
         settingPages.MAIN_PAGE_SCREEN       -> { drawMainSettingsPage(mainViewModel, liked, track, onClose, { page -> settingPage = page} ) }
         settingPages.QUEUE_SHOW_LIST_SCREEN -> { drawQueuePage(mainViewModel, { page -> settingPage = page})}
         settingPages.ADD_TO_PLAYLIST_SCREEN -> {}
+        settingPages.SELECT_ARTIST_TO_MOVE ->  { drawSelectArtistPage(mainViewModel, track, onClose, { page -> settingPage = page})}
     }
 
 
@@ -236,8 +246,15 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     })
 
     buttonForSettingBar("Перейти к артисту", Icons.Rounded.People, {
-        openArtist(track!!.artists.first().url)
-        onClose()
+
+        if (track!!.artists.size > 1)
+        {
+            onScreenMove(settingPages.SELECT_ARTIST_TO_MOVE)
+        }
+        else {
+            openArtist(track!!.artists.first().url)
+            onClose()
+        }
     })
 
     buttonForSettingBar("Добавить в очередь", Icons.Rounded.Queue, {
@@ -251,10 +268,32 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 }
 
 @Composable
+fun drawSelectArtistPage(mainViewModel : PlayerViewModel, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
+{
+
+
+    track!!.artists.forEach { artist ->
+        Row()
+        {
+            Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
+                shape = CircleShape, color = Color(255, 255, 255) ).size(60.dp) )
+            Text(text = artist.title, color = Color(255, 255, 255), fontSize = 21.sp, modifier = Modifier.clickable {
+                openArtist(artist.url)
+                onClose()
+            })
+        }
+    }
+
+
+}
+
+@Composable
 fun drawQueuePage(
     mainViewModel: PlayerViewModel,
     onScreenMove: (settingPages) -> Unit
 ) {
+
+
     val mainUiState by mainViewModel.uiState.collectAsState()
 
     val lazyListState = rememberLazyListState()

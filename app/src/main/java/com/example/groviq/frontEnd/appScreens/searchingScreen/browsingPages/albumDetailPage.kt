@@ -2,6 +2,7 @@ package com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages
 
 import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,9 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
@@ -144,11 +147,27 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                 Text(audioSource!!.nameOfAudioSource)
             }
 
-            if (audioSource!!.artistOfAudioSource != null)
+            if (audioSource!!.artistsOfAudioSource.isNullOrEmpty().not())
             {
-                Text(audioSource!!.artistOfAudioSource.title, Modifier.clickable {
-                    openArtist(audioSource!!.artistOfAudioSource.url)
-                })
+                Column {
+
+                    audioSource!!.artistsOfAudioSource.forEach { artist ->
+
+                        Row()
+                        {
+                            Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
+                                shape = CircleShape, color = Color(255, 255, 255) ) )
+                            Text(artist.title, Modifier.clickable {
+                                openArtist(artist.url)
+                            })
+                        }
+
+
+                    }
+
+
+                }
+
             }
 
 
@@ -171,7 +190,6 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                         mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
                         updatePosInQueue(mainViewModel, song.link)
                         mainViewModel.deleteUserAdds()
-
                         playerManager.play(song.link, mainViewModel, true)
                     })
 

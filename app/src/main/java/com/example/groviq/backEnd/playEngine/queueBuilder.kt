@@ -207,13 +207,13 @@ fun moveInQueue(mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
     if (toIndex !in 0..view.currentQueue.lastIndex) return
     if (fromIndex == toIndex) return
 
-    // Работаем с currentQueue
+    //edit current queue
     val newCurrent = view.currentQueue.toMutableList()
     val elem = newCurrent.removeAt(fromIndex)
     newCurrent.add(toIndex, elem)
     mainViewModel.setQueue(newCurrent)
 
-    // Работаем с originalQueue — перемещаем на ту же позицию toIndex
+    //fix original queue
     val newOriginal = view.originalQueue.toMutableList()
     val origFrom = newOriginal.indexOfFirst { it.id == elem.id }
     if (origFrom != -1) {
@@ -223,7 +223,7 @@ fun moveInQueue(mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
         mainViewModel.setOriginalQueue(newOriginal)
     }
 
-    // Корректируем posInQueue
+    //fix pos in queue
     val currentPos = view.posInQueue
     val newPos = when {
         currentPos == fromIndex -> toIndex
