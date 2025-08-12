@@ -1,9 +1,23 @@
 package com.example.groviq.backEnd.playEngine
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.os.Build
 import android.os.SystemClock
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
+import androidx.media3.ui.PlayerNotificationManager
+import com.bumptech.glide.Glide
+import com.example.groviq.MainActivity
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
@@ -11,6 +25,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
+import com.example.groviq.globalContext
 import com.example.groviq.isSmall
 import com.example.groviq.playerManager
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
+@UnstableApi
 class AudioPlayerManager(context: Context) {
 
     //main player
@@ -34,14 +50,12 @@ class AudioPlayerManager(context: Context) {
     }.asCoroutineDispatcher()
     private val playbackScope = CoroutineScope(playbackDispatcher + SupervisorJob())
 
-
     //cooldown flag for play functions
     @Volatile
     private var lastPlayTimeMs = 0L
     private val PLAY_COOLDOWN_MS = 10L
 
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
-
 
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)

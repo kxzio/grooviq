@@ -49,11 +49,8 @@ class SearchViewModel : ViewModel() {
     private var searchJob: Job? = null
     fun getResultsOfSearchByString(context: Context, request: String) {
         val appContext = context.applicationContext
-
-        //cancel previous task
         searchJob?.cancel()
 
-        //creating a new job
         searchJob = CoroutineScope(Dispatchers.IO).launch {
             if (!hasInternetConnection(globalContext!!)) {
                 withContext(Dispatchers.Main) {
@@ -81,17 +78,13 @@ class SearchViewModel : ViewModel() {
                 val jsonObject = JSONObject(jsonString)
                 if (jsonObject.has("error")) return@launch
 
-                val tracks = parseJsonArray(jsonObject.getJSONArray("tracks"), searchType.SONG)
-                val albums = parseJsonArray(jsonObject.getJSONArray("albums"), searchType.ALBUM)
-                val artists = parseJsonArray(jsonObject.getJSONArray("artists"), searchType.ARTIST)
-
-                val allResults = (tracks + albums + artists).toMutableList()
+                val results = parseUnifiedJsonArray(jsonObject.getJSONArray("results"))
 
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(
-                        searchResults = allResults,
+                        searchResults = results.toMutableList(),
                         searchInProcess = false,
-                        publicErrors = if (allResults.isEmpty()) publucErrors.NO_RESULTS else publucErrors.CLEAN
+                        publicErrors = if (results.isEmpty()) publucErrors.NO_RESULTS else publucErrors.CLEAN
                     )
                 }
 
@@ -106,16 +99,23 @@ class SearchViewModel : ViewModel() {
             }
         }
     }
-    private fun parseJsonArray(jsonArray: JSONArray, type : searchType): List<searchInfo> {
+
+    private fun parseUnifiedJsonArray(jsonArray: JSONArray): List<searchInfo> {
         return (0 until jsonArray.length()).map { i ->
             val item = jsonArray.getJSONObject(i)
+            val type = when (item.optString("type")) {
+                "track" -> searchType.SONG
+                "album" -> searchType.ALBUM
+                "artist" -> searchType.ARTIST
+                else -> searchType.SONG
+            }
             searchInfo(
                 type = type,
-                link_id     = item.optString("id"),
-                title       = item.optString("name"),
-                author      = if (type == searchType.ARTIST) "" else item.optString("artist"),
-                image_url   = item.optString("image_url"),
-                album_url   = if (type == searchType.SONG) item.optString("album_url") else "",
+                link_id   = item.optString("id"),
+                title     = item.optString("name"),
+                author    = if (type == searchType.ARTIST) "" else item.optString("artist"),
+                image_url = item.optString("image_url"),
+                album_url = if (type == searchType.SONG) item.optString("album_url") else "",
             )
         }
     }

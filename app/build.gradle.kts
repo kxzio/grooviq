@@ -10,6 +10,7 @@ plugins {
     )
     id("com.chaquo.python")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.8.20"
+
 }
 
 android {
@@ -106,6 +107,8 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("com.github.bumptech.glide:glide:4.15.1")
+
 
     implementation("androidx.media:media:1.6.0")
     implementation("androidx.media3:media3-ui:1.3.1")

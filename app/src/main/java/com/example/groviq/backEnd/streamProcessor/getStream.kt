@@ -20,6 +20,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 var currentFetchJob: Job? = null
 
 fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
+
     val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 
     // Skip if already being handled
@@ -69,8 +70,6 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
 
 
 private var currentArtistJob: Job? = null
-
-
 
 var currentFetchImageJob: Job? = null
 

@@ -36,122 +36,73 @@ def getStream(youtube_url: str) -> str:
         audio_url = info['url']
         return audio_url
 
+# searchOnServer.py
 def searchOnServer(q: str) -> str:
     q = q.strip()
     if not q:
-        return json.dumps({
-            "tracks":  [],
-            "albums":  [],
-            "artists": [],
-            "error":   "Empty query"
-        })
+        return json.dumps({"results": [], "error": "Empty query"})
 
-    norm_q = q.lower()
-
-    # 1) Делаем три запроса
     try:
-        search_tracks  = _ytm.search(q, filter="songs",  limit=15)
-        search_albums  = _ytm.search(q, filter="albums", limit=15)
-        search_artists = _ytm.search(q, filter="artists",limit=15)
+        raw_results = _ytm.search(q, filter=None, limit=50)
     except Exception as e:
-        return json.dumps({
-            "tracks":  [],
-            "albums":  [],
-            "artists": [],
-            "error":   f"YTMusic API error: {e}"
-        })
+        return json.dumps({"results": [], "error": f"YTMusic API error: {e}"})
 
+    results = []
+    for item in raw_results:
+        rtype = item.get("resultType")
 
-    def track_data(t):
-        artists_list = t.get("artists") or []
-        if artists_list:
-            artist_str = ", ".join(a.get("name","") for a in artists_list if a.get("name"))
-        else:
-            artist_str = t.get("artist","") or t.get("channelName","")
+        if rtype == "song":
+            artists_list = item.get("artists") or []
+            artist_str = ", ".join(a.get("name", "") for a in artists_list if a.get("name")) \
+                         or item.get("artist", "") \
+                         or item.get("channelName", "")
+            album_url = None
+            if isinstance(item.get("album"), dict):
+                album_id = item["album"].get("id")
+                if album_id:
+                    album_url = f"https://music.youtube.com/browse/{album_id}"
+            results.append({
+                "type": "track",
+                "id": item.get("videoId", ""),
+                "name": item.get("title", ""),
+                "artist": artist_str,
+                "image_url": (item.get("thumbnails") or [{"url": ""}])[-1].get("url", ""),
+                "album_url": album_url
+            })
 
-        album_url = None
-        if "album" in t and isinstance(t["album"], dict):
-            album_id = t["album"].get("id")
-            if album_id:
-                album_url = f"https://music.youtube.com/browse/{album_id}"
+        elif rtype == "album":
+            artist_str = item.get("artist") \
+                or ", ".join(ar.get("name", "") for ar in item.get("artists", []) if ar.get("name")) \
+                or item.get("subtitle", "")
+            results.append({
+                "type": "album",
+                "id": item.get("browseId", ""),
+                "name": item.get("title", ""),
+                "artist": artist_str,
+                "image_url": (item.get("thumbnails") or [{"url": ""}])[-1].get("url", "")
+            })
 
-        return {
-            "type":      "track",
-            "id":        t.get("videoId",""),
-            "name":      t.get("title",""),
-            "artist":    artist_str,
-            "image_url": (t.get("thumbnails") or [{"url":""}])[-1].get("url",""),
-            "album_url": album_url
-        }
+        elif rtype == "artist":
+            name = (
+                item.get("name")
+                or item.get("title")
+                or item.get("artist")
+                or item.get("author")
+                or item.get("channelName")
+                or item.get("subtitle")
+                or ""
+            )
+            if not name and isinstance(item.get("artists"), list):
+                name = ", ".join(a.get("name", "") for a in item["artists"] if a.get("name"))
+            results.append({
+                "type": "artist",
+                "id": item.get("browseId", ""),
+                "name": name,
+                "image_url": (item.get("thumbnails") or [{"url": ""}])[-1].get("url", "")
+            })
 
-    def album_data(a):
-        artist_str = a.get("artist") \
-            or ", ".join(ar.get("name","") for ar in a.get("artists",[]) if ar.get("name")) \
-            or a.get("subtitle","")
-        return {
-            "type":      "album",
-            "id":        a.get("browseId",""),
-            "name":      a.get("title",""),
-            "artist":    artist_str,
-            "image_url": (a.get("thumbnails") or [{"url":""}])[-1].get("url","")
-        }
+    return json.dumps({"results": results})
 
-    def artist_data(ar):
-        # Пробуем все варианты, где может лежать имя артиста
-        name = (
-            ar.get("name")
-            or ar.get("title")
-            or ar.get("artist")
-            or ar.get("author")
-            or ar.get("channelName")
-            or ar.get("subtitle")
-            or ""
-        )
-        # Если вдруг внутри есть список artists
-        if not name and isinstance(ar.get("artists"), list):
-            name = ", ".join(a.get("name","") for a in ar["artists"] if a.get("name"))
-        return {
-            "type":      "artist",
-            "id":        ar.get("browseId",""),
-            "name":      name,
-            "image_url": (ar.get("thumbnails") or [{"url":""}])[-1].get("url","")
-        }
-
-    def ordered(raw_list, data_fn, check_fn):
-        exact, fuzzy = [], []
-        for item in raw_list:
-            data = data_fn(item)
-            if check_fn(item):
-                exact.append(data)
-            else:
-                fuzzy.append(data)
-        return exact + fuzzy
-
-    ordered_tracks = ordered(
-        search_tracks,
-        track_data,
-        lambda t: norm_q in t.get("title","").lower()
-                  or any(norm_q in a.get("name","").lower() for a in t.get("artists",[]))
-                  or norm_q in (t.get("artist") or "").lower()
-    )
-    ordered_albums = ordered(
-        search_albums,
-        album_data,
-        lambda a: norm_q in a.get("title","").lower()
-                  or norm_q in (a.get("artist") or "").lower()
-    )
-    ordered_artists = ordered(
-        search_artists,
-        artist_data,
-        lambda ar: norm_q in (ar.get("name") or ar.get("title","")).lower()
-    )
-
-    result = {
-        "tracks":  ordered_tracks,
-        "albums":  ordered_albums,
-        "artists": ordered_artists
-    }
-    return json.dumps(result)
 
 def getAlbum(ytmusic_url: str) -> str:
     def extract_id(url: str) -> str:
