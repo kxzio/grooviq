@@ -10,6 +10,8 @@ import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
+import com.example.groviq.backEnd.streamProcessor.fetchNewImage
+import com.example.groviq.isSmall
 import com.example.groviq.playerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -111,6 +113,18 @@ class AudioPlayerManager(context: Context) {
                 }
 
             }
+
+            //update image if size is small
+            if (song.art != null)
+            {
+                if (song.art!!.isSmall(200, 200))
+                {
+                    fetchNewImage(mainViewModel, song.link)
+                }
+            }
+            else
+                fetchNewImage(mainViewModel, song.link)
+
 
             //reactive waiting for stream url
             val streamUrl = mainViewModel.awaitStreamUrlFor(hashkey)

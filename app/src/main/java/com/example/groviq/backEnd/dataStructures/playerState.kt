@@ -1,5 +1,6 @@
 package com.example.groviq.backEnd.dataStructures
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
@@ -268,6 +269,19 @@ class PlayerViewModel : ViewModel() {
             _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
+
+    fun updateImageForSong(songLink: String, Image : Bitmap) {
+        val currentState = _uiState.value
+
+        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+
+        val song = updatedAllAudioData[songLink]
+        if (song != null) {
+            updatedAllAudioData[songLink] = song.copy(art = Image)
+            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        }
+    }
+
 
     suspend fun awaitStreamUrlFor(hash: String): String? {
         return uiState

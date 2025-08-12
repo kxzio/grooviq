@@ -340,6 +340,50 @@ def getTrack(track_url: str) -> str:
     return json.dumps(result, ensure_ascii=False)
 
 
+def getTrackImage(track_url: str) -> str:
+
+    def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
+        """
+        Преобразует ID из YTMusic API в полный URL.
+        entity_type: 'artist' или 'album'
+        """
+        if not entity_id:
+            return ''
+
+        if entity_type == "album":
+            # Альбомы почти всегда имеют вид /browse/MPREb_xxx
+            if entity_id.startswith('/browse/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/browse/{entity_id}"
+        else:
+            # Артисты
+            if entity_id.startswith('/channel/') or entity_id.startswith('/browse/') or entity_id.startswith('/artist/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/channel/{entity_id}"
+
+    video_id_match = re.search(r"v=([\w-]+)", track_url)
+    video_id = video_id_match.group(1) if video_id_match else track_url.strip()
+
+    watch_playlist = _ytm.get_watch_playlist(video_id)
+    if not watch_playlist or not watch_playlist.get('tracks'):
+        return json.dumps({
+            "title": "",
+            "artists": [],
+            "duration_ms": 0,
+            "image_url": "",
+            "url": track_url,
+            "album_url": ""
+        })
+
+    track = watch_playlist['tracks'][0]
+
+    # Обложка
+    image_url = track.get('thumbnail', [{}])[-1].get('url', '') if track.get('thumbnail') else ''
+
+    return image_url
+
+
+
 def getArtist(ytmusic_url: str) -> str:
     """
     Возвращает JSON-строку с метаданными артиста:

@@ -7,7 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,7 +46,6 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
-import com.example.groviq.backEnd.streamProcessor.getStreamForAudio
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.globalContext
 import com.example.groviq.playerManager
@@ -196,6 +197,12 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                         playerManager.play(song.link, mainViewModel, searchViewModel,true)
                     })
 
+            }
+
+            item {
+                if (mainUiState.allAudioData[mainUiState.playingHash] != null) {
+                    Spacer(Modifier.height(80.dp))
+                }
             }
         }
     }

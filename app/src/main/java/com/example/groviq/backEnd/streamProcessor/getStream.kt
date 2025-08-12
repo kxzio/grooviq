@@ -7,6 +7,7 @@ import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.backEnd.streamProcessor.innerTubeMine.getBestAudioStreamUrl
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
+import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,21 +70,38 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
 
 private var currentArtistJob: Job? = null
 
-fun getStreamForAudio(link: String, onResult: (String?) -> Unit) {
-    currentArtistJob?.cancel()
-    currentArtistJob = CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val streamUrl = getPythonModule(globalContext!!)
-                .callAttr("getStream", link)
-                .toString()
 
-            withContext(Dispatchers.Main) {
-                onResult(streamUrl)
+
+var currentFetchImageJob: Job? = null
+
+fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
+    val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
+
+    // Cancel previous job
+    currentFetchImageJob?.cancel()
+
+    currentFetchImageJob = CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val audioImage = getPythonModule(globalContext!!).callAttr("getTrackImage", songKey).toString()
+
+            if (!isActive) return@launch // if coroutine was cancelled, stop here
+
+            if (audioImage != null) {
+                val trackBitmap = loadBitmapFromUrl(audioImage)
+
+                withContext(Dispatchers.Main) {
+                    mainViewModel.updateImageForSong(songKey, trackBitmap!!)
+                }
+            } else {
+                println("No valid image found for $songKey")
             }
+
         } catch (e: Exception) {
-            e.printStackTrace()
+            println("Error fetching image for $songKey: ${e.message}")
+
+        } finally {
             withContext(Dispatchers.Main) {
-                onResult(null)
+
             }
         }
     }

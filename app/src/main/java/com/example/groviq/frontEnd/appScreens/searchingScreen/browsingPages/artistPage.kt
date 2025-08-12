@@ -196,6 +196,12 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                     }
                 }
             }
+
+            item {
+                if (mainUiState.allAudioData[mainUiState.playingHash] != null) {
+                    Spacer(Modifier.height(80.dp))
+                }
+            }
         }
     }
 

@@ -119,18 +119,7 @@ fun vibrateLight(context: Context) {
         vibrator.vibrate(vibrationEffect)
     }
 }
-@Composable
-fun TreeView(data: Map<String, Any>, indent: Int = 0) {
-    Column(modifier = Modifier.padding(start = (indent * 16).dp)) {
-        data.forEach { (key, value) ->
-            if (value is Map<*, *>) {
-                Text(text = key, fontWeight = FontWeight.Bold)
-                @Suppress("UNCHECKED_CAST")
-                TreeView(value as Map<String, Any>, indent + 1)
-            } else {
-                // Ключ + значение
-                Text(text = "$key: $value")
-            }
-        }
-    }
+
+fun Bitmap.isSmall(maxWidth: Int = 250, maxHeight: Int = 250): Boolean {
+    return width <= maxWidth && height <= maxHeight
 }
