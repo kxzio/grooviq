@@ -5,14 +5,18 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
+import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.globalContext
 import com.example.groviq.playerManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class playerStatus {
     IDLE,
@@ -67,10 +72,49 @@ data class playerState(
 
     )
 
-class PlayerViewModel : ViewModel() {
+
+class PlayerViewModelFactory(private val repository: DataRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(PlayerViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return PlayerViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(playerState())
     val uiState: StateFlow<playerState> = _uiState
+
+    fun saveAllToRoom() {
+        val snapshotAll = _uiState.value.allAudioData.toMap()
+        val snapshotAudio = _uiState.value.audioData.toMap()
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveAllAudioAndSources(snapshotAll, snapshotAudio, globalContext!!)
+        }
+    }
+
+    fun loadAllFromRoom() {
+        viewModelScope.launch {
+            val (songsMap, audioMap) = withContext(Dispatchers.IO) {
+                repository.loadAllAudioAndSources(globalContext!!)
+            }
+            // обновляем state на main
+            _uiState.value = _uiState.value.copy(
+                allAudioData = songsMap.toMutableMap(),
+                audioData = audioMap.toMutableMap()
+            )
+        }
+    }
+
+    fun saveSongToRoom(song: songData) {
+        viewModelScope.launch(Dispatchers.IO) { repository.saveSong(song, globalContext!!) }
+    }
+    fun saveAudioSourceToRoom(key: String, source: audioSource) {
+        viewModelScope.launch(Dispatchers.IO) { repository.saveAudioSource(key, source) }
+    }
 
     //current status of player : BUFFERING, IDLE and etc. to prevent user from not good UI decisions
     fun setPlayerStatus(status: playerStatus) {

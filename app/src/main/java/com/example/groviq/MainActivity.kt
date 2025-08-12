@@ -26,7 +26,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.lifecycle.ViewModelProvider
+import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.PlayerViewModelFactory
 import com.example.groviq.backEnd.headerTaker.YTMusicWebView
+import com.example.groviq.backEnd.saveSystem.AppDatabase
+import com.example.groviq.backEnd.saveSystem.DataRepository
 
 var globalContext : Context? = null
 
@@ -56,8 +62,12 @@ class MainActivity :
         initNewPipe()
 
         //player init
-        playerManager = AudioPlayerManager(this)
+        playerManager = AudioPlayerManager(this.applicationContext)
 
+        val db = AppDatabase.getInstance(this.applicationContext)
+        val repo = DataRepository(db)
+        val factory = PlayerViewModelFactory(repo)
+        val viewModel = ViewModelProvider(this, factory).get(PlayerViewModel::class.java)
 
         val locale = Locale("en", "US")
         NewPipe.setupLocalization(
@@ -69,7 +79,7 @@ class MainActivity :
         enableEdgeToEdge()
         setContent {
             GroviqTheme {
-                start()
+                start(viewModel)
             }
         }
     }
@@ -98,8 +108,8 @@ class MyApplication : Application() {
 }
 
 @Composable
-fun start()
+fun start(viewModel: PlayerViewModel)
 {
-    drawLayout()
+    drawLayout(viewModel)
 }
 

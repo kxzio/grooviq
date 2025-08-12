@@ -8,7 +8,5 @@ data class audioSource(
     var nameOfAudioSource     : String = "",
     var artistsOfAudioSource  : List<ArtistDto> = emptyList(),
     var yearOfAudioSource     : String = "",
-
-
     var songIds: MutableList<String> = mutableListOf()
 )

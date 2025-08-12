@@ -10,7 +10,7 @@ plugins {
     )
     id("com.chaquo.python")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.8.20"
-
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -130,7 +130,13 @@ dependencies {
     implementation("androidx.media3:media3-common:1.3.1")
     implementation("androidx.media3:media3-session:1.3.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.3.1")
-    
+
+    //save system
+
+    implementation("androidx.room:room-runtime:2.5.2")
+    kapt("androidx.room:room-compiler:2.5.2")
+    implementation("androidx.room:room-ktx:2.5.2")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

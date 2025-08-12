@@ -29,16 +29,16 @@ val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
 }
 
 @Composable
-fun drawLayout()
+fun drawLayout(mainViewModel: PlayerViewModel)
 {
     val screenConnectorNavigationLocal = rememberNavController()
 
     var searchViewModel: SearchViewModel = viewModel(viewModelStoreOwner = LocalActivity() )
-    val mainViewModel: PlayerViewModel = viewModel(viewModelStoreOwner   = LocalActivity() )
 
     //we get view now. now we have to attach listeners for view update
     LaunchedEffect(Unit) {
         createListeners(searchViewModel, mainViewModel)
+        mainViewModel.loadAllFromRoom()
     }
 
     BackHandler {

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
@@ -120,6 +121,20 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                     modifier = Modifier
                         .fillMaxWidth()
                 )
+
+                IconButton(
+                    onClick =
+                    {
+                        mainViewModel.saveAllToRoom()
+                    },
+                ) {
+                    Icon(
+                        imageVector =
+                        Icons.Rounded.Save,
+                        contentDescription = "SkipPrev",
+                        tint = Color(255, 255, 255)
+                    )
+                }
 
                 Row(
                     modifier = Modifier

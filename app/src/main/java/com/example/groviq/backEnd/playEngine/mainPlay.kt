@@ -37,7 +37,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
-@UnstableApi
 class AudioPlayerManager(context: Context) {
 
     //main player
