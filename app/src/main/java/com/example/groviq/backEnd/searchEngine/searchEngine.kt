@@ -375,7 +375,8 @@ class SearchViewModel : ViewModel() {
                     track_num = 0,
                     url = t.optString("url", ""),
                     duration_ms = t.optLong("duration_ms", 0L),
-                    artists = artists
+                    artists = artists,
+                    albumUrl = t.optString("album_url", ""),
                 )
             )
         }
@@ -415,7 +416,9 @@ class SearchViewModel : ViewModel() {
             imageUrl = json.optString("image_url", ""),
             url = json.optString("url", ""),
             id = "",
-            track_num = 0
+            track_num = 0,
+            albumUrl = json.optString("album_url", ""),
+
         )
     }
 
@@ -457,7 +460,7 @@ class SearchViewModel : ViewModel() {
                     progressStatus = songProgressStatus(),
                     playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
                     art = trackBitmap,
-                    album_original_link = request
+                    album_original_link = trackDto.albumUrl
                 )
 
                 withContext(Dispatchers.Main) {
@@ -487,7 +490,7 @@ class SearchViewModel : ViewModel() {
             progressStatus = songProgressStatus(),
             playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
             art = albumBitmap,
-            album_original_link = ""
+            album_original_link = track.albumUrl
         )
     }
 }

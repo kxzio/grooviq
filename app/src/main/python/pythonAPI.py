@@ -277,28 +277,65 @@ def getTrack(track_url: str) -> str:
             h, m, s = parts
         else:
             h = 0; m, s = parts
-        return (h*3600 + m*60 + s) * 1000
+        return (h * 3600 + m * 60 + s) * 1000
+
+    def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
+        """
+        Преобразует ID из YTMusic API в полный URL.
+        entity_type: 'artist' или 'album'
+        """
+        if not entity_id:
+            return ''
+
+        if entity_type == "album":
+            # Альбомы почти всегда имеют вид /browse/MPREb_xxx
+            if entity_id.startswith('/browse/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/browse/{entity_id}"
+        else:
+            # Артисты
+            if entity_id.startswith('/channel/') or entity_id.startswith('/browse/') or entity_id.startswith('/artist/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/channel/{entity_id}"
 
     video_id_match = re.search(r"v=([\w-]+)", track_url)
     video_id = video_id_match.group(1) if video_id_match else track_url.strip()
 
-    # Используйте get_watch_playlist для лучшей поддержки метаданных
     watch_playlist = _ytm.get_watch_playlist(video_id)
     if not watch_playlist or not watch_playlist.get('tracks'):
-        return json.dumps({"title": "", "artists": [], "duration_ms": 0, "image_url": "", "url": track_url})
+        return json.dumps({
+            "title": "",
+            "artists": [],
+            "duration_ms": 0,
+            "image_url": "",
+            "url": track_url,
+            "album_url": ""
+        })
 
-    track = watch_playlist['tracks'][0]  # Первый трек — наш
+    track = watch_playlist['tracks'][0]
     title = track.get('title', '')
     duration_ms = int(track.get('lengthSeconds', 0)) * 1000
-    artists_info = [{'name': ar.get('name', ''), 'url': f"https://music.youtube.com/channel/{ar.get('channelId', '')}" if ar.get('channelId') else ''} for ar in track.get('artists', [])]
+
+    # Артисты
+    artists_info = [
+        {'name': ar.get('name', ''), 'url': make_ytm_url(ar.get('id') or '')}
+        for ar in track.get('artists', [])
+    ]
+
+    # Обложка
     image_url = track.get('thumbnail', [{}])[-1].get('url', '') if track.get('thumbnail') else ''
+
+    # Альбом
+    album_data = track.get('album', {})
+    album_url = make_ytm_url(album_data.get('id') or '', "album")
 
     result = {
         'title': title,
         'artists': artists_info,
         'duration_ms': duration_ms,
         'image_url': image_url,
-        'url': track_url
+        'url': track_url,
+        'album_url': album_url
     }
     return json.dumps(result, ensure_ascii=False)
 
@@ -420,20 +457,33 @@ def getArtist(ytmusic_url: str) -> str:
             artists_info = []
             for ar in artists_raw:
                 name = ar.get('name', '')
-                ar_id = ar.get('id')
-                url = f"https://music.youtube.com/channel/{ar_id}" if ar_id else ''
+                ar_id = ar.get('id') or ''
+                url = ''
+                if ar_id:
+                    if ar_id.startswith('/channel/') or ar_id.startswith('/browse/') or ar_id.startswith('/artist/'):
+                        url = f"https://music.youtube.com{ar_id}"
+                    else:
+                        url = f"https://music.youtube.com/channel/{ar_id}"
                 artists_info.append({'name': name, 'url': url})
+
+            # Оригинальный альбом
+            album_data = t.get("album", {})
+            album_id = album_data.get("id") or ''
+            album_url = ''
+            if album_id:
+                album_url = f"https://music.youtube.com/browse/{album_id}"
 
             top_tracks.append({
                 "id": t.get("videoId", ""),
                 "name": t.get("title", ""),
-                "album": t.get("album", {}).get("name", ""),
+                "album": album_data.get("name", ""),
                 "album_image_url": (t.get("thumbnails") or [{}])[0].get("url", ""),
                 "preview_url": None,
                 "url": f"https://music.youtube.com/watch?v={t.get('videoId','')}",
                 "popularity": 0,
                 "duration_ms": duration_ms,
-                "artists": artists_info
+                "artists": artists_info,
+                "album_url": album_url
             })
 
         # Related artists

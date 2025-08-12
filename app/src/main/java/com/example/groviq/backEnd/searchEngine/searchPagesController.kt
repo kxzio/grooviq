@@ -42,6 +42,7 @@ data class TrackDto(
     val duration_ms: Long,
     val artists: List<ArtistDto>,
     val imageUrl: String? = null,
+    val albumUrl: String = ""
 )
 data class AlbumResponse(
     val album: String,

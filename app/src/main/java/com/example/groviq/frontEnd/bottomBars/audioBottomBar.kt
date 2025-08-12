@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,11 +56,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import com.example.groviq.TreeView
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.dataStructures.songProgressState
+import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.formatTime
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
@@ -68,7 +71,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun audioBottomSheet(mainViewModel : PlayerViewModel, content: @Composable () -> Unit) {
+fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
@@ -77,12 +80,12 @@ fun audioBottomSheet(mainViewModel : PlayerViewModel, content: @Composable () ->
 
     var showSheet by rememberSaveable { mutableStateOf(false) }
 
-    mainSheetDraw(sheetState, showSheet, {showSheet = !showSheet}, mainViewModel, content)
+    mainSheetDraw(sheetState, showSheet, {showSheet = !showSheet}, mainViewModel,searchViewModel, content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, content: @Composable () -> Unit) {
+fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
 
     val mainUiState     by mainViewModel.uiState.collectAsState()
     val songProgressUi            = songProgressState.collectAsState()
@@ -128,7 +131,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                     IconButton(
                         onClick =
                         {
-                            playerManager.prevSong(mainViewModel)
+                            playerManager.prevSong(mainViewModel, searchViewModel = searchViewModel )
                         },
                     ) {
                         Icon(
@@ -161,7 +164,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                     IconButton(
                         onClick =
                         {
-                            playerManager.nextSong(mainViewModel)
+                            playerManager.nextSong(mainViewModel, searchViewModel)
                         },
                     ) {
                         Icon(
@@ -233,6 +236,8 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             onToogleSheet()
                         })
 
+                        Spacer(Modifier.height(30.dp))
+
                         Row()
                         {
                             song.artists.forEach { artist ->
@@ -247,6 +252,8 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                             }
                         }
+
+                        Spacer(Modifier.height(30.dp))
 
                         Slider(
                             value = songProgressUi.value.progress,
@@ -279,7 +286,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             IconButton(
                                 onClick =
                                 {
-                                    playerManager.prevSong(mainViewModel)
+                                    playerManager.prevSong(mainViewModel, searchViewModel)
                                 },
                             ) {
                                 Icon(
@@ -312,7 +319,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             IconButton(
                                 onClick =
                                 {
-                                    playerManager.nextSong(mainViewModel)
+                                    playerManager.nextSong(mainViewModel, searchViewModel)
                                 },
                             ) {
                                 Icon(

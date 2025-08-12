@@ -163,7 +163,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                             searchViewModel.getTrack(globalContext!!, trackLink, mainViewModel)
 
                             //wait track and play
-                            mainViewModel.waitTrackAndPlay(trackLink, trackLink)
+                            mainViewModel.waitTrackAndPlay(searchViewModel, trackLink, trackLink)
 
                         }
                     })

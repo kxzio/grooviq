@@ -11,9 +11,15 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
@@ -111,5 +117,20 @@ fun vibrateLight(context: Context) {
             150
         )
         vibrator.vibrate(vibrationEffect)
+    }
+}
+@Composable
+fun TreeView(data: Map<String, Any>, indent: Int = 0) {
+    Column(modifier = Modifier.padding(start = (indent * 16).dp)) {
+        data.forEach { (key, value) ->
+            if (value is Map<*, *>) {
+                Text(text = key, fontWeight = FontWeight.Bold)
+                @Suppress("UNCHECKED_CAST")
+                TreeView(value as Map<String, Any>, indent + 1)
+            } else {
+                // Ключ + значение
+                Text(text = "$key: $value")
+            }
+        }
     }
 }

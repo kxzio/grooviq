@@ -70,12 +70,15 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
     if (globalContext != null) {
 
-        LaunchedEffect(albumUrl) {
-            searchViewModel.getAlbum(
-                context = globalContext!!,
-                request = albumUrl,
-                mainViewModel
-            )
+        if (mainUiState.audioData.containsKey(albumUrl).not())
+        {
+            LaunchedEffect(albumUrl) {
+                searchViewModel.getAlbum(
+                    context = globalContext!!,
+                    request = albumUrl,
+                    mainViewModel
+                )
+            }
         }
 
         Column()
@@ -101,7 +104,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
             //update focus to prevent deleting the audio source if this path is UI opened
             mainViewModel.updateBrowserHashFocus(albumUrl)
 
-            showDefaultAudioSource(albumUrl, mainViewModel)
+            showDefaultAudioSource(albumUrl, mainViewModel, searchViewModel)
 
         }
     }
@@ -109,7 +112,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
 //render albums or playlists detail screens
 @Composable
-fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewModel)
+fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel )
 {
 
     val mainUiState     by mainViewModel.uiState.collectAsState()
@@ -190,7 +193,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                         mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
                         updatePosInQueue(mainViewModel, song.link)
                         mainViewModel.deleteUserAdds()
-                        playerManager.play(song.link, mainViewModel, true)
+                        playerManager.play(song.link, mainViewModel, searchViewModel,true)
                     })
 
             }

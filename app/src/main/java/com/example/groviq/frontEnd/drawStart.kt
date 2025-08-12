@@ -51,7 +51,7 @@ fun drawLayout()
     ) {
         Box(Modifier.fillMaxSize())
         {
-            audioBottomSheet(mainViewModel)
+            audioBottomSheet(mainViewModel, searchViewModel)
             {
                 connectScreens(searchViewModel, mainViewModel)
             }

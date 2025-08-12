@@ -208,7 +208,6 @@ class PlayerViewModel : ViewModel() {
         }
     }
 
-
     fun addSongToAudioSource(songLink: String, audioSource: String) {
 
         val currentState = _uiState.value
@@ -277,7 +276,7 @@ class PlayerViewModel : ViewModel() {
             .firstOrNull()
     }
 
-    fun clearUnusedAudioSourcedAndSongs()
+    fun clearUnusedAudioSourcedAndSongs(searchViewModel: SearchViewModel)
     {
         val currentPlayingAudioSource   = _uiState.value.playingAudioSourceHash
 
@@ -288,17 +287,18 @@ class PlayerViewModel : ViewModel() {
         // 3. browser focus
         // 4. queue have song in audiosource
 
-        val playlists    = _uiState.value.audioData.filter { !it.key.contains("http") }
+        val playlists    = _uiState.value.audioData.filter { !it.key.contains("https://") }
 
         //var for queue check
         val currentQueueAudioSources = _uiState.value.currentQueue.map { it.audioSource }.toSet()
 
         _uiState.value.audioData = _uiState.value.audioData.filter {
 
-            it.key == currentPlayingAudioSource         ||      //we play this audioSource
-            playlists.containsKey(it.key)               ||      //this audioSource is playlist
-            it.key == uiState.value.searchBroserFocus   ||      //this audiosource is UI focused
-            currentQueueAudioSources.contains(it.key)           //this audiosource is used for queue building
+            it.key == currentPlayingAudioSource         ||              //we play this audioSource
+            playlists.containsKey(it.key)               ||              //this audioSource is playlist
+            it.key == uiState.value.searchBroserFocus   ||              //this audiosource is UI focused
+            currentQueueAudioSources.contains(it.key)   ||              //this audiosource is used for queue building
+            it.key == searchViewModel.uiState.value.currentArtist.url   //current opened artist popular songs
 
         }.toMutableMap()
 
@@ -319,7 +319,7 @@ class PlayerViewModel : ViewModel() {
         _uiState.value =_uiState.value.copy(searchBroserFocus = hash )
     }
 
-    fun waitTrackAndPlay(hash: String, audioSourcePath: String) {
+    fun waitTrackAndPlay(searchViewModel: SearchViewModel, hash: String, audioSourcePath: String) {
 
         playerManager.player.stop()
 
@@ -335,7 +335,7 @@ class PlayerViewModel : ViewModel() {
             setPlayingAudioSourceHash(audioSourcePath)
             updatePosInQueue(this@PlayerViewModel, track.link)
             deleteUserAdds()
-            playerManager.play(track.link, this@PlayerViewModel, true)
+            playerManager.play(track.link, this@PlayerViewModel, searchViewModel, true)
         }
     }
 

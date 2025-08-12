@@ -57,7 +57,6 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
     val searchUiState   by searchViewModel.uiState.collectAsState()
     val mainUiState     by mainViewModel.uiState.collectAsState()
 
-
     val rawEncoded = backStackEntry.arguments
         ?.getString("artist_url")
         ?: return
@@ -67,12 +66,16 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
         ?: return
 
     if (globalContext != null) {
-        LaunchedEffect(artistUrl) {
-            searchViewModel.getArtist(
-                context = globalContext!!,
-                request = artistUrl,
-                mainViewModel
-            )
+
+        if (artistUrl != searchUiState.currentArtist.url)
+        {
+            LaunchedEffect(artistUrl) {
+                searchViewModel.getArtist(
+                    context = globalContext!!,
+                    request = artistUrl,
+                    mainViewModel
+                )
+            }
         }
 
         LazyColumn(
@@ -86,7 +89,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 item {
                     when (searchUiState.publicErrors) {
                         publucErrors.NO_INTERNET -> Text("Нет подключения к интернету")
-                        publucErrors.NO_RESULTS -> Text("Ничего не найдено")
+                        publucErrors.NO_RESULTS  -> Text("Ничего не найдено")
                         else -> Unit
                     }
                 }
@@ -129,7 +132,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                         mainViewModel.setPlayingAudioSourceHash(artistUrl)
                         updatePosInQueue(mainViewModel, song.link)
                         mainViewModel.deleteUserAdds()
-                        playerManager.play(song.link, mainViewModel, true)
+                        playerManager.play(song.link, mainViewModel, searchViewModel, true)
                     }
                 )
             }

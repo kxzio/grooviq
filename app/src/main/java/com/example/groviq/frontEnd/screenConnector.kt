@@ -169,7 +169,7 @@ fun connectScreens(
             composable("${Screen.Playlists.route}/playlist/{playlist_name}",
                 arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
             ) {
-                playlistDetailList(it, mainViewModel)
+                playlistDetailList(it, searchViewModel, mainViewModel)
             }
         }
     }

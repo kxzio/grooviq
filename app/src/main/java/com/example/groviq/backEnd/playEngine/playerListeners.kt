@@ -73,7 +73,7 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
                 Player.STATE_ENDED -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
 
-                    playerManager.nextSong(mainViewModel)
+                    playerManager.nextSong(mainViewModel, searchViewModel)
 
                 }
                 Player.STATE_IDLE -> {

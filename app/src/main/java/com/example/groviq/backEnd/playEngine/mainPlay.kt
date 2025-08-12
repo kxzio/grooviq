@@ -7,6 +7,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
+import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.playerManager
@@ -37,7 +38,7 @@ class AudioPlayerManager(context: Context) {
     private var lastPlayTimeMs = 0L
     private val PLAY_COOLDOWN_MS = 10L
 
-    fun play(hashkey : String, mainViewModel: PlayerViewModel, userPressed : Boolean = false) {
+    fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
 
         //check bounding box
@@ -66,8 +67,6 @@ class AudioPlayerManager(context: Context) {
         //current playing index in hash value
         mainViewModel.setPlayingHash(hashkey)
 
-        //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
-        mainViewModel.clearUnusedAudioSourcedAndSongs()
 
         setSongProgress(0f, 0L)
 
@@ -89,6 +88,9 @@ class AudioPlayerManager(context: Context) {
             //update last built audio source
             mainViewModel.setLastSourceBuilded(mainViewModel.uiState.value.playingAudioSourceHash)
         }
+
+        //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
+        mainViewModel.clearUnusedAudioSourcedAndSongs(searchViewModel)
 
         currentPlaybackJob = playbackScope.launch {
 
@@ -145,7 +147,7 @@ class AudioPlayerManager(context: Context) {
         player.release()
     }
 
-    fun nextSong(mainViewModel: PlayerViewModel) {
+    fun nextSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel) {
         val view = mainViewModel.uiState.value
 
         val repeatMode = view.repeatMode
@@ -156,7 +158,7 @@ class AudioPlayerManager(context: Context) {
 
         if (repeatMode == repeatMods.REPEAT_ONE) {
             // Повтор одного трека
-            playerManager.play(currentQueue[pos].hashKey, mainViewModel)
+            playerManager.play(currentQueue[pos].hashKey, mainViewModel, searchViewModel )
             return
         }
 
@@ -165,7 +167,7 @@ class AudioPlayerManager(context: Context) {
         if (nextIndex < currentQueue.size) {
             moveToNextPosInQueue(mainViewModel)
             val newPos = mainViewModel.uiState.value.posInQueue
-            playerManager.play(currentQueue[newPos].hashKey, mainViewModel)
+            playerManager.play(currentQueue[newPos].hashKey, mainViewModel, searchViewModel)
             return
         }
 
@@ -179,14 +181,14 @@ class AudioPlayerManager(context: Context) {
 
             mainViewModel.setQueue(newQueue)
             mainViewModel.setPosInQueue(0)
-            playerManager.play(newQueue[0].hashKey, mainViewModel)
+            playerManager.play(newQueue[0].hashKey, mainViewModel, searchViewModel)
             return
         }
 
         // Если NO_REPEAT и конец очереди — ничего не делаем
     }
 
-    fun prevSong(mainViewModel: PlayerViewModel)
+    fun prevSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel)
     {
         //it means, we dont move to pres song if we have no prev song
         if (mainViewModel.uiState.value.posInQueue - 1 < 0)
@@ -201,7 +203,7 @@ class AudioPlayerManager(context: Context) {
         if (viewState.currentQueue.isEmpty() ||
             viewState.posInQueue !in viewState.currentQueue.indices) return
 
-        play(viewState.currentQueue[viewState.posInQueue].hashKey, mainViewModel)
+        play(viewState.currentQueue[viewState.posInQueue].hashKey, mainViewModel, searchViewModel)
     }
 
     fun isPlaying(): Boolean = player.isPlaying
