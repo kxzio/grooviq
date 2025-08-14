@@ -75,13 +75,10 @@ data class playerState(
 
 class PlayerViewModelFactory(private val repository: DataRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(PlayerViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return PlayerViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        return PlayerViewModel(repository) as T
     }
 }
+
 
 class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
@@ -110,10 +107,10 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     fun saveSongToRoom(song: songData) {
-        viewModelScope.launch(Dispatchers.IO) { repository.saveSong(song, globalContext!!) }
+        viewModelScope.launch(Dispatchers.IO) { repository.saveSong(this@PlayerViewModel, song, globalContext!!) }
     }
-    fun saveAudioSourceToRoom(key: String, source: audioSource) {
-        viewModelScope.launch(Dispatchers.IO) { repository.saveAudioSource(key, source) }
+    fun saveAudioSourcesToRoom() {
+        viewModelScope.launch(Dispatchers.IO) { repository.saveAudioSources(this@PlayerViewModel) }
     }
 
     //current status of player : BUFFERING, IDLE and etc. to prevent user from not good UI decisions
@@ -372,6 +369,32 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     }
 
+    fun isSongSavable(song : songData) : Boolean
+    {
+        //the main logic of filter motion
+        //logic operation :
+        // 1. song in playlist
+
+        val playlists    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+
+        val shouldSave = playlists.containsKey(song.link) //this audioSource is playlist
+
+        return shouldSave
+
+    }
+
+    fun getSavableAudioSources() : Map<String, audioSource>
+    {
+        //the main logic of filter motion
+        //logic operation :
+        // 1.
+
+        val saveable    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+
+        return saveable
+
+    }
+
     fun updateBrowserHashFocus(hash: String)
     {
         _uiState.value =_uiState.value.copy(searchBroserFocus = hash )
@@ -379,7 +402,8 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun waitTrackAndPlay(searchViewModel: SearchViewModel, hash: String, audioSourcePath: String) {
 
-        playerManager.player.stop()
+        if (playerManager.player != null)
+            playerManager.player!!.stop()
 
         viewModelScope.launch {
 

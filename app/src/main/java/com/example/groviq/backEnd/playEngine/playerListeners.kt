@@ -29,8 +29,8 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
     fun startProgressHandler() {
         progressRunnable = object : Runnable {
             override fun run() {
-                val position = playerManager.player.currentPosition
-                val duration = playerManager.player.duration
+                val position = playerManager.player!!.currentPosition
+                val duration = playerManager.player!!.duration
 
                 if (duration > 0) {
                     val progressFraction = position.toFloat() / duration
@@ -49,7 +49,7 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
         }
     }
 
-    playerManager.player.addListener(object : Player.Listener {
+    playerManager.player!!.addListener(object : Player.Listener {
 
         override fun onPlaybackStateChanged(state: Int) {
             when (state) {
@@ -57,13 +57,13 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
                     mainViewModel.setPlayerStatus(playerStatus.BUFFERING)
                 }
                 Player.STATE_READY -> {
-                    if (playerManager.player.playWhenReady) {
+                    if (playerManager.player!!.playWhenReady) {
                         mainViewModel.setPlayerStatus(playerStatus.PLAYING)
 
                         val ui = mainViewModel.uiState.value
                         if (ui.allAudioData[ui.playingHash]!!.duration == 0L)
                         {
-                            mainViewModel.updateDurationForSong(ui.playingHash, playerManager.player.duration)
+                            mainViewModel.updateDurationForSong(ui.playingHash, playerManager.player!!.duration)
                         }
 
                     } else {
@@ -83,9 +83,9 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            if (playWhenReady && playerManager.player.playbackState == Player.STATE_READY) {
+            if (playWhenReady && playerManager.player!!.playbackState == Player.STATE_READY) {
                 mainViewModel.setPlayerStatus(playerStatus.PLAYING)
-            } else if (!playWhenReady && playerManager.player.playbackState == Player.STATE_READY) {
+            } else if (!playWhenReady && playerManager.player!!.playbackState == Player.STATE_READY) {
                 mainViewModel.setPlayerStatus(playerStatus.PAUSE)
             }
         }

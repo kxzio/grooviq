@@ -60,12 +60,11 @@ class Converters {
 
 }
 fun sanitizeFileName(input: String): String {
-    // заменяем все символы, кроме букв, цифр, дефиса и подчёркивания на _
     return input.replace(Regex("[^A-Za-z0-9_.-]"), "_")
 }
 
 fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap, filenameKey: String): String {
-    // очистка ключа для использования в имени файла
+
     val safeFileName = "cover_" + sanitizeFileName(filenameKey) + ".png"
     val file = File(context.filesDir, safeFileName)
 
@@ -85,7 +84,6 @@ fun loadBitmapFromInternalStorage(context: Context, path: String): Bitmap? {
 
 fun songData.toEntity(context: Context): SongEntity {
     val artFilePath = this.art?.let { bitmap ->
-        // Сохраняем Bitmap в файл, возвращаем путь
         saveBitmapToInternalStorage(context, bitmap, this.link)
     }
 
@@ -103,8 +101,7 @@ fun songData.toEntity(context: Context): SongEntity {
     )
 }
 
-// SongEntity -> songData
-// При загрузке: читаем Bitmap из файла по artPath
+
 fun SongEntity.toDomain(context: Context): songData {
     val bitmap = this.artPath?.let { path ->
         loadBitmapFromInternalStorage(context, path)
@@ -124,7 +121,6 @@ fun SongEntity.toDomain(context: Context): songData {
     )
 }
 
-// audioSource -> AudioSourceEntity (key отдельно)
 fun audioSource.toEntity(key: String): AudioSourceEntity = AudioSourceEntity(
     key = key,
     nameOfAudioSource = this.nameOfAudioSource,
@@ -133,7 +129,6 @@ fun audioSource.toEntity(key: String): AudioSourceEntity = AudioSourceEntity(
     songIds = this.songIds
 )
 
-// AudioSourceEntity -> audioSource
 fun AudioSourceEntity.toDomain(): audioSource = audioSource(
     nameOfAudioSource = this.nameOfAudioSource,
     artistsOfAudioSource = this.artistsOfAudioSource,

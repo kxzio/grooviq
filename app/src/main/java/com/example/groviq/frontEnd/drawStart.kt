@@ -1,6 +1,10 @@
 package com.example.groviq.frontEnd
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -13,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat.registerReceiver
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -22,6 +27,7 @@ import com.example.groviq.frontEnd.bottomBars.audioBottomSheet
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.groviq.LocalActivity
 import com.example.groviq.frontEnd.bottomBars.trackSettingsBottomBar
+import com.example.groviq.playerManager
 
 //global nav controller for screens
 val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
@@ -29,11 +35,9 @@ val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
 }
 
 @Composable
-fun drawLayout(mainViewModel: PlayerViewModel)
+fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel)
 {
     val screenConnectorNavigationLocal = rememberNavController()
-
-    var searchViewModel: SearchViewModel = viewModel(viewModelStoreOwner = LocalActivity() )
 
     //we get view now. now we have to attach listeners for view update
     LaunchedEffect(Unit) {

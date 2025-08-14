@@ -102,6 +102,9 @@ fun SwipeToQueueItem(
                                     mainViewModel.addSongToAudioSource(song.link, "Favourite")
 
                                 vibrateLight(globalContext!!)
+
+                                mainViewModel.saveSongToRoom(song)
+                                mainViewModel.saveAudioSourcesToRoom()
                             }
                             offsetX.animateTo(0f)
                         }

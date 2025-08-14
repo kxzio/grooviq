@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -17,6 +18,7 @@ import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.backEnd.dataStructures.streamInfo
+import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
@@ -36,6 +38,13 @@ import kotlinx.serialization.json.Json
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.coroutines.cancellation.CancellationException
+
+
+class SearchViewModelFactory() : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return SearchViewModel() as T
+    }
+}
 
 class SearchViewModel : ViewModel() {
 

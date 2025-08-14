@@ -26,6 +26,7 @@ import com.chaquo.python.android.AndroidPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -122,4 +123,11 @@ fun vibrateLight(context: Context) {
 
 fun Bitmap.isSmall(maxWidth: Int = 250, maxHeight: Int = 250): Boolean {
     return width <= maxWidth && height <= maxHeight
+}
+
+// 1) Функция: Bitmap -> сжатый byte[]
+fun bitmapToCompressedBytes(bitmap: Bitmap, format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG, quality: Int = 90): ByteArray {
+    val baos = ByteArrayOutputStream()
+    bitmap.compress(format, quality, baos)
+    return baos.toByteArray()
 }

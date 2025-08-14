@@ -122,20 +122,6 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         .fillMaxWidth()
                 )
 
-                IconButton(
-                    onClick =
-                    {
-                        mainViewModel.saveAllToRoom()
-                    },
-                ) {
-                    Icon(
-                        imageVector =
-                        Icons.Rounded.Save,
-                        contentDescription = "SkipPrev",
-                        tint = Color(255, 255, 255)
-                    )
-                }
-
                 Row(
                     modifier = Modifier
                         .fillMaxSize(),
@@ -273,11 +259,11 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             value = songProgressUi.value.progress,
                             onValueChange = { newProgress ->
 
-                                val duration = playerManager.player.duration
+                                val duration = playerManager.player!!.duration
                                 val newPosition = (duration * newProgress).toLong()
 
                                 setSongProgress(newProgress, newPosition)
-                                playerManager.player.seekTo(newPosition)
+                                playerManager.player!!.seekTo(newPosition)
 
                             },
                             modifier = Modifier.fillMaxWidth(),

@@ -10,7 +10,12 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.SystemClock
+import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -25,9 +30,11 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
+import com.example.groviq.bitmapToCompressedBytes
 import com.example.groviq.globalContext
 import com.example.groviq.isSmall
 import com.example.groviq.playerManager
+import com.example.groviq.service.PlayerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,7 +47,16 @@ import java.util.concurrent.Executors
 class AudioPlayerManager(context: Context) {
 
     //main player
-    val player: ExoPlayer = ExoPlayer.Builder(context).build()
+    var player: ExoPlayer = ExoPlayer.Builder(globalContext!!).build().apply {
+        setHandleAudioBecomingNoisy(true)
+        setAudioAttributes(
+            AudioAttributes.Builder()
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .setUsage(C.USAGE_MEDIA)
+                .build(),
+            true
+        )
+    }
 
     //thread controllers
     private var currentPlaybackJob: Job? = null
@@ -54,7 +70,15 @@ class AudioPlayerManager(context: Context) {
     private var lastPlayTimeMs = 0L
     private val PLAY_COOLDOWN_MS = 10L
 
+    @OptIn(
+        UnstableApi::class
+    )
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
+
+        val svcIntent = Intent(globalContext!!, PlayerService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(globalContext!!, svcIntent)
+        }
 
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)
@@ -65,7 +89,7 @@ class AudioPlayerManager(context: Context) {
         if (now - lastPlayTimeMs < PLAY_COOLDOWN_MS) return
         lastPlayTimeMs = now
 
-        player.stop()
+        player!!.stop()
 
         //if we start playing another track, but last song didnt get the stream yet, we should cancel the thread to not overload
         if (hashkey != mainViewModel.uiState.value.playingHash) {
@@ -146,10 +170,25 @@ class AudioPlayerManager(context: Context) {
                 //back to UI layer
                 withContext(Dispatchers.Main)
                 {
-                    val mediaItem = MediaItem.fromUri(streamUrl)
-                    player.setMediaItem(mediaItem)
-                    player.prepare()
-                    player.playWhenReady = true
+
+                    val smallBitmap = Bitmap.createScaledBitmap(song.art!!, 256, 256, true)
+                    val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+
+                    val mediaItem = androidx.media3.common.MediaItem.Builder()
+                        .setUri(streamUrl)
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle(song.title)
+                                .setArtist(song.artists.joinToString())
+                                .setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                                .build()
+                        )
+                        .build()
+
+                    player!!.setMediaItem(mediaItem)
+                    player!!.prepare()
+                    player!!.playWhenReady = true
+
                 }
             }
 
@@ -159,19 +198,19 @@ class AudioPlayerManager(context: Context) {
     }
 
     fun pause() {
-        player.pause()
+        player!!.pause()
     }
 
     fun resume() {
-        player.play()
+        player!!.play()
     }
 
     fun stop() {
-        player.stop()
+        player!!.stop()
     }
 
     fun release() {
-        player.release()
+        player!!.release()
     }
 
     fun nextSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel) {
@@ -233,5 +272,4 @@ class AudioPlayerManager(context: Context) {
         play(viewState.currentQueue[viewState.posInQueue].hashKey, mainViewModel, searchViewModel)
     }
 
-    fun isPlaying(): Boolean = player.isPlaying
 }

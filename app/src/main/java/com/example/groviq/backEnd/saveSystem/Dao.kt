@@ -18,6 +18,9 @@ interface SongDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(song: SongEntity)
+
+    @Delete()
+    fun delete(song: SongEntity)
 }
 
 @Dao
@@ -28,9 +31,15 @@ interface AudioSourceDao {
     @Query("SELECT * FROM audio_sources")
     fun getAll(): List<AudioSourceEntity>
 
+    @Query("SELECT songIds FROM audio_sources")
+    fun getAllIds(): List<String>
+
     @Query("DELETE FROM audio_sources")
     fun clearAll()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(source: AudioSourceEntity)
+
+    @Delete()
+    fun delete(song: SongEntity)
 }
