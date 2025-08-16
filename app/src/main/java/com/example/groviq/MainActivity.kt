@@ -50,7 +50,9 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModelFactory
 
 var globalContext : Context? = null
 
-lateinit var playerManager: AudioPlayerManager
+val playerManager: AudioPlayerManager by lazy {
+    AudioPlayerManager(globalContext!!)
+}
 
 private lateinit var nextReceiver: BroadcastReceiver
 private lateinit var prevReceiver: BroadcastReceiver
@@ -73,12 +75,6 @@ class MainActivity :
         )
 
         globalContext = this.applicationContext
-
-        //player init
-        if (playerManager == null)
-        {
-            playerManager = AudioPlayerManager(globalContext!!)
-        }
 
         //start python
         if (!Python.isStarted()) {
@@ -121,6 +117,7 @@ class MainActivity :
             registerReceiver(prevReceiver, IntentFilter("ACTION_PREV_SONG"))
         }
 
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -131,7 +128,6 @@ class MainActivity :
         NewPipe.setupLocalization(
             Localization.fromLocale(locale)
         )
-
 
         enableEdgeToEdge()
         setContent {

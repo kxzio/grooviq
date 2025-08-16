@@ -32,8 +32,10 @@ import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
 import com.example.groviq.bitmapToCompressedBytes
 import com.example.groviq.globalContext
+import com.example.groviq.isServiceRunning
 import com.example.groviq.isSmall
 import com.example.groviq.playerManager
+import com.example.groviq.service.CustomPlayer
 import com.example.groviq.service.PlayerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,10 +46,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
+@UnstableApi
 class AudioPlayerManager(context: Context) {
 
     //main player
-    var player: ExoPlayer = ExoPlayer.Builder(globalContext!!).build().apply {
+    var notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!).build().apply {
         setHandleAudioBecomingNoisy(true)
         setAudioAttributes(
             AudioAttributes.Builder()
@@ -57,6 +60,8 @@ class AudioPlayerManager(context: Context) {
             true
         )
     }
+
+    var player = CustomPlayer(notOverridedPlayer)
 
     //thread controllers
     private var currentPlaybackJob: Job? = null
@@ -75,9 +80,13 @@ class AudioPlayerManager(context: Context) {
     )
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
-        val svcIntent = Intent(globalContext!!, PlayerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(globalContext!!, svcIntent)
+        val svcIntent = Intent(globalContext, PlayerService::class.java)
+        if (!isServiceRunning(globalContext!!, PlayerService::class.java)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(globalContext, svcIntent)
+            } else {
+                globalContext!!.startService(svcIntent)
+            }
         }
 
         //check bounding box
@@ -174,18 +183,30 @@ class AudioPlayerManager(context: Context) {
                     val smallBitmap = Bitmap.createScaledBitmap(song.art!!, 256, 256, true)
                     val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
 
+                    val emptyMediaItemNext = androidx.media3.common.MediaItem.Builder()
+                        .setUri("")
+                        .setMediaId("MOVE_TO_NEXT")
+                        .build()
+
+                    val emptyMediaItemPrev = androidx.media3.common.MediaItem.Builder()
+                        .setUri("")
+                        .setMediaId("MOVE_TO_PREVIOUS")
+                        .build()
+
                     val mediaItem = androidx.media3.common.MediaItem.Builder()
                         .setUri(streamUrl)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
                                 .setTitle(song.title)
-                                .setArtist(song.artists.joinToString())
+                                .setArtist(song.artists.map { it.title }.joinToString())
                                 .setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
                                 .build()
                         )
                         .build()
 
-                    player!!.setMediaItem(mediaItem)
+                    player!!.setMediaItems(
+                        listOf(emptyMediaItemPrev, mediaItem, emptyMediaItemNext))
+                    player.seekTo(1, 0)
                     player!!.prepare()
                     player!!.playWhenReady = true
 
@@ -196,6 +217,7 @@ class AudioPlayerManager(context: Context) {
         }
 
     }
+
 
     fun pause() {
         player!!.pause()
@@ -271,5 +293,7 @@ class AudioPlayerManager(context: Context) {
 
         play(viewState.currentQueue[viewState.posInQueue].hashKey, mainViewModel, searchViewModel)
     }
+
+
 
 }

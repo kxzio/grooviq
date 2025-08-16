@@ -13,9 +13,11 @@ import android.os.Build
 import android.os.Bundle
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.annotation.OptIn
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -48,12 +50,30 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
+enum class pendingDirection {
+    EMPTY,
+    TO_NEXT_SONG,
+    TO_PREVIOUS_SONG
+}
 
-private val COMMAND_NEXT = SessionCommand("NEXT", Bundle.EMPTY)
-private val COMMAND_PREV = SessionCommand("PREV", Bundle.EMPTY)
+//the requst of navigation artist
+val songPendingIntentNavigationDirection = mutableStateOf<pendingDirection>(pendingDirection.EMPTY)
+
 
 @UnstableApi
-class PlayerService : MediaSessionService() {
+class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
+    override fun seekToNext() {
+        songPendingIntentNavigationDirection.value = pendingDirection.TO_NEXT_SONG
+    }
+
+    override fun seekToPrevious() {
+        songPendingIntentNavigationDirection.value = pendingDirection.TO_PREVIOUS_SONG
+    }
+
+}
+
+@UnstableApi
+class PlayerService : androidx.media3.session.MediaSessionService() {
 
     companion object {
         const val NOTIF_CHANNEL_ID = "default_channel_id"
@@ -62,127 +82,108 @@ class PlayerService : MediaSessionService() {
     }
 
     private lateinit var mediaSession: MediaSession
-    private lateinit var playerNotificationManager: androidx.media3.ui.PlayerNotificationManager
-
-    // scope for background work (loading bitmaps etc.)
-    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private lateinit var playerNotificationManager: PlayerNotificationManager
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
 
-        if (playerManager == null)
-        {
-            playerManager = AudioPlayerManager(globalContext!!)
-        }
-
 
         mediaSession = MediaSession.Builder(this, playerManager.player)
             .setId("app_media_session")
-            .setCallback(object : MediaSession.Callback {
-                override fun onConnect(
-                    session: MediaSession,
-                    controller: MediaSession.ControllerInfo
-                ): MediaSession.ConnectionResult {
-                    val sessionCommands = SessionCommands.Builder()
-                        .add(COMMAND_NEXT)
-                        .add(COMMAND_PREV)
-                        .build()
-                    val playerCommands = Player.Commands.Builder()
-                        .add(Player.COMMAND_PLAY_PAUSE)
-                        .add(Player.COMMAND_PREPARE)
-                        .add(Player.COMMAND_STOP)
-                        .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-                        .build()
-                    return MediaSession.ConnectionResult.accept(sessionCommands, playerCommands)
+            .build()
+
+
+        val activityIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, activityIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        mediaSession.setSessionActivity(pendingIntent)
+
+        playerNotificationManager = PlayerNotificationManager.Builder(
+            this,
+            NOTIF_ID,
+            NOTIF_CHANNEL_ID
+        )
+            .setMediaDescriptionAdapter(object : PlayerNotificationManager.MediaDescriptionAdapter {
+                override fun getCurrentContentTitle(player: Player) =
+                    player.mediaMetadata.title ?: "Unknown"
+
+                override fun getCurrentContentText(player: Player) =
+                    player.mediaMetadata.artist ?: ""
+
+                override fun createCurrentContentIntent(player: Player) = pendingIntent
+
+                override fun getCurrentLargeIcon(
+                    player: Player,
+                    callback: PlayerNotificationManager.BitmapCallback
+                ) = player.mediaMetadata.artworkData?.let {
+                    BitmapFactory.decodeByteArray(it, 0, it.size)
+                }
+            })
+            .setNotificationListener(object : PlayerNotificationManager.NotificationListener {
+                override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
+
+                    val prevPending = PendingIntent.getBroadcast(
+                        this@PlayerService, 0,
+                        Intent("ACTION_PREV_SONG"), PendingIntent.FLAG_IMMUTABLE
+                    )
+                    val playPausePending = PendingIntent.getBroadcast(
+                        this@PlayerService, 1,
+                        Intent("ACTION_TOGGLE_PLAY"), PendingIntent.FLAG_IMMUTABLE
+                    )
+                    val nextPending = PendingIntent.getBroadcast(
+                        this@PlayerService, 2,
+                        Intent("ACTION_NEXT_SONG"), PendingIntent.FLAG_IMMUTABLE
+                    )
+
+                    val prevAction = NotificationCompat.Action(
+                        androidx.media3.session.R.drawable.media3_notification_seek_to_previous,
+                        "Previous", prevPending
+                    )
+                    val playPauseAction = NotificationCompat.Action(
+                        if (playerManager.player.isPlaying)
+                            androidx.media3.session.R.drawable.media3_notification_pause
+                        else
+                            androidx.media3.session.R.drawable.media3_notification_play,
+                        if (playerManager.player.isPlaying) "Pause" else "Play",
+                        playPausePending
+                    )
+                    val nextAction = NotificationCompat.Action(
+                        androidx.media3.session.R.drawable.media3_notification_seek_to_next,
+                        "Next", nextPending
+                    )
+
+                    val builder = NotificationCompat.Builder(globalContext!!, NOTIF_CHANNEL_ID)
+                        .setContentTitle(playerManager.player.mediaMetadata.title ?: "Title")
+                        .setContentText(playerManager.player.mediaMetadata.artist ?: "Artist")
+                        .setSmallIcon(androidx.media3.session.R.drawable.media_session_service_notification_ic_music_note)
+                        .setStyle(
+                            androidx.media.app.NotificationCompat.MediaStyle()
+                                .setMediaSession(mediaSession.sessionCompatToken)
+                                .setShowActionsInCompactView(0, 1, 2)
+                        )
+                        .addAction(prevAction)
+                        .addAction(playPauseAction)
+                        .addAction(nextAction)
+
+                    startForeground(notificationId, builder.build())
                 }
 
-                override fun onCustomCommand(
-                    session: MediaSession,
-                    controller: MediaSession.ControllerInfo,
-                    customCommand: SessionCommand,
-                    args: Bundle
-                ): ListenableFuture<SessionResult> {
-                    return when (customCommand) {
-                        COMMAND_NEXT -> {
-                            sendBroadcast(Intent("ACTION_NEXT_SONG"))
-                            Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-                        }
-                        COMMAND_PREV -> {
-                            sendBroadcast(Intent("ACTION_PREV_SONG"))
-                            Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-                        }
-                        else -> Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
-                    }
+                override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
+                    stopForeground(true)
                 }
             })
             .build()
 
-        val activityIntent = packageManager.getLaunchIntentForPackage(packageName)
-        val pending = PendingIntent.getActivity(
-            this, 0, activityIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        mediaSession.setSessionActivity(pending)
+        playerNotificationManager.setMediaSessionToken(mediaSession.sessionCompatToken)
 
-        playerNotificationManager = androidx.media3.ui.PlayerNotificationManager.Builder(
-            this,
-            NOTIF_ID,
-            NOTIF_CHANNEL_ID
-        ).setMediaDescriptionAdapter(object : androidx.media3.ui.PlayerNotificationManager.MediaDescriptionAdapter {
-            override fun getCurrentContentTitle(player: Player): CharSequence {
-                return player.mediaMetadata.title?.toString() ?: "Unknown"
-            }
-
-            override fun createCurrentContentIntent(player: Player): PendingIntent? {
-                val actIntent = packageManager.getLaunchIntentForPackage(packageName)
-                return PendingIntent.getActivity(
-                    this@PlayerService,
-                    0,
-                    actIntent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                )
-            }
-
-            override fun getCurrentContentText(player: Player): CharSequence? {
-                return player.mediaMetadata.artist?.toString() ?: ""
-            }
-
-            override fun getCurrentLargeIcon(player: Player, callback: androidx.media3.ui.PlayerNotificationManager.BitmapCallback): Bitmap? {
-                // Попробуем получить artworkData из metadata (bytes) — это синхронный путь
-                val artworkBytes = player.mediaMetadata.artworkData
-                if (artworkBytes != null && artworkBytes.isNotEmpty()) {
-                    return BitmapFactory.decodeByteArray(artworkBytes, 0, artworkBytes.size)
-                }
-
-                return null
-            }
-        }).setNotificationListener(object : androidx.media3.ui.PlayerNotificationManager.NotificationListener {
-            override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
-
-                val builder = NotificationCompat.Builder(globalContext!!, NOTIF_CHANNEL_ID)
-                    .setContentTitle("Title")
-                    .setContentText("Artist")
-                    .setSmallIcon(R.drawable.ic_launcher_background)
-                    .setStyle(
-                        MediaStyleNotificationHelper.MediaStyle(mediaSession)
-                            .setShowActionsInCompactView(0, 1, 2)
-                    )
-
-                startForeground(notificationId, builder.build())
-            }
-
-            override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
-                stopForeground(true)
-            }
-        }).build()
 
         playerNotificationManager.setPlayer(playerManager.player)
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession {
-        return mediaSession
-    }
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -198,19 +199,9 @@ class PlayerService : MediaSessionService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            playerNotificationManager.setPlayer(null)
-        } catch (e: Throwable) { /* ignore */ }
-
-        try {
-            mediaSession.release()
-        } catch (e: Throwable) { /* ignore */ }
-
-        try {
-            playerManager.player.release()
-        } catch (e: Throwable) { /* ignore */ }
-
-        serviceScope.cancel()
+        try { playerNotificationManager.setPlayer(null) } catch (e: Throwable) {}
+        try { mediaSession.release() } catch (e: Throwable) {}
+        try { playerManager.player.release() } catch (e: Throwable) {}
     }
 }
 

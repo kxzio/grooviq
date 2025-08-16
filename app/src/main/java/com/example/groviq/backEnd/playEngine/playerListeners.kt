@@ -1,19 +1,32 @@
 package com.example.groviq.backEnd.playEngine
 
 import android.os.Looper
+import androidx.annotation.OptIn
+import androidx.compose.runtime.snapshotFlow
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.playerManager
+import com.example.groviq.service.pendingDirection
+import com.example.groviq.service.songPendingIntentNavigationDirection
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.logging.Handler
 
 var listenersAttached = false
 
-fun createListeners(searchViewModel : SearchViewModel, //search view
-                    mainViewModel   : PlayerViewModel, //player view
+@OptIn(
+    UnstableApi::class
+)
+fun createListeners(
+    searchViewModel: SearchViewModel, //search view
+    mainViewModel: PlayerViewModel, //player view
 )
 {
     if (listenersAttached == true)
@@ -97,7 +110,30 @@ fun createListeners(searchViewModel : SearchViewModel, //search view
                 stopProgressHandler()
             }
         }
+
     })
+
+    val scope = CoroutineScope(
+        Dispatchers.Main)
+
+    scope.launch {
+        snapshotFlow { songPendingIntentNavigationDirection.value }
+            .collect { direction ->
+                when(direction) {
+                    pendingDirection.TO_NEXT_SONG -> {
+                        playerManager.nextSong(mainViewModel, searchViewModel)
+                        songPendingIntentNavigationDirection.value = pendingDirection.EMPTY
+                    }
+                    pendingDirection.TO_PREVIOUS_SONG -> {
+                        playerManager.prevSong(mainViewModel, searchViewModel)
+                        songPendingIntentNavigationDirection.value = pendingDirection.EMPTY
+                    }
+                    pendingDirection.EMPTY -> {
+
+                    }
+                }
+            }
+    }
 
     listenersAttached = true
 }

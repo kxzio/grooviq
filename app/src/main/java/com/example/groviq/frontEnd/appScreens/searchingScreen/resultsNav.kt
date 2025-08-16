@@ -184,7 +184,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                         Column()
                         {
                             Text(
-                                text = result.title
+                                text = "https://music.youtube.com/channel/${result.link_id}"
                             )
                             Text(
                                 text = result.author,

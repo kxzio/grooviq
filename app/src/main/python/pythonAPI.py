@@ -36,6 +36,25 @@ def getStream(youtube_url: str) -> str:
         audio_url = info['url']
         return audio_url
 
+
+def get_artist_id(item):
+    # основной ID
+    artist_id = item.get("browseId") or item.get("id") or item.get("channelId")
+
+    # проверяем navigationEndpoint
+    if not artist_id and "navigationEndpoint" in item:
+        artist_id = item["navigationEndpoint"].get("browseId")
+
+    # проверяем url / canonicalUrl
+    if not artist_id:
+        url = item.get("url") or item.get("canonicalUrl") or ""
+        import re
+        match = re.search(r'/channel/([A-Za-z0-9_-]+)', url)
+        if match:
+            artist_id = match.group(1)
+
+    return artist_id or ""
+
 # searchOnServer.py
 def searchOnServer(q: str) -> str:
     q = q.strip()
@@ -83,20 +102,11 @@ def searchOnServer(q: str) -> str:
             })
 
         elif rtype == "artist":
-            name = (
-                item.get("name")
-                or item.get("title")
-                or item.get("artist")
-                or item.get("author")
-                or item.get("channelName")
-                or item.get("subtitle")
-                or ""
-            )
-            if not name and isinstance(item.get("artists"), list):
-                name = ", ".join(a.get("name", "") for a in item["artists"] if a.get("name"))
+            name = item.get("name") or item.get("title") or item.get("artist") or ""
+            artist_id = get_artist_id(item)
             results.append({
                 "type": "artist",
-                "id": item.get("browseId", ""),
+                "id": artist_id,
                 "name": name,
                 "image_url": (item.get("thumbnails") or [{"url": ""}])[-1].get("url", "")
             })
