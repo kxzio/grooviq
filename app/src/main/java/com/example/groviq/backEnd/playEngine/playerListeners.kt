@@ -111,6 +111,14 @@ fun createListeners(
             }
         }
 
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                // Текущий трек завершён
+                mainViewModel.setPlayerStatus(playerStatus.IDLE)
+                playerManager.nextSong(mainViewModel, searchViewModel)
+            }
+        }
+
     })
 
     val scope = CoroutineScope(

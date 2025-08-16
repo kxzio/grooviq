@@ -209,6 +209,8 @@ class AudioPlayerManager(context: Context) {
                     player.seekTo(1, 0)
                     player!!.prepare()
                     player!!.playWhenReady = true
+                    player!!.repeatMode = Player.REPEAT_MODE_OFF
+                    player!!.shuffleModeEnabled = false
 
                 }
             }
