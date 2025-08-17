@@ -1,6 +1,9 @@
 package com.example.groviq.frontEnd
 
 import android.net.Uri
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
@@ -16,9 +19,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -67,109 +80,155 @@ fun connectScreens(
         Screen.Settings,
     )
 
-    var navController = screenConnectorNavigation.current
+    val screensByRoute = mapOf(
+        Screen.Home.route to Screen.Home,
+        Screen.Albums.route to Screen.Albums,
+        Screen.Playlists.route to Screen.Playlists,
+        Screen.Searching.route to Screen.Searching,
+        Screen.Settings.route to Screen.Settings,
+    )
+
+    val screenSaver = Saver<Screen, String>(
+        save = { it.route },
+        restore = { route -> screensByRoute[route] ?: Screen.Searching } // fallback
+    )
+
+    var currentTab: Screen by rememberSaveable(stateSaver = screenSaver) {
+        mutableStateOf(Screen.Searching)
+    }
+
+    val navControllers = remember {
+        mutableStateMapOf<Screen, NavHostController>()
+    }
+    items.forEach { screen ->
+        if (navControllers[screen] == null) {
+            navControllers[screen] = rememberNavController()
+        }
+    }
+
+    val saveableStateHolder = rememberSaveableStateHolder()
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
                 items.forEach { screen ->
-                        NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    screen.icon,
-                                    contentDescription = null
-                                )
-                            },
-                            label = {
-                            },
-                            selected = currentRoute?.startsWith(screen.route) == true,
-                            onClick = {
-                                val isInsideThisTab = currentRoute?.startsWith(screen.route) == true
+                    val controller = navControllers[screen]!!
+                    val backStackEntry by controller.currentBackStackEntryAsState()
+                    val currentRoute = backStackEntry?.destination?.route
 
-                                if (!isInsideThisTab) {
-                                    // Переход на другую вкладку без сброса её вложенных экранов
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                } else {
-                                    // Уже в этой вкладке — сброс к её корню
-                                    navController.popBackStack(screen.route, inclusive = false)
-                                }
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { /* optional label */ },
+                        selected = currentTab == screen,
+                        onClick = {
+                            val isInsideThisTab = currentTab == screen
+                            if (!isInsideThisTab) {
+                                currentTab = screen
+                            } else {
+                                controller.popBackStack(screen.route, inclusive = false)
                             }
-                        )
-                    }
-
+                        }
+                    )
+                }
             }
         }
-    )
-    { innerPadding ->
+    ) { innerPadding ->
 
-        //processing the artist pending link
         val pendingArtistLink = artistPendingNavigation.value
         LaunchedEffect(pendingArtistLink) {
             if (pendingArtistLink != null) {
                 val encoded = Uri.encode(pendingArtistLink)
-                navController.navigate("${Screen.Searching.route}/artist/$encoded")
+                currentTab = Screen.Searching // переключаем таб
+                val targetController = navControllers[Screen.Searching]!!
+                targetController.navigate("${Screen.Searching.route}/artist/$encoded") {
+                    launchSingleTop = true
+                }
                 artistPendingNavigation.value = null
             }
         }
 
-        //processing the album pending link
         val pendingAlbumLink = albumPendingNavigation.value
         LaunchedEffect(pendingAlbumLink) {
             if (pendingAlbumLink != null) {
                 val encoded = Uri.encode(pendingAlbumLink)
-                navController.navigate("${Screen.Searching.route}/album/$encoded")
+                currentTab = Screen.Searching
+                val targetController = navControllers[Screen.Searching]!!
+                targetController.navigate("${Screen.Searching.route}/album/$encoded") {
+                    launchSingleTop = true
+                }
                 albumPendingNavigation.value = null
             }
         }
 
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            items.forEach { screen ->
+                val controller = navControllers[screen]!!
+                val isVisible = screen == currentTab
 
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Searching.route,
-            modifier = Modifier.padding(
-                innerPadding
-            )
-        ) {
+                // animate alpha to make transition smooth
+                val targetAlpha = if (isVisible) 1f else 0f
+                val alpha by animateFloatAsState(targetValue = targetAlpha)
 
-            //searching - results
-            composable("${Screen.Searching.route}") {
-                searchResultsNavigation(navController, searchViewModel, mainViewModel)
-            }
-
-            //searching - album
-            composable("${Screen.Searching.route}/album/{album_url}",
-                arguments = listOf(navArgument("album_url") { type = NavType.StringType })
-            ) {
-                showAudioSourceFromSurf(it, searchViewModel, mainViewModel, navController)
-            }
-
-            //searching - artist
-            composable("${Screen.Searching.route}/artist/{artist_url}",
-                arguments = listOf(navArgument("artist_url") { type = NavType.StringType })
-            ) {
-                showArtistFromSurf(it, searchViewModel, mainViewModel, navController)
-            }
-
-            //playlist - list of playlists
-            composable("${Screen.Playlists.route}") {
-                playlistList(mainViewModel, navController)
-            }
-
-            //playlist - playlist detail screen
-            composable("${Screen.Playlists.route}/playlist/{playlist_name}",
-                arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
-            ) {
-                playlistDetailList(it, searchViewModel, mainViewModel)
+                // put the NavHost into composition always, but change alpha and zIndex
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(if (isVisible) 1f else 0f)
+                        .alpha(alpha)
+                        // prevent pointer events when fully invisible (optional but recommended)
+                        .then(
+                            if (alpha < 0.01f) {
+                                Modifier.pointerInput(Unit) {
+                                    // consume all touches so invisible layers don't get interaction
+                                    while (true) {
+                                        awaitPointerEventScope {
+                                            val ev = awaitPointerEvent()
+                                            ev.changes.forEach { it.consume() }
+                                        }
+                                    }
+                                }
+                            } else Modifier
+                        )
+                ) {
+                    NavHost(
+                        navController = controller,
+                        startDestination = screen.route,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        when (screen) {
+                            Screen.Searching -> {
+                                composable(Screen.Searching.route) {
+                                    searchResultsNavigation(controller, searchViewModel, mainViewModel)
+                                }
+                                composable("${Screen.Searching.route}/album/{album_url}",
+                                    arguments = listOf(navArgument("album_url") { type = NavType.StringType })
+                                ) {
+                                    showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
+                                }
+                                composable("${Screen.Searching.route}/artist/{artist_url}",
+                                    arguments = listOf(navArgument("artist_url") { type = NavType.StringType })
+                                ) {
+                                    showArtistFromSurf(it, searchViewModel, mainViewModel, controller)
+                                }
+                            }
+                            Screen.Playlists -> {
+                                composable(Screen.Playlists.route) {
+                                    playlistList(mainViewModel, controller)
+                                }
+                                composable("${Screen.Playlists.route}/playlist/{playlist_name}",
+                                    arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
+                                ) {
+                                    playlistDetailList(it, searchViewModel, mainViewModel)
+                                }
+                            }
+                            else -> {
+                                composable(screen.route) {
+                                    Text("Screen ${screen.route}")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
