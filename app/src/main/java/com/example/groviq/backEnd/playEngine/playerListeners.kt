@@ -112,12 +112,15 @@ fun createListeners(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                // Текущий трек завершён
+            if (mediaItem?.mediaId == "MOVE_TO_NEXT" ||
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+            ) {
                 mainViewModel.setPlayerStatus(playerStatus.IDLE)
                 playerManager.nextSong(mainViewModel, searchViewModel)
             }
         }
+
+
 
     })
 

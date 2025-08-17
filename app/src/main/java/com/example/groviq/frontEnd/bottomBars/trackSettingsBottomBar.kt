@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Shuffle
@@ -200,7 +201,7 @@ fun drawSettingsBottomBar(mainViewModel : PlayerViewModel, requestHash : String,
     {
         settingPages.MAIN_PAGE_SCREEN       -> { drawMainSettingsPage(mainViewModel, liked, track, onClose, { page -> settingPage = page} ) }
         settingPages.QUEUE_SHOW_LIST_SCREEN -> { drawQueuePage(mainViewModel, { page -> settingPage = page})}
-        settingPages.ADD_TO_PLAYLIST_SCREEN -> {}
+        settingPages.ADD_TO_PLAYLIST_SCREEN -> { drawPlaylistsToAdd(mainViewModel, track, onClose, { page -> settingPage = page}) }
         settingPages.SELECT_ARTIST_TO_MOVE ->  { drawSelectArtistPage(mainViewModel, track, onClose, { page -> settingPage = page})}
     }
 
@@ -239,6 +240,10 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
             onClose()
         })
     }
+
+    buttonForSettingBar("Добавить в плейлист", Icons.Rounded.PlaylistAdd, {
+        onScreenMove(settingPages.ADD_TO_PLAYLIST_SCREEN)
+    })
 
     buttonForSettingBar("Перейти к альбому", Icons.Rounded.Album, {
         openAlbum(track!!.album_original_link)
@@ -284,6 +289,23 @@ fun drawSelectArtistPage(mainViewModel : PlayerViewModel, track: songData?, onCl
         }
     }
 
+
+}
+
+@Composable
+fun drawPlaylistsToAdd(mainViewModel : PlayerViewModel, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
+{
+    val playlists    = mainViewModel.getPlaylists()
+
+    playlists.forEach { playlist ->
+        Row()
+        {
+            Text(text = playlist.key, color = Color(255, 255, 255), fontSize = 21.sp, modifier = Modifier.clickable {
+                mainViewModel.addSongToAudioSource(track!!.link, playlist.key)
+                onClose()
+            })
+        }
+    }
 
 }
 

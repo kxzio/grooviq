@@ -51,6 +51,7 @@ class AudioPlayerManager(context: Context) {
 
     //main player
     var notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!).build().apply {
+
         setHandleAudioBecomingNoisy(true)
         setAudioAttributes(
             AudioAttributes.Builder()
@@ -211,6 +212,7 @@ class AudioPlayerManager(context: Context) {
                     player!!.playWhenReady = true
                     player!!.repeatMode = Player.REPEAT_MODE_OFF
                     player!!.shuffleModeEnabled = false
+
 
                 }
             }

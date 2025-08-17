@@ -131,7 +131,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
         Column()
         {
-            val mainArt = songs.first().art
+            val mainArt = songs.firstOrNull()?.art
 
             if (mainArt != null)
             {
@@ -182,6 +182,8 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
         }
 
+        if (songs.isEmpty())
+            return@Column
 
         LazyColumn {
             items(

@@ -108,7 +108,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         )
             .setMediaDescriptionAdapter(object : PlayerNotificationManager.MediaDescriptionAdapter {
                 override fun getCurrentContentTitle(player: Player) =
-                    player.mediaMetadata.title ?: "Unknown"
+                    player.mediaMetadata.title ?: "Загрузка..."
 
                 override fun getCurrentContentText(player: Player) =
                     player.mediaMetadata.artist ?: ""

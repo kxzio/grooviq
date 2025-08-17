@@ -323,7 +323,6 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
-
     suspend fun awaitStreamUrlFor(hash: String): String? {
         return uiState
             .map { state -> state.allAudioData[hash]?.stream?.streamUrl?.takeIf { it.isNotEmpty() } }
@@ -369,6 +368,19 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     }
 
+    fun createAudioSource(name : String) {
+        val currentState = _uiState.value
+
+        val updatedAudioData = currentState.audioData.toMutableMap()
+        updatedAudioData[name] = audioSource().apply {
+            nameOfAudioSource    = name
+        }
+
+        _uiState.value = currentState.copy(
+            audioData    = updatedAudioData
+        )
+    }
+
     fun isSongSavable(song : songData) : Boolean
     {
         //the main logic of filter motion
@@ -389,9 +401,18 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         //logic operation :
         // 1.
 
-        val saveable    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+        val saveable    = getPlaylists()
 
         return saveable
+
+    }
+
+    fun getPlaylists() : Map<String, audioSource>
+    {
+
+        val playlists    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+
+        return playlists
 
     }
 

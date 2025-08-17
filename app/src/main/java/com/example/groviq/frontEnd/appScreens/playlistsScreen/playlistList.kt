@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.frontEnd.Screen
+import com.example.groviq.frontEnd.bottomBars.createPlaylistBar
+import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
 
 @Composable
 fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHostController)
@@ -41,6 +44,12 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
             Text(
                 "Плейлисты : "
             )
+
+            Button(onClick = {
+                isCreatePlaylistOpened.value = true
+            }, Modifier.fillMaxWidth()){
+                Text("Создать плейлист")
+            }
 
             LazyColumn(
                 state = listState,
@@ -74,4 +83,6 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
             }
         }
     }
+
+    createPlaylistBar(mainViewModel)
 }
