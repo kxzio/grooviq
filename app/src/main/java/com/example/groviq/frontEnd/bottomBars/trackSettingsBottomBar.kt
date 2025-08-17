@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Shuffle
@@ -298,12 +299,14 @@ fun drawPlaylistsToAdd(mainViewModel : PlayerViewModel, track: songData?, onClos
     val playlists    = mainViewModel.getPlaylists()
 
     playlists.forEach { playlist ->
-        Row()
+        Row(modifier = Modifier.clickable {
+            mainViewModel.addSongToAudioSource(track!!.link, playlist.key)
+            onClose()
+        })
         {
-            Text(text = playlist.key, color = Color(255, 255, 255), fontSize = 21.sp, modifier = Modifier.clickable {
-                mainViewModel.addSongToAudioSource(track!!.link, playlist.key)
-                onClose()
-            })
+            Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(55.dp))
+
+            Text(text = playlist.key, color = Color(255, 255, 255), fontSize = 21.sp)
         }
     }
 
@@ -359,6 +362,9 @@ fun drawQueuePage(
 
     Text("Далее в очереди...", color = Color(255, 255, 255), modifier = Modifier.padding(15.dp))
 
+    if (filteredQueue.isEmpty())
+        return
+
     LazyColumn(
         state = lazyListState,
         modifier = Modifier
@@ -395,24 +401,29 @@ fun drawQueuePage(
                         )
                     }
 
-                    Image(
-                        bitmap = track!!.art!!.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(35.dp)
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 8.dp)
-                    ) {
-                        Text(track.title, color = Color.White)
-                        Text(
-                            text = track.artists.joinToString { it.title },
-                            maxLines = 1,
-                            fontSize = 10.sp,
-                            color = Color.Gray
+                    track?.art?.let { bitmap ->
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp)
                         )
+                    }
+
+
+                    track?.let { t ->
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp)
+                        ) {
+                            Text(t.title, color = Color.White)
+                            Text(
+                                text = t.artists.joinToString { it.title },
+                                maxLines = 1,
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
 
                     IconButton(

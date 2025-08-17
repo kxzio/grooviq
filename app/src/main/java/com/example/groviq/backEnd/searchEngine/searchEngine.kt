@@ -18,6 +18,7 @@ import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.backEnd.dataStructures.streamInfo
+import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
@@ -501,6 +502,87 @@ class SearchViewModel : ViewModel() {
             art = albumBitmap,
             album_original_link = track.albumUrl
         )
+    }
+
+
+    private var currentRelatedTracksJob: Job? = null
+
+    suspend fun addRelatedTracksToCurrentQueue(
+        context: Context,
+        request: String,
+        mainViewModel: PlayerViewModel
+    ): String {
+        if (!hasInternetConnection(context)) return ""
+
+        val trackMetaJson = withContext(Dispatchers.IO) {
+            getPythonModule(context)
+                .callAttr("getRelatedForMany", request)
+                .toString()
+        }
+
+        val trackDtos = parseRelatedJson(trackMetaJson)
+        val tracks = trackDtos.map { trackDtoToSongData(it) }.shuffled()
+
+        withContext(Dispatchers.Main) {
+            mainViewModel.setAlbumTracks(
+                request + "source-related-tracks",
+                tracks,
+                audioSourceName = "Похожие треки",
+                audioSourceArtist = emptyList(),
+                audioSourceYear = ""
+            )
+
+            tracks.forEach { track ->
+                addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks")
+            }
+        }
+
+        return request + "source-related-tracks"
+    }
+
+    fun parseRelatedJson(jsonStr: String): List<TrackDto> {
+        val json = JSONObject(jsonStr)
+        val resultsJson = json.optJSONObject("results") ?: JSONObject()
+        val allTracks = mutableListOf<TrackDto>()
+
+        val keys = resultsJson.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val trackArray = resultsJson.optJSONArray(key) ?: JSONArray()
+
+            for (i in 0 until trackArray.length()) {
+                val trackJson = trackArray.getJSONObject(i)
+
+                val artistsJson = trackJson.optJSONArray("artists") ?: JSONArray()
+                val artists = mutableListOf<ArtistDto>()
+                for (j in 0 until artistsJson.length()) {
+                    val artistJson = artistsJson.getJSONObject(j)
+                    artists.add(
+                        ArtistDto(
+                            title = artistJson.optString("name", ""),
+                            url = artistJson.optString("url", ""),
+                            imageUrl = "",
+                            albums = emptyList()
+                        )
+                    )
+                }
+
+                allTracks.add(
+                    TrackDto(
+                        id = trackJson.optString("id", ""),
+                        title = trackJson.optString("title", ""),
+                        track_num = 0,
+                        url = trackJson.optString("url", ""),
+                        duration_ms = trackJson.optLong("duration_ms", 0),
+                        artists = artists,
+                        imageUrl = trackJson.optString("image_url", ""),
+                        albumUrl = trackJson.optString("album_url", "")
+                    )
+                )
+            }
+        }
+
+        return allTracks
     }
 }
 

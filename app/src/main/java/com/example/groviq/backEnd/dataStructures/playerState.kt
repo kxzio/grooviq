@@ -271,6 +271,24 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         _uiState.value = currentState.copy(audioData = updatedAudioData)
     }
 
+    fun setTracksWihtoutSource(tracks: List<songData>
+    ) {
+
+        //function for browsing to add new audiosource and chain audiofiles to new audiosource
+        val currentUiState = _uiState.value
+
+        val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
+        for (track in tracks) {
+            if (!updatedAllAudio.containsKey(track.link)) {
+                updatedAllAudio[track.link] = track
+            }
+        }
+
+        _uiState.value = currentUiState.copy(
+            allAudioData = updatedAllAudio,
+        )
+    }
+
     fun removeSongFromAudioSource(songLink: String, audioSource: String) {
 
         val currentState = _uiState.value
@@ -387,9 +405,9 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         //logic operation :
         // 1. song in playlist
 
-        val playlists    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+        val playlists    = getPlaylists()
 
-        val shouldSave = playlists.containsKey(song.link) //this audioSource is playlist
+        val shouldSave = playlists.filter { it.value.songIds.contains(song.link) }.size > 0
 
         return shouldSave
 
@@ -401,7 +419,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         //logic operation :
         // 1.
 
-        val saveable    = getPlaylists()
+        val saveable = getPlaylists()
 
         return saveable
 
@@ -410,7 +428,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     fun getPlaylists() : Map<String, audioSource>
     {
 
-        val playlists    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+        val playlists  = _uiState.value.audioData.filter { !it.key.contains("https://") }
 
         return playlists
 
@@ -441,6 +459,24 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             playerManager.play(track.link, this@PlayerViewModel, searchViewModel, true)
         }
     }
+
+    fun waitAudioSoureToAppearAndPlayNext(searchViewModel: SearchViewModel, audioSourcePath: String) {
+
+        viewModelScope.launch {
+
+            //wait
+            val source = uiState
+                .map { state -> state.audioData[audioSourcePath] }
+                .filterNotNull()
+                .first()
+
+            //start
+            playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
+        }
+    }
+
+
+
 
 }
 

@@ -55,13 +55,6 @@ class DataRepository(private val db: AppDatabase) {
 
         val saveableSources = playerViewModel.getSavableAudioSources()
 
-        val newList = saveableSources
-            .map { it.value.toEntity(it.key) }
-
-        if (existing.size == newList.size && existing.containsAll(newList) && newList.containsAll(existing)) {
-            return
-        }
-
         audioDao.clearAll()
 
         saveableSources.entries.forEach { source ->

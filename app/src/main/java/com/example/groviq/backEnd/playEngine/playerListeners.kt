@@ -85,7 +85,6 @@ fun createListeners(
                 }
                 Player.STATE_ENDED -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
-
                     playerManager.nextSong(mainViewModel, searchViewModel)
 
                 }

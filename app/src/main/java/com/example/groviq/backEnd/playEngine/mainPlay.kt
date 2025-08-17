@@ -132,6 +132,9 @@ class AudioPlayerManager(context: Context) {
         else if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash ||
             (userPressed && mainViewModel.uiState.value.isShuffle))
         {
+            mainViewModel.uiState.value.currentQueue    = mutableListOf()
+            mainViewModel.uiState.value.originalQueue   = emptyList()
+
             //if the audio source changed, we have to rebuild the queue
             createQueueOnAudioSourceHash(mainViewModel, hashkey)
             //update last built audio source
@@ -277,7 +280,17 @@ class AudioPlayerManager(context: Context) {
             return
         }
 
-        // Если NO_REPEAT и конец очереди — ничего не делаем
+        //NO REPEAT
+        player.stop()
+        //add recommended songs
+        playbackScope.launch {
+            val audioSourcePath = searchViewModel.addRelatedTracksToCurrentQueue(
+                globalContext!!,
+                currentQueue[pos].hashKey,
+                mainViewModel
+            )
+            mainViewModel.waitAudioSoureToAppearAndPlayNext(searchViewModel, audioSourcePath)
+        }
     }
 
     fun prevSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel)
