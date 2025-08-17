@@ -184,7 +184,9 @@ class AudioPlayerManager(context: Context) {
                 withContext(Dispatchers.Main)
                 {
 
-                    val smallBitmap = Bitmap.createScaledBitmap(song.art!!, 256, 256, true)
+                    val songArt = mainViewModel.awaitSongArt(mainViewModel, hashkey)
+
+                    val smallBitmap = Bitmap.createScaledBitmap(songArt, 256, 256, true)
                     val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
 
                     val emptyMediaItemNext = androidx.media3.common.MediaItem.Builder()

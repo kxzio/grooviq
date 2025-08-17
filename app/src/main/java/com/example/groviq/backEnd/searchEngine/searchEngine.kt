@@ -516,7 +516,7 @@ class SearchViewModel : ViewModel() {
 
         val trackMetaJson = withContext(Dispatchers.IO) {
             getPythonModule(context)
-                .callAttr("getRelatedForMany", request)
+                .callAttr("getRelatedTracks", request)
                 .toString()
         }
 

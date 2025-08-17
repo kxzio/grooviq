@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 enum class playerStatus {
@@ -472,6 +473,40 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
             //start
             playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
+        }
+    }
+
+    private val artListeners = mutableListOf<(String, Bitmap?) -> Unit>()
+
+    fun addArtListener(listener: (String, Bitmap?) -> Unit) {
+        artListeners.add(listener)
+    }
+
+    fun removeArtListener(listener: (String, Bitmap?) -> Unit) {
+        artListeners.remove(listener)
+    }
+
+
+    suspend fun awaitSongArt(mainViewModel: PlayerViewModel, songKey: String): Bitmap {
+        val song = mainViewModel.uiState.value.allAudioData[songKey] ?: throw Exception("Song not found")
+
+        song.art?.let { return it }
+
+        return suspendCancellableCoroutine { cont ->
+            val listener = object : (String, Bitmap?) -> Unit {
+                override fun invoke(key: String, bitmap: Bitmap?) {
+                    if (key == songKey && bitmap != null) {
+                        mainViewModel.removeArtListener(this)
+                        cont.resume(bitmap) {}
+                    }
+                }
+            }
+
+            mainViewModel.addArtListener(listener)
+
+            cont.invokeOnCancellation {
+                mainViewModel.removeArtListener(listener)
+            }
         }
     }
 

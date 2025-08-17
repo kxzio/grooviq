@@ -230,7 +230,6 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             Image(song!!.art!!.asImageBitmap(), null)
                         }
 
-
                         Text(song.title, Modifier.clickable {
                             openAlbum(song.album_original_link)
                             onToogleSheet()

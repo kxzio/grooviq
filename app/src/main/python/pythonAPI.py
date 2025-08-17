@@ -534,44 +534,35 @@ def fetch_continuations(token: str) -> list:
     return items
 
 
-def getRelatedForMany(track_urls, max_results_per = 25):
-    """
-    Принимает строку (video url/id) или список строк.
-    Возвращает JSON со словарём "results": { original_url: [tracks...] }
-    и опционально "errors": { original_url: "error message" }.
-    Каждая запись track — в той же структуре, что и getTrack возвращает:
-    { title, artists: [{name,url}], duration_ms, image_url, url, album_url }
-    """
-    # Helpers (локальные, чтобы не ломать глобальный namespace)
-    def _extract_video_id(track_url: str) -> str:
-        if not track_url:
-            return ''
-        m = re.search(r"v=([\w-]+)", track_url)
-        if m:
-            return m.group(1)
-        m = re.search(r"youtu\.be/([\w-]+)", track_url)
-        if m:
-            return m.group(1)
-        return track_url.strip()
+seen_urls = set()
 
-    def _duration_to_millis(dur: Any) -> int:
-        if dur is None:
-            return 0
-        s = str(dur).strip()
-        if s.isdigit():
-            return int(s) * 1000
-        parts = [int(p) for p in s.split(':') if p != '']
-        if len(parts) == 3:
-            h, m, sec = parts
-        elif len(parts) == 2:
-            h = 0; m, sec = parts
-        elif len(parts) == 1:
-            h = 0; m = 0; sec = parts[0]
-        else:
-            return 0
-        return (h*3600 + m*60 + sec) * 1000
+def _duration_to_millis(duration_str):
+    """Преобразуем строку вида '3:45' в миллисекунды"""
+    if not duration_str:
+        return 0
+    parts = duration_str.split(":")
+    parts = [int(p) for p in parts]
+    if len(parts) == 2:
+        minutes, seconds = parts
+        return (minutes * 60 + seconds) * 1000
+    elif len(parts) == 3:
+        hours, minutes, seconds = parts
+        return (hours*3600 + minutes*60 + seconds) * 1000
+    return 0
 
-    def _make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
+def extract_video_id(url_or_id: str) -> str:
+    if not url_or_id:
+        return ''
+    m = re.search(r"v=([\w-]+)", url_or_id)
+    if m:
+        return m.group(1)
+    m = re.search(r"youtu\.be/([\w-]+)", url_or_id)
+    if m:
+        return m.group(1)
+    return url_or_id.strip()
+
+def getRelatedTracks(track_id_or_url, max_results=25, official_only=True):
+    def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
         if not entity_id:
             return ''
         if entity_type == "album":
@@ -583,218 +574,68 @@ def getRelatedForMany(track_urls, max_results_per = 25):
                 return f"https://music.youtube.com{entity_id}"
             return f"https://music.youtube.com/channel/{entity_id}"
 
-    def _find_related_browse_id_from_watch(watch: dict) -> str:
-        if not watch:
-            return ''
-        for k in ('related', 'relatedBrowseId', 'related_browse_id', 'browseId'):
-            if k in watch and watch[k]:
-                return watch[k]
-        # рекурсивный поиск похожих строк
-        def walk(o):
-            if isinstance(o, dict):
-                for _, v in o.items():
-                    if isinstance(v, str):
-                        if v.startswith('/browse/') or v.startswith('FE') or v.startswith('RD'):
-                            return v
-                    elif isinstance(v, (dict, list)):
-                        f = walk(v)
-                        if f:
-                            return f
-            elif isinstance(o, list):
-                for i in o:
-                    f = walk(i)
-                    if f:
-                        return f
-            return None
-        found = walk(watch)
-        return found or ''
-
-    def _normalize_item(item: dict, original_url: str) -> dict:
-        # video id
-        video_id = item.get('videoId') or item.get('id') or item.get('video_id') or ''
-        # title
-        title = ''
-        if isinstance(item.get('title'), dict):
-            title = item['title'].get('runs', [{}])[0].get('text', '') if item.get('title') else ''
-        else:
-            title = item.get('title') or item.get('name') or item.get('titleText') or ''
-
-        # duration
-        duration_ms = 0
-        if item.get('lengthSeconds'):
-            try:
-                duration_ms = int(item.get('lengthSeconds')) * 1000
-            except:
-                duration_ms = _duration_to_millis(item.get('lengthSeconds'))
-        elif item.get('duration'):
-            duration_ms = _duration_to_millis(item.get('duration'))
-        elif item.get('length'):
-            duration_ms = _duration_to_millis(item.get('length'))
-
-        # artists
-        artists_info = []
-        artists_field = item.get('artists') or item.get('artist') or item.get('artistsText') or []
-        if isinstance(artists_field, list):
-            for ar in artists_field:
-                if isinstance(ar, dict):
-                    name = ar.get('name') or ar.get('artistName') or ar.get('title') or ''
-                    aid = ar.get('id') or ar.get('browseId') or ''
-                    artists_info.append({'name': name, 'url': _make_ytm_url(aid)})
-                else:
-                    artists_info.append({'name': str(ar), 'url': ''})
-        else:
-            if isinstance(artists_field, str):
-                for name in [n.strip() for n in re.split(r'[•,;/]', artists_field) if n.strip()]:
-                    artists_info.append({'name': name, 'url': ''})
-
-        # image
-        image_url = ''
-        thumbs = item.get('thumbnail') or item.get('thumbnails') or item.get('thumbnailText') or []
-        if isinstance(thumbs, list) and thumbs:
-            last = thumbs[-1]
-            if isinstance(last, dict):
-                image_url = last.get('url') or last.get('thumbnails', [{}])[-1].get('url', '')
-        elif isinstance(thumbs, dict):
-            image_url = thumbs.get('url', '')
-        else:
-            maybe = item.get('thumbnailText') or {}
-            if isinstance(maybe, dict):
-                image_url = maybe.get('thumbnails', [{}])[-1].get('url', '')
-
-        album = item.get('album') or {}
-        album_id = album.get('id') or album.get('browseId') or ''
-        album_url = _make_ytm_url(album_id, "album")
-
-        url = f"https://music.youtube.com/watch?v={video_id}" if video_id else original_url
-
-        return {
-            'title': title or '',
-            'artists': artists_info,
-            'duration_ms': int(duration_ms or 0),
-            'image_url': image_url or '',
-            'url': url,
-            'album_url': album_url
-        }
-
-    # ---- main logic ----
-    single_input = False
-    if isinstance(track_urls, (str,)):
-        single_input = True
-        track_list = [track_urls]
-    elif isinstance(track_urls, (list, tuple)):
-        track_list = list(track_urls)
-    else:
-        # unsupported type
-        return json.dumps({"results": {}, "errors": {"_input": "unsupported input type"}}, ensure_ascii=False)
-
     results = {}
-    errors = {}
+    official_tracks = []
+    seen_urls = set()
 
-    for orig in track_list:
-        try:
-            vid = _extract_video_id(orig)
-            if not vid:
-                errors[orig] = "empty video id"
-                results[orig] = []
+    try:
+        video_id = extract_video_id(track_id_or_url)
+        watch_playlist = _ytm.get_watch_playlist(video_id, limit=max_results * 3)
+        tracks = watch_playlist.get('tracks', [])
+
+        for track in tracks:
+            track_url = f"https://music.youtube.com/watch?v={track.get('videoId')}"
+            if track_url in seen_urls:
                 continue
+            seen_urls.add(track_url)
 
-            # 1) try watch playlist → find browseId
-            try:
-                watch = _ytm.get_watch_playlist(vid)
-            except Exception as e:
-                watch = None
+            # --- Title & duration ---
+            title = track.get('title', '')
+            duration_ms = int(track.get('lengthSeconds', 0)) * 1000 \
+                          or track.get('durationMillis', 0) \
+                          or _duration_to_millis(track.get('duration'))
 
-            browse_id = _find_related_browse_id_from_watch(watch) if watch else ''
+            # --- Artists ---
+            artists_info = [
+                {'name': ar.get('name', ''), 'url': make_ytm_url(ar.get('id') or '')}
+                for ar in track.get('artists', [])
+            ]
 
-            related_items = []
-            seen_urls = set()
+            # --- Фильтр "официальные релизы" ---
+            if official_only:
+                if len(artists_info) == 1 and artists_info[0]['name'] == "YouTube":
+                    continue
 
-            # 2) if browse_id present => try get_song_related(browse_id)
-            if browse_id:
-                try:
-                    related_sections = _ytm.get_song_related(browse_id)
-                except TypeError:
-                    # some versions accept pos arg
-                    try:
-                        related_sections = _ytm.get_song_related(browse_id)
-                    except Exception:
-                        related_sections = None
-                except Exception:
-                    related_sections = None
+            # --- Image ---
+            image_url = ''
+            if track.get('thumbnail'):
+                image_url = track['thumbnail'][-1].get('url', '')
+            else:
+                thumbs = track.get('thumbnails') or track.get('album', {}).get('thumbnails') or []
+                if isinstance(thumbs, list) and thumbs:
+                    image_url = thumbs[-1].get('url', '')
 
-                if related_sections:
-                    # normalize different shapes of response
-                    def walk_sections(rs):
-                        items = []
-                        if isinstance(rs, dict):
-                            for k in ('contents', 'results', 'items'):
-                                if k in rs and isinstance(rs[k], list):
-                                    items.extend(rs[k])
-                            for v in rs.values():
-                                if isinstance(v, list):
-                                    for it in v:
-                                        if isinstance(it, dict) and ('videoId' in it or 'id' in it):
-                                            items.append(it)
-                        elif isinstance(rs, list):
-                            for section in rs:
-                                if isinstance(section, dict):
-                                    if 'contents' in section and isinstance(section['contents'], list):
-                                        items.extend(section['contents'])
-                                    elif 'results' in section and isinstance(section['results'], list):
-                                        items.extend(section['results'])
-                                    else:
-                                        for v in section.values():
-                                            if isinstance(v, list):
-                                                for it in v:
-                                                    if isinstance(it, dict) and ('videoId' in it or 'id' in it):
-                                                        items.append(it)
-                        return items
+            # --- Album ---
+            album_data = track.get('album', {})
+            album_url = make_ytm_url(album_data.get('id') or '', "album")
 
-                    raw = walk_sections(related_sections)
-                    for it in raw:
-                        if len(related_items) >= max_results_per:
-                            break
-                        normalized = _normalize_item(it, orig)
-                        if normalized['url'] and normalized['url'] not in seen_urls:
-                            related_items.append(normalized)
-                            seen_urls.add(normalized['url'])
+            # --- Append ---
+            official_tracks.append({
+                'id': track.get('videoId', ''),
+                'title': title,
+                'duration_ms': duration_ms,
+                'url': track_url,
+                'image_url': image_url,
+                'album_url': album_url,
+                'artists': artists_info
+            })
 
-            # 3) fallback to watch['tracks'] if nothing found
-            if not related_items and watch:
-                tracks = watch.get('tracks') or []
-                for it in tracks:
-                    if len(related_items) >= max_results_per:
-                        break
-                    normalized = _normalize_item(it, orig)
-                    if normalized['url'] not in seen_urls:
-                        related_items.append(normalized)
-                        seen_urls.add(normalized['url'])
+            if len(official_tracks) >= max_results:
+                break
 
-            # 4) final fallback - try get_song_related by video id directly (some versions)
-            if not related_items:
-                try:
-                    possible = _ytm.get_song_related(vid)
-                    if possible:
-                        rawlist = possible if isinstance(possible, list) else [possible]
-                        for sect in rawlist:
-                            contents = sect.get('contents') if isinstance(sect, dict) else []
-                            for it in contents:
-                                if len(related_items) >= max_results_per:
-                                    break
-                                normalized = _normalize_item(it, orig)
-                                if normalized['url'] not in seen_urls:
-                                    related_items.append(normalized)
-                                    seen_urls.add(normalized['url'])
-                except Exception:
-                    pass
+        results[track_id_or_url] = official_tracks
 
-            results[orig] = related_items[:max_results_per]
+    except Exception as e:
+        results[track_id_or_url] = []
 
-        except Exception as e:
-            errors[orig] = f"exception: {repr(e)}\n{traceback.format_exc()}"
-            results[orig] = []
-
-    out = {"results": results}
-    if errors:
-        out["errors"] = errors
-    return json.dumps(out, ensure_ascii=False)
+    return json.dumps({"results": results}, ensure_ascii=False)
