@@ -574,17 +574,73 @@ def getRelatedTracks(track_id_or_url, max_results=25, official_only=True):
                 return f"https://music.youtube.com{entity_id}"
             return f"https://music.youtube.com/channel/{entity_id}"
 
+    def normalize_browse_id(bid: str) -> str:
+        """Приводим browseId/artist id к последнему сегменту (UC..., или id без префикса)."""
+        if not bid:
+            return ''
+        # если у нас '/channel/UC...' или '/artist/...' — берем последний сегмент
+        return bid.split('/')[-1]
+
     results = {}
     official_tracks = []
     seen_urls = set()
 
     try:
         video_id = extract_video_id(track_id_or_url)
+
+        # --- получаем watch playlist (источник кандидатов) ---
         watch_playlist = _ytm.get_watch_playlist(video_id, limit=max_results * 3)
         tracks = watch_playlist.get('tracks', [])
 
+        # --- пытаемся найти текущий трек в плейлисте чтобы узнать главного артиста ---
+        main_artist_id = None
+        main_artist_name = None
+        for t in tracks:
+            if t.get('videoId') == video_id:
+                artists = t.get('artists', []) or []
+                if artists:
+                    # берем первого артиста как "главного"
+                    main_artist_id = normalize_browse_id(artists[0].get('id') or '')
+                    main_artist_name = artists[0].get('name', '')
+                break
+
+        # --- если нашли главного артиста, получаем related artists у него ---
+        related_artists_info = []  # список словарей как в твоём примере
+        related_ids_set = set()
+        related_names_set = set()
+        if main_artist_id:
+            try:
+                art = _ytm.get_artist(main_artist_id)
+                related_data = art.get("related", {}).get("results", []) or []
+                for item in related_data:
+                    bid = item.get('browseId', '') or ''
+                    name = item.get('title', '') or ''
+                    thumb = (item.get("thumbnails") or [{}])[-1].get("url", "") if item.get("thumbnails") else ""
+                    related_artists_info.append({
+                        "name": name,
+                        "url": f"https://music.youtube.com/channel/{bid}",
+                        "image_url": thumb
+                    })
+                    if bid:
+                        related_ids_set.add(normalize_browse_id(bid))
+                    if name:
+                        related_names_set.add(name.lower())
+            except Exception:
+                # если get_artist упал — просто продолжим без related
+                related_artists_info = []
+                related_ids_set = set()
+                related_names_set = set()
+
+        # --- подготовим два списка: приоритетные и обычные ---
+        priority_buffer = []
+        normal_buffer = []
+
         for track in tracks:
-            track_url = f"https://music.youtube.com/watch?v={track.get('videoId')}"
+            vid = track.get('videoId')
+            if not vid:
+                continue
+
+            track_url = f"https://music.youtube.com/watch?v={vid}"
             if track_url in seen_urls:
                 continue
             seen_urls.add(track_url)
@@ -598,7 +654,7 @@ def getRelatedTracks(track_id_or_url, max_results=25, official_only=True):
             # --- Artists ---
             artists_info = [
                 {'name': ar.get('name', ''), 'url': make_ytm_url(ar.get('id') or '')}
-                for ar in track.get('artists', [])
+                for ar in track.get('artists', []) or []
             ]
 
             # --- Фильтр "официальные релизы" ---
@@ -609,6 +665,7 @@ def getRelatedTracks(track_id_or_url, max_results=25, official_only=True):
             # --- Image ---
             image_url = ''
             if track.get('thumbnail'):
+                # некоторые структуры используют 'thumbnail', некоторые 'thumbnails'
                 image_url = track['thumbnail'][-1].get('url', '')
             else:
                 thumbs = track.get('thumbnails') or track.get('album', {}).get('thumbnails') or []
@@ -619,23 +676,47 @@ def getRelatedTracks(track_id_or_url, max_results=25, official_only=True):
             album_data = track.get('album', {})
             album_url = make_ytm_url(album_data.get('id') or '', "album")
 
-            # --- Append ---
-            official_tracks.append({
-                'id': track.get('videoId', ''),
+            # --- собранный объект ---
+            obj = {
+                'id': vid or '',
                 'title': title,
                 'duration_ms': duration_ms,
                 'url': track_url,
                 'image_url': image_url,
                 'album_url': album_url,
                 'artists': artists_info
-            })
+            }
 
-            if len(official_tracks) >= max_results:
+            # --- определяем приоритетность: пересекается ли любой артист с related ---
+            is_priority = False
+            for ar in track.get('artists', []) or []:
+                aid = normalize_browse_id(ar.get('id') or '')
+                aname = (ar.get('name') or '').lower()
+                if aid and aid in related_ids_set:
+                    is_priority = True
+                    break
+                if aname and aname in related_names_set:
+                    is_priority = True
+                    break
+
+            if is_priority:
+                priority_buffer.append(obj)
+            else:
+                normal_buffer.append(obj)
+
+            # если собрали достаточно — можем оптимально остановить раньше
+            if len(priority_buffer) + len(normal_buffer) >= max_results * 3:
+                # держим некоторый запас, затем обрежем до max_results
                 break
 
-        results[track_id_or_url] = official_tracks
+        # --- финальная последовательность: сначала priority, затем normal ---
+        final = priority_buffer + normal_buffer
+        final = final[:max_results]
+
+        results[track_id_or_url] = final
 
     except Exception as e:
+        # сохраняем пустой результат (как раньше)
         results[track_id_or_url] = []
 
     return json.dumps({"results": results}, ensure_ascii=False)

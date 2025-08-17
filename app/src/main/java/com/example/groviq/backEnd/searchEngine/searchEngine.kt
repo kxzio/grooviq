@@ -514,14 +514,22 @@ class SearchViewModel : ViewModel() {
     ): String {
         if (!hasInternetConnection(context)) return ""
 
-        val trackMetaJson = withContext(Dispatchers.IO) {
-            getPythonModule(context)
-                .callAttr("getRelatedTracks", request)
-                .toString()
+        val trackMetaJson = try {
+            withContext(Dispatchers.IO) {
+                getPythonModule(context)
+                    .callAttr("getRelatedTracks", request)
+                    .toString()
+            }
+        } catch (e: Exception) {
+            // Показываем ошибку в Toast
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+            null
         }
 
-        val trackDtos = parseRelatedJson(trackMetaJson)
-        val tracks = trackDtos.map { trackDtoToSongData(it) }.shuffled()
+        val trackDtos = parseRelatedJson(trackMetaJson!!)
+        val tracks = trackDtos.map { trackDtoToSongData(it) }
 
         withContext(Dispatchers.Main) {
             mainViewModel.setAlbumTracks(
