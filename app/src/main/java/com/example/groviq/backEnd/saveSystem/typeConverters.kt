@@ -3,6 +3,8 @@ package com.example.groviq.backEnd.saveSystem
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import androidx.room.TypeConverter
 import com.example.groviq.backEnd.dataStructures.audioEnterPoint
 import com.example.groviq.backEnd.dataStructures.audioSource
@@ -87,6 +89,10 @@ fun songData.toEntity(context: Context): SongEntity {
         saveBitmapToInternalStorage(context, bitmap, this.link)
     }
 
+    val filePath = this.file?.let { file ->
+        file.absolutePath
+    }
+
     return SongEntity(
         link = this.link,
         title = this.title,
@@ -97,14 +103,19 @@ fun songData.toEntity(context: Context): SongEntity {
         duration = this.duration,
         artPath = artFilePath,
         number = this.number,
-        album_original_link = this.album_original_link
+        album_original_link = this.album_original_link,
+        filePath = filePath
     )
 }
-
 
 fun SongEntity.toDomain(context: Context): songData {
     val bitmap = this.artPath?.let { path ->
         loadBitmapFromInternalStorage(context, path)
+    }
+
+    val file = this.filePath?.let { path ->
+        val f = File(path)
+        if (f.exists()) f else null
     }
 
     return songData(
@@ -117,7 +128,8 @@ fun SongEntity.toDomain(context: Context): songData {
         duration = this.duration,
         art = bitmap,
         number = this.number,
-        album_original_link = this.album_original_link ?: ""
+        album_original_link = this.album_original_link ?: "",
+        file = file
     )
 }
 

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FileDownloadOff
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistAdd
@@ -69,6 +70,8 @@ import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.backEnd.playEngine.moveInQueue
 import com.example.groviq.backEnd.playEngine.removeFromQueue
+import com.example.groviq.backEnd.streamProcessor.deleteDownloadedAudioFile
+import com.example.groviq.backEnd.streamProcessor.downloadAudioFile
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.screenConnectorNavigation
@@ -246,6 +249,19 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         onScreenMove(settingPages.ADD_TO_PLAYLIST_SCREEN)
     })
 
+    if (track!!.progressStatus.downloadingProgress.toInt() == 100) {
+        buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
+            deleteDownloadedAudioFile(mainViewModel, track.link)
+            onClose()
+        })
+    }
+    else {
+        buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {
+            downloadAudioFile(mainViewModel, track.link)
+            onClose()
+        })
+    }
+
     buttonForSettingBar("Перейти к альбому", Icons.Rounded.Album, {
         openAlbum(track!!.album_original_link)
         onClose()
@@ -300,7 +316,12 @@ fun drawPlaylistsToAdd(mainViewModel : PlayerViewModel, track: songData?, onClos
 
     playlists.forEach { playlist ->
         Row(modifier = Modifier.clickable {
+
             mainViewModel.addSongToAudioSource(track!!.link, playlist.key)
+
+            mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
+            mainViewModel.saveAudioSourcesToRoom()
+
             onClose()
         })
         {

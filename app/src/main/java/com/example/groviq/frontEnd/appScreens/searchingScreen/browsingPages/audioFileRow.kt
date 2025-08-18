@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 import android.net.Uri
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,8 +42,14 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
@@ -51,6 +58,124 @@ import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.globalContext
 import com.example.groviq.vibrateLight
+
+
+@Composable
+fun SquareProgressBox(
+    progress: Int,
+    modifier: Modifier = Modifier,
+    size: Dp = 45.dp,
+    cornerRadius: Dp = 6.dp
+) {
+
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = (2.dp).toPx()
+            val length = size.toPx()
+            val radius = cornerRadius.toPx()
+            val p = progress.coerceIn(0, 100) / 100f
+
+            // Общий периметр с учётом углов (длина дуги = четверть окружности)
+            val straightEdge = length - 2 * radius
+            val arcLength = (Math.PI.toFloat() / 2f) * radius
+            val perimeter = 4 * straightEdge + 4 * arcLength
+
+            var remaining = perimeter * p
+            val path = Path()
+
+            fun moveToNext(x: Float, y: Float) {
+                if (path.isEmpty) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+
+            // Угол 1: верхний левый (дуга)
+            val arcSteps = 15
+            fun drawArcSegment(cx: Float, cy: Float, startAngle: Float, sweepAngle: Float) {
+                val step = sweepAngle / arcSteps
+                for (i in 0..arcSteps) {
+                    val angle = Math.toRadians((startAngle + step * i).toDouble())
+                    val x = (cx + radius * Math.cos(angle)).toFloat()
+                    val y = (cy + radius * Math.sin(angle)).toFloat()
+                    moveToNext(x, y)
+                }
+            }
+
+            // Отрисовываем прогресс по кускам: дуга + прямая и т.д.
+
+            // Верхний левый угол
+            if (remaining > 0f) {
+                val seg = arcLength.coerceAtMost(remaining)
+                drawArcSegment(radius, radius, 180f, 90f * (seg / arcLength))
+                remaining -= seg
+            }
+
+            // Верхняя прямая
+            if (remaining > 0f) {
+                val seg = straightEdge.coerceAtMost(remaining)
+                moveToNext(radius + seg, 0f)
+                remaining -= seg
+            }
+
+            // Верхний правый угол
+            if (remaining > 0f) {
+                val seg = arcLength.coerceAtMost(remaining)
+                drawArcSegment(length - radius, radius, 270f, 90f * (seg / arcLength))
+                remaining -= seg
+            }
+
+            // Правая прямая
+            if (remaining > 0f) {
+                val seg = straightEdge.coerceAtMost(remaining)
+                moveToNext(length, radius + seg)
+                remaining -= seg
+            }
+
+            // Нижний правый угол
+            if (remaining > 0f) {
+                val seg = arcLength.coerceAtMost(remaining)
+                drawArcSegment(length - radius, length - radius, 0f, 90f * (seg / arcLength))
+                remaining -= seg
+            }
+
+            // Нижняя прямая
+            if (remaining > 0f) {
+                val seg = straightEdge.coerceAtMost(remaining)
+                moveToNext(length - radius - seg, length)
+                remaining -= seg
+            }
+
+            // Нижний левый угол
+            if (remaining > 0f) {
+                val seg = arcLength.coerceAtMost(remaining)
+                drawArcSegment(radius, length - radius, 90f, 90f * (seg / arcLength))
+                remaining -= seg
+            }
+
+            // Левая прямая
+            if (remaining > 0f) {
+                val seg = straightEdge.coerceAtMost(remaining)
+                moveToNext(0f, length - radius - seg)
+                remaining -= seg
+            }
+
+            // Фоновый контур (весь серый квадрат)
+            drawRoundRect(
+                color = Color.LightGray,
+                size = Size(length, length),
+                cornerRadius = CornerRadius(radius, radius),
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Прогресс по периметру
+            drawPath(
+                path = path,
+                color = Color(
+                    0xFF28F609
+                ),
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
+    }
+}
 
 @Composable
 fun SwipeToQueueItem(
@@ -137,11 +262,21 @@ fun SwipeToQueueItem(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (song.art != null) {
-                    Image(
-                        song.art!!.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(35.dp)
-                    )
+
+                    Box()
+                    {
+                        Image(
+                            song.art!!.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp)
+                        )
+
+                        SquareProgressBox(song.progressStatus.downloadingProgress.toInt(),
+                            size = 36.dp)
+
+                    }
+
+
                 }
 
                 Column(modifier = Modifier.padding(start = 8.dp)) {

@@ -1,9 +1,7 @@
 package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,14 +11,12 @@ import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
-import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.globalContext
 import com.example.groviq.playerManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
@@ -28,6 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.File
 
 enum class playerStatus {
     IDLE,
@@ -46,7 +43,8 @@ enum class repeatMods {
 data class playerState(
 
     //current state of audio player
-    var currentStatus : playerStatus = playerStatus.IDLE,
+    var currentStatus : playerStatus    = playerStatus.IDLE,
+    var songsLoader   : Boolean         = false,
 
     //all songs in system
     var allAudioData : MutableMap<String, songData> = mutableMapOf(),
@@ -86,14 +84,6 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(playerState())
     val uiState: StateFlow<playerState> = _uiState
 
-    fun saveAllToRoom() {
-        val snapshotAll = _uiState.value.allAudioData.toMap()
-        val snapshotAudio = _uiState.value.audioData.toMap()
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.saveAllAudioAndSources(snapshotAll, snapshotAudio, globalContext!!)
-        }
-    }
-
     fun loadAllFromRoom() {
         viewModelScope.launch {
             val (songsMap, audioMap) = withContext(Dispatchers.IO) {
@@ -110,6 +100,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     fun saveSongToRoom(song: songData) {
         viewModelScope.launch(Dispatchers.IO) { repository.saveSong(this@PlayerViewModel, song, globalContext!!) }
     }
+
     fun saveAudioSourcesToRoom() {
         viewModelScope.launch(Dispatchers.IO) { repository.saveAudioSources(this@PlayerViewModel) }
     }
@@ -119,10 +110,14 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(currentStatus = status)
     }
 
+    fun setSongsLoadingStatus(status : Boolean) {
+        _uiState.value =_uiState.value.copy(songsLoader = status)
+    }
+
+
     fun setPlayingHash(songLink: String) {
         _uiState.value =_uiState.value.copy(playingHash = songLink)
     }
-
 
     fun setPlayingAudioSourceHash(audioSourceLink: String) {
         _uiState.value =_uiState.value.copy(playingAudioSourceHash = audioSourceLink)
@@ -330,6 +325,20 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
+    fun updateFileForSong(
+        songLink: String, file: File?
+    ) {
+        val currentState = _uiState.value
+
+        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+
+        val song = updatedAllAudioData[songLink]
+        if (song != null) {
+            updatedAllAudioData[songLink] = song.copy(file = file)
+            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        }
+    }
+
     fun updateImageForSong(songLink: String, Image : Bitmap) {
         val currentState = _uiState.value
 
@@ -341,6 +350,19 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
+
+    fun updateDownloadingProgressForSong(songLink: String, progress : Float) {
+        val currentState = _uiState.value
+
+        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+
+        val song = updatedAllAudioData[songLink]
+        if (song != null) {
+            updatedAllAudioData[songLink] = song.copy(progressStatus = song.progressStatus.copy(downloadingProgress = progress))
+            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        }
+    }
+
 
     suspend fun awaitStreamUrlFor(hash: String): String? {
         return uiState

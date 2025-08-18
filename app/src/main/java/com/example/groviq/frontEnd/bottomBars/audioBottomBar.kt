@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -223,6 +224,14 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         horizontalAlignment = Alignment.CenterHorizontally
                     )
                     {
+                        if (mainUiState.songsLoader == true)
+                        {
+                            Text("Загрузка следущих композиций")
+                            CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                            return@Column
+                        }
+
+
                         val song = mainUiState.allAudioData[mainUiState.playingHash]
 
                         if (song!!.art != null)
@@ -234,6 +243,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             openAlbum(song.album_original_link)
                             onToogleSheet()
                         })
+
 
                         Spacer(Modifier.height(30.dp))
 

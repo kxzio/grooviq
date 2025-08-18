@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import androidx.annotation.OptIn
@@ -27,6 +28,7 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
@@ -81,15 +83,6 @@ class AudioPlayerManager(context: Context) {
     )
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
-        val svcIntent = Intent(globalContext, PlayerService::class.java)
-        if (!isServiceRunning(globalContext!!, PlayerService::class.java)) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ContextCompat.startForegroundService(globalContext, svcIntent)
-            } else {
-                globalContext!!.startService(svcIntent)
-            }
-        }
-
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)
             return
@@ -99,18 +92,24 @@ class AudioPlayerManager(context: Context) {
         if (now - lastPlayTimeMs < PLAY_COOLDOWN_MS) return
         lastPlayTimeMs = now
 
-        player!!.stop()
+        if (player != null)
+            player!!.stop()
 
         //if we start playing another track, but last song didnt get the stream yet, we should cancel the thread to not overload
         if (hashkey != mainViewModel.uiState.value.playingHash) {
 
             //cancel all threads
-            currentPlaybackJob?.cancel()
-            currentFetchJob   ?.cancel()
+            currentPlaybackJob      ?.cancel()
+            currentFetchJob         ?.cancel()
+            currentRelatedTracksJob ?.cancel()
+
+            mainViewModel.setSongsLoadingStatus(false)
+
             mainViewModel.updateStatusForSong(
                 hashkey,
                 mainViewModel.uiState.value.allAudioData[hashkey]!!.progressStatus.copy(streamHandled = false)
             )
+
         }
 
         //current playing index in hash value
@@ -183,6 +182,14 @@ class AudioPlayerManager(context: Context) {
                 //back to UI layer
                 withContext(Dispatchers.Main)
                 {
+                    val svcIntent = Intent(globalContext, PlayerService::class.java)
+                    if (!isServiceRunning(globalContext!!, PlayerService::class.java)) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            ContextCompat.startForegroundService(globalContext, svcIntent)
+                        } else {
+                            globalContext!!.startService(svcIntent)
+                        }
+                    }
 
                     val songArt = mainViewModel.awaitSongArt(mainViewModel, hashkey)
 
@@ -199,8 +206,14 @@ class AudioPlayerManager(context: Context) {
                         .setMediaId("MOVE_TO_PREVIOUS")
                         .build()
 
+                    val mediaUri: Uri = if (song.file != null && song.file!!.exists()) {
+                        Uri.fromFile(song.file!!)
+                    } else {
+                        Uri.parse(streamUrl)
+                    }
+
                     val mediaItem = androidx.media3.common.MediaItem.Builder()
-                        .setUri(streamUrl)
+                        .setUri(mediaUri)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
                                 .setTitle(song.title)
@@ -282,15 +295,16 @@ class AudioPlayerManager(context: Context) {
             return
         }
 
-        //NO REPEAT
         player.stop()
-        //add recommended songs
-        playbackScope.launch {
+        CoroutineScope(Dispatchers.Main).launch {
+            // NO REPEAT
+
             val audioSourcePath = searchViewModel.addRelatedTracksToCurrentQueue(
                 globalContext!!,
                 currentQueue[pos].hashKey,
                 mainViewModel
             )
+
             mainViewModel.waitAudioSoureToAppearAndPlayNext(searchViewModel, audioSourcePath)
         }
     }

@@ -47,6 +47,17 @@ class SearchViewModelFactory() : ViewModelProvider.Factory {
     }
 }
 
+var currentRelatedTracksJob: Job? = null
+
+//album getter with one job active
+var currentAlbumJob: Job? = null
+
+//artist getter with one job active
+var currentArtistJob: Job? = null
+
+var currentTrackJob: Job? = null
+
+
 class SearchViewModel : ViewModel() {
 
     //states of UI
@@ -130,8 +141,7 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    //album getter with one job active
-    private var currentAlbumJob: Job? = null
+
     fun getAlbum(
         context: Context,
         request: String,
@@ -260,8 +270,6 @@ class SearchViewModel : ViewModel() {
         )
     }
 
-    //artist getter with one job active
-    private var currentArtistJob: Job? = null
     fun getArtist(
         context: Context,
         request: String, mainViewModel: PlayerViewModel
@@ -432,8 +440,6 @@ class SearchViewModel : ViewModel() {
         )
     }
 
-    private var currentTrackJob: Job? = null
-
     fun getTrack(
         context: Context,
         request: String,
@@ -504,48 +510,51 @@ class SearchViewModel : ViewModel() {
         )
     }
 
-
-    private var currentRelatedTracksJob: Job? = null
-
     suspend fun addRelatedTracksToCurrentQueue(
         context: Context,
         request: String,
         mainViewModel: PlayerViewModel
     ): String {
+
         if (!hasInternetConnection(context)) return ""
 
-        val trackMetaJson = try {
-            withContext(Dispatchers.IO) {
+        currentRelatedTracksJob?.cancel()
+
+        mainViewModel.setSongsLoadingStatus(true)
+
+        return withContext(Dispatchers.IO) {
+            val trackMetaJson = try {
                 getPythonModule(context)
                     .callAttr("getRelatedTracks", request)
                     .toString()
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                null
             }
-        } catch (e: Exception) {
-            // Показываем ошибку в Toast
+
+            val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
+            val tracks = trackDtos.map { trackDtoToSongData(it) }
+
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
+                mainViewModel.setAlbumTracks(
+                    request + "source-related-tracks",
+                    tracks,
+                    audioSourceName = "Похожие треки",
+                    audioSourceArtist = emptyList(),
+                    audioSourceYear = ""
+                )
+
+                tracks.forEach { track ->
+                    addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks")
+                }
+
+                mainViewModel.setSongsLoadingStatus(false)
             }
-            null
+
+            request + "source-related-tracks"
         }
-
-        val trackDtos = parseRelatedJson(trackMetaJson!!)
-        val tracks = trackDtos.map { trackDtoToSongData(it) }
-
-        withContext(Dispatchers.Main) {
-            mainViewModel.setAlbumTracks(
-                request + "source-related-tracks",
-                tracks,
-                audioSourceName = "Похожие треки",
-                audioSourceArtist = emptyList(),
-                audioSourceYear = ""
-            )
-
-            tracks.forEach { track ->
-                addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks")
-            }
-        }
-
-        return request + "source-related-tracks"
     }
 
     fun parseRelatedJson(jsonStr: String): List<TrackDto> {

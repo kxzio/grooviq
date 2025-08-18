@@ -1,9 +1,11 @@
 package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
+import androidx.documentfile.provider.DocumentFile
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 enum class audioEnterPoint {
@@ -15,7 +17,8 @@ enum class audioEnterPoint {
 
 data class songProgressStatus(
     var streamHandled      : Boolean = false,
-    var downloadingHandled : Boolean = false
+    var downloadingHandled : Boolean = false,
+    var downloadingProgress: Float = 0f
 )
 
 data class streamInfo(
@@ -54,7 +57,10 @@ data class songData(
     //it helps to easily move to original album in browse
     var album_original_link : String = "",
 
-)
+    //file downloaded
+    var file: File? = null,
+
+    )
 {
     fun shouldGetStream(ttlMillis: Long = TimeUnit.HOURS.toMillis(5)): Boolean {
         if (stream.streamUrl.isNullOrEmpty()) return true

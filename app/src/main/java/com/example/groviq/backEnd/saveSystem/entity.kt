@@ -19,7 +19,8 @@ data class SongEntity(
     val duration: Long,
     val artPath: String?,
     val number: Int?,
-    val album_original_link: String?
+    val album_original_link: String?,
+    val filePath: String?,
 )
 
 @Entity(tableName = "audio_sources")
