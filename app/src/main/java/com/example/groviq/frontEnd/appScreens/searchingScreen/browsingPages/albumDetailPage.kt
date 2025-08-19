@@ -45,6 +45,7 @@ import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.globalContext
@@ -100,13 +101,18 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
             {
                 CircularProgressIndicator(modifier = Modifier.size(100.dp))
                 return@Column
+
+            }
+
+            LaunchedEffect(albumUrl)
+            {
+                fetchAudioSource(albumUrl, mainViewModel)
             }
 
             //update focus to prevent deleting the audio source if this path is UI opened
             mainViewModel.updateBrowserHashFocus(albumUrl)
 
             showDefaultAudioSource(albumUrl, mainViewModel, searchViewModel)
-
         }
     }
 }

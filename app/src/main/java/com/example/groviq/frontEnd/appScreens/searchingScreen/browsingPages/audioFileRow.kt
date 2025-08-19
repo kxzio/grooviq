@@ -281,6 +281,7 @@ fun SwipeToQueueItem(
 
                 Column(modifier = Modifier.padding(start = 8.dp)) {
                     Text(song.title, maxLines = 1, fontSize = 12.sp)
+                    Text(song.stream.streamUrl, maxLines = 1, fontSize = 12.sp)
                     Text(
                         song.artists.joinToString { it.title },
                         maxLines = 1,
@@ -309,7 +310,7 @@ fun SwipeToQueueItem(
                 }
                 IconButton(
                     onClick = {
-                        openTrackSettingsBottomBar(song.link)
+                        openTrackSettingsBottomBar(song.link, audioSource)
                     }
                 ) {
                     Icon(

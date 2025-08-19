@@ -86,7 +86,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
     val currentPos = mainViewModel.uiState.value.posInQueue
 
     val fromIndex = (currentPos - 3).coerceAtLeast(0)
-    val toIndex = (currentPos + 3).coerceAtMost(currentQueue.size)
+    val toIndex = (currentPos + 3)  .coerceAtMost(currentQueue.size)
 
     currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
         try {
@@ -147,6 +147,81 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
                         mainViewModel.updateStatusForSong(
                             song.link,
                             song.progressStatus.copy(streamHandled = false)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+var currentAudioSourceFetch: Job? = null
+
+fun fetchAudioSource(audioSource: String, mainViewModel: PlayerViewModel) {
+
+    if (mainViewModel.uiState.value.audioData[audioSource] == null)
+        return
+
+    currentAudioSourceFetch?.cancel()
+
+    currentAudioSourceFetch = CoroutineScope(Dispatchers.IO).launch {
+        val songs = mainViewModel.uiState.value.audioData[audioSource]
+            ?.songIds
+            ?.mapNotNull { mainViewModel.uiState.value.allAudioData[it] }
+            ?: emptyList()
+
+        try {
+            coroutineScope {
+                songs
+                    .filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
+                    .chunked(5)
+                    .forEach { batch ->
+                        batch.map { song ->
+                            async {
+                                withContext(Dispatchers.Main) {
+                                    mainViewModel.updateStatusForSong(
+                                        song.link,
+                                        song.progressStatus.copy(streamHandled = true)
+                                    )
+                                }
+
+                                try {
+                                    val audioUrl = getBestAudioStreamUrl(song.link)
+
+                                    if (audioUrl != null && isActive) {
+                                        withContext(Dispatchers.Main) {
+                                            val latestSong =
+                                                mainViewModel.uiState.value.allAudioData[song.link]
+                                                    ?: return@withContext
+                                            mainViewModel.updateStreamForSong(song.link, audioUrl)
+                                        }
+                                    }
+                                } catch (_: Exception) {
+                                } finally {
+                                    withContext(NonCancellable + Dispatchers.Main) {
+                                        val latestSong =
+                                            mainViewModel.uiState.value.allAudioData[song.link]
+                                                ?: return@withContext
+                                        if (latestSong.progressStatus.streamHandled) {
+                                            mainViewModel.updateStatusForSong(
+                                                song.link,
+                                                latestSong.progressStatus.copy(streamHandled = false)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }.awaitAll()
+                    }
+            }
+        } finally {
+            withContext(NonCancellable + Dispatchers.Main) {
+                songs.forEach { song ->
+                    val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@forEach
+                    if (latest.progressStatus.streamHandled) {
+                        mainViewModel.updateStatusForSong(
+                            song.link,
+                            latest.progressStatus.copy(streamHandled = false)
                         )
                     }
                 }

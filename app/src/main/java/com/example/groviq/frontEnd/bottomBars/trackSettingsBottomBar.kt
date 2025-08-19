@@ -80,10 +80,13 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 
 var isTrackSettingsOpened: MutableState<Boolean> = mutableStateOf(false)
 var currentTrackHashForSettings: MutableState<String?> = mutableStateOf(null)
+var currentSettingsOpenedAudioSource: MutableState<String?> = mutableStateOf(null)
 
-fun openTrackSettingsBottomBar(requestHash: String) {
+
+fun openTrackSettingsBottomBar(requestHash: String, audioSource : String) {
     currentTrackHashForSettings.value = requestHash
     isTrackSettingsOpened.value = true
+    currentSettingsOpenedAudioSource.value = audioSource
 }
 
 @OptIn(
@@ -109,8 +112,9 @@ fun trackSettingsBottomBar(mainViewModel : PlayerViewModel)
 
     ModalBottomSheet(
         onDismissRequest = {
-            isTrackSettingsOpened.value = false
-            currentTrackHashForSettings.value = null
+            isTrackSettingsOpened.value             = false
+            currentTrackHashForSettings.value       = null
+            currentSettingsOpenedAudioSource.value  = null
         },
         sheetState = sheetState,
         containerColor = Color(
@@ -119,8 +123,9 @@ fun trackSettingsBottomBar(mainViewModel : PlayerViewModel)
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             drawSettingsBottomBar(mainViewModel, requestHash, {
-                isTrackSettingsOpened.value = false
-                currentTrackHashForSettings.value = null
+                isTrackSettingsOpened.value             = false
+                currentTrackHashForSettings.value       = null
+                currentSettingsOpenedAudioSource.value  = null
             } )
         }
     }
@@ -235,13 +240,26 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     if (!liked) {
         buttonForSettingBar("Добавить в любимое", Icons.Rounded.FavoriteBorder, {
             mainViewModel.addSongToAudioSource(track!!.link, "Favourite")
+            mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
+            mainViewModel.saveAudioSourcesToRoom()
             onClose()
         })
     }
     else {
         buttonForSettingBar("Убрать из любимых", Icons.Rounded.Favorite, {
             mainViewModel.removeSongFromAudioSource(track!!.link, "Favourite")
+            mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
+            mainViewModel.saveAudioSourcesToRoom()
             onClose()
+        })
+    }
+
+    if (mainViewModel.getPlaylists().containsKey(currentSettingsOpenedAudioSource.value))
+    {
+        buttonForSettingBar("Удалить из плейлиста", Icons.Rounded.PlaylistAdd, {
+            mainViewModel.removeSongFromAudioSource(track!!.link, currentSettingsOpenedAudioSource.value!! )
+            mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
+            mainViewModel.saveAudioSourcesToRoom()
         })
     }
 
