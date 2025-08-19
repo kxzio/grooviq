@@ -21,6 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
@@ -382,6 +385,49 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                         if (mainUiState.repeatMode == repeatMods.NO_REPEAT)       100
                                         else if (mainUiState.repeatMode == repeatMods.REPEAT_ALL) 255
                                         else 255)
+                                )
+                            }
+
+                            val liked by mainViewModel.isAudioSourceContainsSong(song!!.link, "Favourite")
+                                .collectAsState(initial = false)
+
+                            IconButton(
+                                onClick =
+                                {
+                                    if (liked)
+                                    {
+                                        mainViewModel.removeSongFromAudioSource(song!!.link, "Favourite")
+                                        mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[song!!.link]!!)
+                                        mainViewModel.saveAudioSourcesToRoom()
+                                    }
+                                    else
+                                    {
+                                        mainViewModel.addSongToAudioSource(song!!.link, "Favourite")
+                                        mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[song!!.link]!!)
+                                        mainViewModel.saveAudioSourcesToRoom()
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    imageVector =
+                                    if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder
+                                    ,
+                                    contentDescription = "like",
+                                    tint = Color(255, 255, 255)
+                                )
+                            }
+
+                            IconButton(
+                                onClick =
+                                {
+                                    openTrackSettingsBottomBar(song.link)
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MoreVert
+                                    ,
+                                    contentDescription = "more",
+                                    tint = Color(255, 255, 255)
                                 )
                             }
                         }

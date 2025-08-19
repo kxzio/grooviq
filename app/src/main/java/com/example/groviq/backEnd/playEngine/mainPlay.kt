@@ -19,7 +19,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.bumptech.glide.Glide
@@ -53,17 +57,41 @@ import java.util.concurrent.Executors
 class AudioPlayerManager(context: Context) {
 
     //main player
-    var notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!).build().apply {
-
-        setHandleAudioBecomingNoisy(true)
-        setAudioAttributes(
-            AudioAttributes.Builder()
-                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                .setUsage(C.USAGE_MEDIA)
-                .build(),
-            true
+    val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            /* minBufferMs = */ 2500,
+            /* maxBufferMs = */ 50000,
+            /* bufferForPlaybackMs = */ 1000,
+            /* bufferForPlaybackAfterRebufferMs = */ 2000
         )
-    }
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+
+    val mediaSourceFactory = DefaultMediaSourceFactory(globalContext!!)
+        .setDataSourceFactory(
+            DefaultHttpDataSource.Factory()
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(10_000)
+                .setReadTimeoutMs(10_000)
+                .setKeepPostFor302Redirects(true)
+                .setTransferListener(DefaultBandwidthMeter.getSingletonInstance(globalContext!!))
+        )
+
+    val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!)
+        .setLoadControl(loadControl)
+        .setMediaSourceFactory(mediaSourceFactory)
+        .setSeekBackIncrementMs(10_000)
+        .setSeekForwardIncrementMs(10_000)
+        .build().apply {
+            setHandleAudioBecomingNoisy(true)
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .setUsage(C.USAGE_MEDIA)
+                    .build(),
+                true
+            )
+        }
 
     var player = CustomPlayer(notOverridedPlayer)
 

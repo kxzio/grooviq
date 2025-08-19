@@ -83,7 +83,7 @@ var currentTrackHashForSettings: MutableState<String?> = mutableStateOf(null)
 var currentSettingsOpenedAudioSource: MutableState<String?> = mutableStateOf(null)
 
 
-fun openTrackSettingsBottomBar(requestHash: String, audioSource : String) {
+fun openTrackSettingsBottomBar(requestHash: String, audioSource : String = "IT_EMPTY_AUDIOSOURCE_") {
     currentTrackHashForSettings.value = requestHash
     isTrackSettingsOpened.value = true
     currentSettingsOpenedAudioSource.value = audioSource
@@ -254,12 +254,14 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         })
     }
 
+
     if (mainViewModel.getPlaylists().containsKey(currentSettingsOpenedAudioSource.value))
     {
         buttonForSettingBar("Удалить из плейлиста", Icons.Rounded.PlaylistAdd, {
             mainViewModel.removeSongFromAudioSource(track!!.link, currentSettingsOpenedAudioSource.value!! )
             mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
             mainViewModel.saveAudioSourcesToRoom()
+            onClose()
         })
     }
 
