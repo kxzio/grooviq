@@ -25,12 +25,14 @@ import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.coroutines.cancellation.CancellationException
 
 fun getPythonModule(context: Context): PyObject {
 
@@ -141,4 +143,35 @@ fun isServiceRunning(context: Context, serviceClass: Class<*>): Boolean {
         }
     }
     return false
+}
+
+suspend fun <T> retryWithBackoff(
+    retries: Int = 3,
+    initialDelayMs: Long = 300,
+    factor: Double = 2.0,
+    block: suspend () -> T
+): T {
+    var currentDelay = initialDelayMs
+    repeat(retries - 1) {
+        try {
+            return block()
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            delay(currentDelay)
+            currentDelay = (currentDelay * factor).toLong()
+        }
+    }
+    // final attempt (let exception bubble)
+    return block()
+}
+
+// --- ждём доступности сети (polling) ---
+suspend fun waitForInternet(maxWaitMs: Long = 60_000L, checkIntervalMs: Long = 1000L) {
+    val start = System.currentTimeMillis()
+    while (!hasInternetConnection(globalContext!!) && (System.currentTimeMillis() - start) < maxWaitMs) {
+        delay(checkIntervalMs)
+    }
+    if (!hasInternetConnection(globalContext!!)) {
+        throw IOException("No internet available after waiting $maxWaitMs ms")
+    }
 }

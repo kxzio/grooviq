@@ -7,66 +7,132 @@ import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.backEnd.streamProcessor.innerTubeMine.getBestAudioStreamUrl
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
+import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
+import com.example.groviq.retryWithBackoff
+import com.example.groviq.waitForInternet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.cancellation.CancellationException
 
-var currentFetchJob: Job? = null
+
+//global fetch jobs
+private val fetchJobs: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
+private val fetchScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
 fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
 
-    val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
+    //if we already have this job - cancel
+    if (fetchJobs.containsKey(songKey)) return
 
-    // Skip if already being handled
-    if (song.progressStatus.streamHandled) return
+    val songSnapshot = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 
-    // Mark as handled
-    mainViewModel.updateStatusForSong(
-        songKey,
-        song.progressStatus.copy(streamHandled = true)
-    )
+    //if already in process - exit
+    if (songSnapshot.progressStatus.streamHandled) return
 
-    // Cancel previous job
-    currentFetchJob?.cancel()
+    //flag song, that we already processing song
+    runOnMain {
+        mainViewModel.updateStatusForSong(songKey, songSnapshot.progressStatus.copy(streamHandled = true))
+    }
 
-    currentFetchJob = CoroutineScope(Dispatchers.IO).launch {
+    //create a job and map it to delete it
+    val job = fetchScope.launch {
         try {
-            val audioUrl = getBestAudioStreamUrl(song.link)
+            // if we have to internet, wait 60s and then retry
+            if (!hasInternetConnection(globalContext!!)) {
+                //dont fall, wait 60s
+                try {
+                    waitForInternet(maxWaitMs = 60_000L, checkIntervalMs = 1_000L)
+                } catch (e: IOException) {
+                    //cancel - go to finaly and cancel flag
+                    throw e
+                }
+            }
 
-            if (!isActive) return@launch // if coroutine was cancelled, stop here
+            //get best stream url with 3 retries if we have no internet
+            val audioUrl = retryWithBackoff(retries = 3, initialDelayMs = 500L) {
+
+                //safe check : if courinte was canceled - exit
+                if (!isActive) throw CancellationException()
+
+               //add timeout 30s to fetch song - maximum time
+                withContext(Dispatchers.IO) {
+                    val result = withTimeoutOrNull(30_000L) {
+                        getBestAudioStreamUrl(songSnapshot.link)
+                    }
+                    result ?: throw IOException("Extractor timed out")
+                }
+            }
+
+            if (!isActive) return@launch
 
             if (audioUrl != null) {
+                //before writing, making sure songs exists
                 withContext(Dispatchers.Main) {
                     val latestSong = mainViewModel.uiState.value.allAudioData[songKey] ?: return@withContext
+                    //additional check - if other thread already set stream
+                    if (latestSong.shouldGetStream().not() && latestSong.stream.streamUrl != null) {
+                        // nah, we dont need it
+                        return@withContext
+                    }
                     mainViewModel.updateStreamForSong(songKey, audioUrl)
                 }
             } else {
-                println("No valid audio stream found for $songKey")
+                //not found
+                println("No audioUrl for $songKey")
             }
 
+        } catch (ce: CancellationException) {
+            //error - go to final and cancel flag
+            throw ce
         } catch (e: Exception) {
-            println("Error fetching stream for $songKey: ${e.message}")
+            //extractor errors
+            e.printStackTrace()
+            runOnMain {
 
+            }
         } finally {
+            // always delete flag in NonCancellable + Main
             withContext(NonCancellable + Dispatchers.Main) {
-                // Always reset streamHandled, even on cancel
-                val latestSong = mainViewModel.uiState.value.allAudioData[songKey] ?: return@withContext
-                if (latestSong.progressStatus.streamHandled) {
-                    mainViewModel.updateStatusForSong(
-                        songKey,
-                        latestSong.progressStatus.copy(streamHandled = false)
-                    )
+                val latestSong = mainViewModel.uiState.value.allAudioData[songKey]
+                if (latestSong != null && latestSong.progressStatus.streamHandled) {
+                    mainViewModel.updateStatusForSong(songKey, latestSong.progressStatus.copy(streamHandled = false))
                 }
+            }
+            //delete job from map
+            fetchJobs.remove(songKey)
+        }
+    }
+
+    //move job to map
+    fetchJobs[songKey] = job
+}
+
+fun cancelFetchForSong(songKey: String, mainViewModel: PlayerViewModel) {
+    val job = fetchJobs.remove(songKey)
+    job?.cancel(CancellationException("Switching track"))
+
+    CoroutineScope(Dispatchers.Main).launch {
+        withContext(NonCancellable) {
+            val latest = mainViewModel.uiState.value.allAudioData[songKey] ?: return@withContext
+            if (latest.progressStatus.streamHandled) {
+                mainViewModel.updateStatusForSong(songKey, latest.progressStatus.copy(streamHandled = false))
             }
         }
     }
@@ -75,79 +141,63 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
 var currentFetchQueueJob: Job? = null
 
 fun fetchQueueStream(mainViewModel: PlayerViewModel) {
-    // Cancel previous job
-    currentFetchQueueJob?.cancel()
+    CoroutineScope(Dispatchers.Main).launch {
+        currentFetchQueueJob?.cancelAndJoin()
 
-    val currentQueue = mainViewModel.uiState.value.currentQueue
+        val currentQueue = mainViewModel.uiState.value.currentQueue
+        if (currentQueue.isEmpty()) return@launch
 
-    if (currentQueue.isEmpty())
-        return
+        val currentPos = mainViewModel.uiState.value.posInQueue
+        val fromIndex = (currentPos - 3).coerceAtLeast(0)
+        val toIndex = (currentPos + 3).coerceAtMost(currentQueue.size)
 
-    val currentPos = mainViewModel.uiState.value.posInQueue
+        currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                supervisorScope {
+                    currentQueue.mapNotNull { it.hashKey }
+                        .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
+                        .subList(fromIndex, toIndex)
+                        .map { song ->
+                            async {
+                                if (!isActive || song.progressStatus.streamHandled || !song.shouldGetStream()) return@async
 
-    val fromIndex = (currentPos - 3).coerceAtLeast(0)
-    val toIndex = (currentPos + 3)  .coerceAtMost(currentQueue.size)
+                                withContext(Dispatchers.Main) {
+                                    mainViewModel.updateStatusForSong(
+                                        song.link,
+                                        song.progressStatus.copy(streamHandled = true)
+                                    )
+                                }
 
-    currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
-        try {
-            coroutineScope {
-                currentQueue.mapNotNull { it.hashKey }
-                    .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
-                    .subList(fromIndex, toIndex)
-                    .map { song ->
-                        async {
-                            // Skip if already being handled
-                            if (song.progressStatus.streamHandled) return@async
-
-                            if (song.shouldGetStream().not()) return@async
-
-                            // Mark as handled (на Main)
-                            withContext(Dispatchers.Main) {
-                                mainViewModel.updateStatusForSong(
-                                    song.link,
-                                    song.progressStatus.copy(streamHandled = true)
-                                )
-                            }
-
-                            try {
-                                val audioUrl = getBestAudioStreamUrl(song.link)
-
-                                if (audioUrl != null) {
+                                try {
+                                    val audioUrl = getBestAudioStreamUrl(song.link)
+                                    if (!isActive || audioUrl == null) return@async
                                     withContext(Dispatchers.Main) {
-                                        val latestSong =
-                                            mainViewModel.uiState.value.allAudioData[song.link]
-                                                ?: return@withContext
                                         mainViewModel.updateStreamForSong(song.link, audioUrl)
                                     }
-                                }
-                            } catch (e: Exception) {
-
-                            } finally {
-                                withContext(NonCancellable + Dispatchers.Main) {
-                                    val latestSong =
-                                        mainViewModel.uiState.value.allAudioData[song.link]
-                                            ?: return@withContext
-                                    if (latestSong.progressStatus.streamHandled) {
-                                        mainViewModel.updateStatusForSong(
-                                            song.link,
-                                            latestSong.progressStatus.copy(streamHandled = false)
-                                        )
+                                } finally {
+                                    withContext(NonCancellable + Dispatchers.Main) {
+                                        val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@withContext
+                                        if (latest.progressStatus.streamHandled) {
+                                            mainViewModel.updateStatusForSong(
+                                                song.link,
+                                                latest.progressStatus.copy(streamHandled = false)
+                                            )
+                                        }
                                     }
                                 }
                             }
+                        }.awaitAll()
+                }
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main) {
+                    currentQueue.forEach { item ->
+                        val song = mainViewModel.uiState.value.allAudioData[item.hashKey] ?: return@forEach
+                        if (song.progressStatus.streamHandled) {
+                            mainViewModel.updateStatusForSong(
+                                song.link,
+                                song.progressStatus.copy(streamHandled = false)
+                            )
                         }
-                    }
-                    .awaitAll()
-            }
-        } finally {
-            withContext(NonCancellable + Dispatchers.Main) {
-                currentQueue.forEach { item ->
-                    val song = mainViewModel.uiState.value.allAudioData[item.hashKey] ?: return@forEach
-                    if (song.progressStatus.streamHandled) {
-                        mainViewModel.updateStatusForSong(
-                            song.link,
-                            song.progressStatus.copy(streamHandled = false)
-                        )
                     }
                 }
             }
@@ -158,71 +208,64 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
 var currentAudioSourceFetch: Job? = null
 
 fun fetchAudioSource(audioSource: String, mainViewModel: PlayerViewModel) {
+    CoroutineScope(Dispatchers.Main).launch {
+        if (mainViewModel.uiState.value.audioData[audioSource] == null) return@launch
 
-    if (mainViewModel.uiState.value.audioData[audioSource] == null)
-        return
+        currentAudioSourceFetch?.cancelAndJoin()
 
-    currentAudioSourceFetch?.cancel()
+        currentAudioSourceFetch = CoroutineScope(Dispatchers.IO).launch {
+            val songs = mainViewModel.uiState.value.audioData[audioSource]
+                ?.songIds
+                ?.mapNotNull { mainViewModel.uiState.value.allAudioData[it] }
+                ?: emptyList()
 
-    currentAudioSourceFetch = CoroutineScope(Dispatchers.IO).launch {
-        val songs = mainViewModel.uiState.value.audioData[audioSource]
-            ?.songIds
-            ?.mapNotNull { mainViewModel.uiState.value.allAudioData[it] }
-            ?: emptyList()
+            try {
+                supervisorScope {
+                    songs.filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
+                        .chunked(5)
+                        .forEach { batch ->
+                            batch.map { song ->
+                                async {
+                                    if (!isActive) return@async
 
-        try {
-            coroutineScope {
-                songs
-                    .filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
-                    .chunked(5)
-                    .forEach { batch ->
-                        batch.map { song ->
-                            async {
-                                withContext(Dispatchers.Main) {
-                                    mainViewModel.updateStatusForSong(
-                                        song.link,
-                                        song.progressStatus.copy(streamHandled = true)
-                                    )
-                                }
+                                    withContext(Dispatchers.Main) {
+                                        mainViewModel.updateStatusForSong(
+                                            song.link,
+                                            song.progressStatus.copy(streamHandled = true)
+                                        )
+                                    }
 
-                                try {
-                                    val audioUrl = getBestAudioStreamUrl(song.link)
-
-                                    if (audioUrl != null && isActive) {
+                                    try {
+                                        val audioUrl = getBestAudioStreamUrl(song.link)
+                                        if (!isActive || audioUrl == null) return@async
                                         withContext(Dispatchers.Main) {
-                                            val latestSong =
-                                                mainViewModel.uiState.value.allAudioData[song.link]
-                                                    ?: return@withContext
                                             mainViewModel.updateStreamForSong(song.link, audioUrl)
                                         }
-                                    }
-                                } catch (_: Exception) {
-                                } finally {
-                                    withContext(NonCancellable + Dispatchers.Main) {
-                                        val latestSong =
-                                            mainViewModel.uiState.value.allAudioData[song.link]
-                                                ?: return@withContext
-                                        if (latestSong.progressStatus.streamHandled) {
-                                            mainViewModel.updateStatusForSong(
-                                                song.link,
-                                                latestSong.progressStatus.copy(streamHandled = false)
-                                            )
+                                    } finally {
+                                        withContext(NonCancellable + Dispatchers.Main) {
+                                            val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@withContext
+                                            if (latest.progressStatus.streamHandled) {
+                                                mainViewModel.updateStatusForSong(
+                                                    song.link,
+                                                    latest.progressStatus.copy(streamHandled = false)
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        }.awaitAll()
-                    }
-            }
-        } finally {
-            withContext(NonCancellable + Dispatchers.Main) {
-                songs.forEach { song ->
-                    val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@forEach
-                    if (latest.progressStatus.streamHandled) {
-                        mainViewModel.updateStatusForSong(
-                            song.link,
-                            latest.progressStatus.copy(streamHandled = false)
-                        )
+                            }.awaitAll()
+                        }
+                }
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main) {
+                    songs.forEach { song ->
+                        val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@forEach
+                        if (latest.progressStatus.streamHandled) {
+                            mainViewModel.updateStatusForSong(
+                                song.link,
+                                latest.progressStatus.copy(streamHandled = false)
+                            )
+                        }
                     }
                 }
             }
@@ -235,31 +278,25 @@ var currentFetchImageJob: Job? = null
 fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
     val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 
-    // Cancel previous job
-    currentFetchImageJob?.cancel()
+    CoroutineScope(Dispatchers.Main).launch {
+        currentFetchImageJob?.cancelAndJoin()
 
-    currentFetchImageJob = CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val audioImage = getPythonModule(globalContext!!).callAttr("getTrackImage", songKey).toString()
+        currentFetchImageJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val audioImage = getPythonModule(globalContext!!)
+                    .callAttr("getTrackImage", songKey)
+                    ?.toString()
 
-            if (!isActive) return@launch // if coroutine was cancelled, stop here
+                if (!isActive || audioImage.isNullOrEmpty()) return@launch
 
-            if (audioImage != null) {
-                val trackBitmap = loadBitmapFromUrl(audioImage)
+                val trackBitmap = loadBitmapFromUrl(audioImage) ?: return@launch
+                if (!isActive) return@launch
 
                 withContext(Dispatchers.Main) {
-                    mainViewModel.updateImageForSong(songKey, trackBitmap!!)
+                    mainViewModel.updateImageForSong(songKey, trackBitmap)
                 }
-            } else {
-                println("No valid image found for $songKey")
-            }
-
-        } catch (e: Exception) {
-            println("Error fetching image for $songKey: ${e.message}")
-
-        } finally {
-            withContext(Dispatchers.Main) {
-
+            } catch (e: Exception) {
+                println("Error fetching image for $songKey: ${e.message}")
             }
         }
     }

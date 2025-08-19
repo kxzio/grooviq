@@ -67,6 +67,11 @@ fun SquareProgressBox(
     size: Dp = 45.dp,
     cornerRadius: Dp = 6.dp
 ) {
+    if (progress == 0)
+        return
+
+    if (progress == 100)
+        return
 
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -281,7 +286,6 @@ fun SwipeToQueueItem(
 
                 Column(modifier = Modifier.padding(start = 8.dp)) {
                     Text(song.title, maxLines = 1, fontSize = 12.sp)
-                    Text(song.stream.streamUrl, maxLines = 1, fontSize = 12.sp)
                     Text(
                         song.artists.joinToString { it.title },
                         maxLines = 1,

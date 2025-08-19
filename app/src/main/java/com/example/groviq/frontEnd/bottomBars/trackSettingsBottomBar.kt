@@ -267,11 +267,15 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         onScreenMove(settingPages.ADD_TO_PLAYLIST_SCREEN)
     })
 
-    if (track!!.progressStatus.downloadingProgress.toInt() == 100) {
-        buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
-            deleteDownloadedAudioFile(mainViewModel, track.link)
-            onClose()
-        })
+
+    if (track!!.file != null) {
+
+        if (track!!.file!!.exists()) {
+            buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
+                deleteDownloadedAudioFile(mainViewModel, track.link)
+                onClose()
+            })
+        }
     }
     else {
         buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {

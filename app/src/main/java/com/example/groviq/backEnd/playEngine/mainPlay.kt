@@ -29,7 +29,7 @@ import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
-import com.example.groviq.backEnd.streamProcessor.currentFetchJob
+import com.example.groviq.backEnd.streamProcessor.cancelFetchForSong
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
 import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
@@ -101,8 +101,13 @@ class AudioPlayerManager(context: Context) {
         if (hashkey != mainViewModel.uiState.value.playingHash) {
 
             //cancel all threads
+
+            val oldKey = mainViewModel.uiState.value.playingHash
+            if (oldKey != null) {
+                cancelFetchForSong(oldKey, mainViewModel)
+            }
+
             currentPlaybackJob      ?.cancel()
-            currentFetchJob         ?.cancel()
             currentRelatedTracksJob ?.cancel()
 
             mainViewModel.setSongsLoadingStatus(false)
