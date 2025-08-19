@@ -518,8 +518,6 @@ class SearchViewModel : ViewModel() {
 
         if (!hasInternetConnection(context)) return ""
 
-        currentRelatedTracksJob?.cancel()
-
         mainViewModel.setSongsLoadingStatus(true)
 
         return withContext(Dispatchers.IO) {

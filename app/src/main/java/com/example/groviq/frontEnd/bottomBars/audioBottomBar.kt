@@ -144,23 +144,31 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         )
                     }
 
-                    IconButton(
-                        onClick =
-                        {
-                            if (mainUiState.currentStatus == playerStatus.PAUSE)
-                                playerManager.resume()
-                            if (mainUiState.currentStatus == playerStatus.PLAYING)
-                                playerManager.pause()
-                        },
-                    ) {
-                        Icon(
-                            imageVector = if (mainUiState.currentStatus == playerStatus.PAUSE)
-                                Icons.Rounded.PlayArrow else Icons.Rounded.Pause
-                            ,
-                            contentDescription = "Pause/Play",
-                            tint = Color(255, 255, 255)
-                        )
+                    if (mainUiState.currentStatus == playerStatus.IDLE || mainUiState.currentStatus == playerStatus.BUFFERING)
+                    {
+                        CircularProgressIndicator()
                     }
+                    else
+                    {
+                        IconButton(
+                            onClick =
+                            {
+                                if (mainUiState.currentStatus == playerStatus.PAUSE)
+                                    playerManager.resume()
+                                if (mainUiState.currentStatus == playerStatus.PLAYING)
+                                    playerManager.pause()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = if (mainUiState.currentStatus == playerStatus.PAUSE)
+                                    Icons.Rounded.PlayArrow else Icons.Rounded.Pause
+                                ,
+                                contentDescription = "Pause/Play",
+                                tint = Color(255, 255, 255)
+                            )
+                        }
+                    }
+
 
                     IconButton(
                         onClick =

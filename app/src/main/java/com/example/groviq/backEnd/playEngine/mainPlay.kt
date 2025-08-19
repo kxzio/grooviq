@@ -32,6 +32,7 @@ import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
 import com.example.groviq.backEnd.streamProcessor.currentFetchJob
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
+import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
 import com.example.groviq.bitmapToCompressedBytes
 import com.example.groviq.globalContext
 import com.example.groviq.isServiceRunning
@@ -81,6 +82,7 @@ class AudioPlayerManager(context: Context) {
     @OptIn(
         UnstableApi::class
     )
+
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
         //check bounding box
@@ -104,11 +106,6 @@ class AudioPlayerManager(context: Context) {
             currentRelatedTracksJob ?.cancel()
 
             mainViewModel.setSongsLoadingStatus(false)
-
-            mainViewModel.updateStatusForSong(
-                hashkey,
-                mainViewModel.uiState.value.allAudioData[hashkey]!!.progressStatus.copy(streamHandled = false)
-            )
 
         }
 
@@ -223,14 +220,18 @@ class AudioPlayerManager(context: Context) {
                         )
                         .build()
 
-                    player!!.setMediaItems(
-                        listOf(emptyMediaItemPrev, mediaItem, emptyMediaItemNext))
-                    player.seekTo(1, 0)
+                    player!!.setMediaItem(
+                        mediaItem)
                     player!!.prepare()
                     player!!.playWhenReady = true
                     player!!.repeatMode = Player.REPEAT_MODE_OFF
                     player!!.shuffleModeEnabled = false
 
+
+                    //save updated stream
+                    mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashkey]!!)
+
+                    fetchQueueStream(mainViewModel)
 
                 }
             }
@@ -239,7 +240,6 @@ class AudioPlayerManager(context: Context) {
         }
 
     }
-
 
     fun pause() {
         player!!.pause()
@@ -258,13 +258,19 @@ class AudioPlayerManager(context: Context) {
     }
 
     fun nextSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel) {
+
         val view = mainViewModel.uiState.value
 
         val repeatMode = view.repeatMode
         val isShuffle = view.isShuffle
         val currentQueue = view.currentQueue
+
+        if (currentQueue.isNullOrEmpty())
+            return
+
         val originalQueue = view.originalQueue
         val pos = view.posInQueue
+
 
         if (repeatMode == repeatMods.REPEAT_ONE) {
             // Повтор одного трека
@@ -296,7 +302,10 @@ class AudioPlayerManager(context: Context) {
         }
 
         player.stop()
-        CoroutineScope(Dispatchers.Main).launch {
+
+        currentRelatedTracksJob?.cancel()
+
+        currentRelatedTracksJob = CoroutineScope(Dispatchers.Main).launch {
             // NO REPEAT
 
             val audioSourcePath = searchViewModel.addRelatedTracksToCurrentQueue(

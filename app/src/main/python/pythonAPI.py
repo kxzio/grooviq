@@ -561,7 +561,7 @@ def extract_video_id(url_or_id: str) -> str:
         return m.group(1)
     return url_or_id.strip()
 
-def getRelatedTracks(track_id_or_url, max_results=25, official_only=True):
+def getRelatedTracks(track_id_or_url, max_results=20, official_only=True):
     def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
         if not entity_id:
             return ''

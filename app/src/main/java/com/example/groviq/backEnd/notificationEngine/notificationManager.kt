@@ -70,6 +70,30 @@ class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
         songPendingIntentNavigationDirection.value = pendingDirection.TO_PREVIOUS_SONG
     }
 
+    override fun hasNextMediaItem(): Boolean {
+        return true
+    }
+
+    override fun hasPreviousMediaItem(): Boolean {
+        return true
+    }
+
+    override fun getAvailableCommands(): Player.Commands {
+        return Player.Commands.Builder()
+            .addAllCommands()
+            .build()
+    }
+
+    override fun isCommandAvailable(command: Int): Boolean {
+        return when (command) {
+            Player.COMMAND_SEEK_TO_NEXT,
+            Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+            Player.COMMAND_SEEK_TO_PREVIOUS,
+            Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+            else -> super.isCommandAvailable(command)
+        }
+    }
+
 }
 
 @UnstableApi

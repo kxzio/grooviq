@@ -63,6 +63,10 @@ data class songData(
     )
 {
     fun shouldGetStream(ttlMillis: Long = TimeUnit.HOURS.toMillis(5)): Boolean {
+
+        if (file != null && file!!.exists())
+            return false
+
         if (stream.streamUrl.isNullOrEmpty()) return true
         val now = System.currentTimeMillis()
         return now - stream.setTime >= ttlMillis
