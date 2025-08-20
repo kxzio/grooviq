@@ -33,6 +33,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,6 +66,7 @@ var currentTrackJob: Job? = null
 
 //recommend list, that we do before song ends
 var preparedRecommendList : MutableList < songData > = mutableListOf()
+var preparationInProgress : Boolean = false
 
 //we store the song, that we already get the recomndation list, to use his again, to make new recommendations based on this song.
 //reset on playerPressed play
@@ -536,7 +538,7 @@ class SearchViewModel : ViewModel() {
 
                 val random = Random.nextInt(0, 1488)
 
-                if (preparedRecommendList.isNullOrEmpty())
+                if (preparedRecommendList.isNullOrEmpty() && preparationInProgress == false)
                 {
                     val trackMetaJson = try {
 
@@ -585,8 +587,34 @@ class SearchViewModel : ViewModel() {
 
                     request + "source-related-tracks" + random
                 }
-                else
+                else if (preparedRecommendList.isNullOrEmpty() && preparationInProgress == true)
                 {
+                    while (preparedRecommendList.isNullOrEmpty()) {
+                        delay(100)
+                    }
+
+                    val tracks = preparedRecommendList
+
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.setAlbumTracks(
+                            request + "source-related-tracks" + random,
+                            tracks,
+                            audioSourceName = "Похожие треки",
+                            audioSourceArtist = emptyList(),
+                            audioSourceYear = ""
+                        )
+
+                        tracks.forEach { track ->
+                            addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks" + random)
+                        }
+
+                        mainViewModel.setSongsLoadingStatus(false)
+                        lastRecommendListProcessed = tracks.map { it.link }.toMutableList()
+                    }
+
+                    request + "source-related-tracks" + random
+                }
+                else {
 
                     val tracks = preparedRecommendList
 
@@ -626,6 +654,8 @@ class SearchViewModel : ViewModel() {
         mainViewModel: PlayerViewModel
     ){
 
+        preparationInProgress = true
+
         if (!hasInternetConnection(context)) return
 
         withContext(Dispatchers.IO) {
@@ -663,6 +693,7 @@ class SearchViewModel : ViewModel() {
 
                     withContext(Dispatchers.Main) {
                         preparedRecommendList = tracks.toMutableList()
+                        preparationInProgress = false
                     }
 
                 }
@@ -670,6 +701,7 @@ class SearchViewModel : ViewModel() {
             } finally {
                 withContext(
                     NonCancellable + Dispatchers.Main) {
+                    preparationInProgress = false
                 }
             }
         }

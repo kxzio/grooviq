@@ -207,7 +207,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
                                         .setUri(audioUrl)
                                         .setMediaId(song.link)
                                         .build()
-                                    preloader.doPreload(mediaItem, bytesToRead = 256 * 1024)
+                                    preloader.preload(mediaItem, bytesToRead = 256 * 1024)
                                 }
                             } else null
                         }.awaitAll()
