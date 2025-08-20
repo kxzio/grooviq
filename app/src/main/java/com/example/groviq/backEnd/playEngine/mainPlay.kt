@@ -195,6 +195,11 @@ class AudioPlayerManager(context: Context) {
             mainViewModel.setLastSourceBuilded(mainViewModel.uiState.value.playingAudioSourceHash)
         }
 
+        if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash)
+        {
+            preloadedTracks.clear()
+        }
+
         //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
         mainViewModel.clearUnusedAudioSourcedAndSongs(searchViewModel)
 

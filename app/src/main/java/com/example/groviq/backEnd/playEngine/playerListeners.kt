@@ -128,9 +128,9 @@ fun createListeners(
             val position = player.currentPosition
             val remaining = duration - position
 
-            if (!trackEndingHandled && remaining in 0..12000) {
+            if (!trackEndingHandled && remaining in 0..15000) {
                 if (!playerManager.doesSongHaveNext(mainViewModel)) {
-                    trackEndingHandled = true // больше не вызовется для этого трека
+                    trackEndingHandled = true
                     CoroutineScope(Dispatchers.Main).launch {
                         searchViewModel.prepareRelatedTracks(
                             globalContext!!,

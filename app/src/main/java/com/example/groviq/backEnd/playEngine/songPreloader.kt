@@ -19,35 +19,20 @@ import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import kotlinx.coroutines.*
 
+var preloadedTracks = mutableSetOf<String>()
+
 class Preloader(private val dataSourceFactory: DataSource.Factory, private val context: Context) {
 
 
     private var preloadJob: Job? = null
 
-    /**
-     * Прогревает трек: ждёт появления данных и качает часть в кэш.
-     * @param mediaItem трек
-     * @param bytesToRead сколько прогревать (по умолчанию 256 KB)
-     * @param timeoutMs сколько максимум ждать открытия потока
-     * @return true если прогрев удался, false иначе
-     */
-    suspend fun preload(
-        mediaItem: MediaItem,
-        bytesToRead: Int = 256 * 1024,
-        timeoutMs: Long = 10_000
-    ): Boolean = withContext(Dispatchers.IO) {
-        preloadJob?.cancelAndJoin() // отменяем предыдущий прогрев
-        preloadJob = launch {
-            // будет заменено на реальный preload
+    suspend fun preload(mediaItem: MediaItem, bytesToRead: Int = 256 * 1024): Boolean {
+        if (!preloadedTracks.add(mediaItem.mediaId ?: "")) {
+            println("🔹 Already preloaded: ${mediaItem.mediaId}")
+            return true
         }
-        try {
-            withTimeout(timeoutMs) {
-                doPreload(mediaItem, bytesToRead)
-            }
-        } catch (e: Exception) {
-            println("⚠️ Preload failed: ${e.message}")
-            false
-        }
+
+        return doPreload(mediaItem, bytesToRead)
     }
 
     @OptIn(
