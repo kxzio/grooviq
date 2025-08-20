@@ -19,6 +19,8 @@ from typing import Any, Dict
 from ytmusicapi.parsers.browsing import parse_related_artist
 from ytmusicapi.setup import setup_browser
 from ytmusicapi.navigation import nav
+import concurrent.futures
+import threading
 
 _ytm = YTMusic()
 
@@ -719,4 +721,365 @@ def getRelatedTracks(track_id_or_url, max_results=20, official_only=True):
         # сохраняем пустой результат (как раньше)
         results[track_id_or_url] = []
 
+    return json.dumps({"results": results}, ensure_ascii=False)
+
+
+def replaceSongs(json_list, official_only: bool = True,
+                      per_artist_limit: int = 10,
+                      max_workers: int = 6,
+                      album_pairs_limit: int = 3,
+                      tracks_per_album: int = 5):
+    """
+    Быстрая замена песен, сохраняющая артистов.
+    См. описание в обсуждении — возвращает json {"results": { input_url: [track_obj], ... }}
+    Параметры можно уменьшать для ускорения.
+    """
+    try:
+        song_urls = json.loads(json_list)
+    except Exception:
+        song_urls = []
+
+    # Быстрые проверки
+    if not song_urls:
+        return json.dumps({"results": {}}, ensure_ascii=False)
+
+    # ---- вспомогательные функции ----
+    def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
+        if not entity_id:
+            return ''
+        if entity_type == "album":
+            if entity_id.startswith('/browse/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/browse/{entity_id}"
+        else:
+            if entity_id.startswith('/channel/') or entity_id.startswith('/browse/') or entity_id.startswith('/artist/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/channel/{entity_id}"
+
+    def normalize_browse_id(bid: str) -> str:
+        if not bid:
+            return ''
+        return bid.split('/')[-1]
+
+    def normalize_track_obj(raw):
+        """Быстрая нормализация в требуемый формат или None."""
+        if not raw or not isinstance(raw, dict):
+            return None
+        vid = raw.get('videoId') or raw.get('id') or (raw.get('video') or {}).get('videoId') or ''
+        if not vid:
+            return None
+        title = raw.get('title') or raw.get('name') or (raw.get('video') or {}).get('title') or ''
+        duration_ms = 0
+        try:
+            if raw.get('lengthSeconds'):
+                duration_ms = int(raw.get('lengthSeconds')) * 1000
+            else:
+                duration_ms = raw.get('durationMillis') or 0
+        except Exception:
+            duration_ms = raw.get('durationMillis') or 0
+        artists_raw = raw.get('artists') or (raw.get('video') or {}).get('artists') or []
+        artists_info = []
+        for ar in artists_raw:
+            aname = ar.get('name') or ''
+            aid = ar.get('id') or ''
+            url = ''
+            if aid:
+                if aid.startswith('/channel/') or aid.startswith('/browse/') or aid.startswith('/artist/'):
+                    url = f"https://music.youtube.com{aid}"
+                else:
+                    url = f"https://music.youtube.com/channel/{aid}"
+            artists_info.append({'name': aname, 'url': url})
+        image_url = ''
+        if raw.get('thumbnail'):
+            try:
+                image_url = raw['thumbnail'][-1].get('url','')
+            except Exception:
+                image_url = ''
+        else:
+            thumbs = raw.get('thumbnails') or raw.get('album', {}).get('thumbnails') or []
+            if isinstance(thumbs, list) and thumbs:
+                image_url = thumbs[-1].get('url','')
+        album_url = ''
+        alb = raw.get('album') or {}
+        if alb:
+            aid = alb.get('id') or ''
+            if aid:
+                album_url = make_ytm_url(aid, "album")
+        return {
+            'id': vid,
+            'title': title,
+            'duration_ms': duration_ms or 0,
+            'url': f"https://music.youtube.com/watch?v={vid}",
+            'image_url': image_url,
+            'album_url': album_url,
+            'artists': artists_info
+        }
+
+    # ---- кэши и синхронизация (потоки будут писать в кэш) ----
+    artist_cache = {}
+    album_cache = {}
+    cache_lock = threading.Lock()
+
+    # Собираем входные id и оригинальные объекты (попытка получить метаданные одной сетью)
+    input_ids = set()
+    original_objs = {}
+    input_vids = []  # сохранить порядок входа
+    for inp in song_urls:
+        try:
+            vid = extract_video_id(inp)
+        except Exception:
+            vid = inp
+        input_vids.append((inp, vid))
+    # Получаем metadata для каждого vid (можно делать параллельно, но обычно get_watch_playlist один за другим ок)
+    for inp, vid in input_vids:
+        orig_obj = None
+        try:
+            wp = _ytm.get_watch_playlist(vid, limit=1) or {}
+            tracks = wp.get('tracks', []) or []
+            found = None
+            for t in tracks:
+                if t.get('videoId') == vid or t.get('id') == vid:
+                    found = t
+                    break
+            if not found and tracks:
+                found = tracks[0]
+            if found:
+                norm = normalize_track_obj(found)
+                if norm:
+                    orig_obj = norm
+        except Exception:
+            orig_obj = None
+        if not orig_obj:
+            orig_obj = {
+                'id': vid,
+                'title': '',
+                'duration_ms': 0,
+                'url': f'https://music.youtube.com/watch?v={vid}',
+                'image_url': '',
+                'album_url': '',
+                'artists': []
+            }
+        input_ids.add(orig_obj.get('id'))
+        original_objs[inp] = orig_obj
+
+    # --- Определяем primary artist для каждого входа и группируем ---
+    artist_to_inputs = {}   # artist_id -> list of input keys
+    input_primary_artist = {}  # input -> artist_id (or None)
+    for inp in song_urls:
+        orig = original_objs.get(inp, {})
+        primary_artist_id = None
+        if orig.get('artists'):
+            first = orig['artists'][0]
+            aurl = first.get('url') or ''
+            if aurl:
+                primary_artist_id = normalize_browse_id(aurl.split('/')[-1])
+        # дополнительная попытка — если нет
+        if not primary_artist_id:
+            vid = orig.get('id')
+            if vid:
+                try:
+                    wp = _ytm.get_watch_playlist(vid, limit=1) or {}
+                    tracks = wp.get('tracks', []) or []
+                    for t in tracks:
+                        if t.get('videoId') == vid or t.get('id') == vid:
+                            artists = t.get('artists') or []
+                            if artists:
+                                primary_artist_id = normalize_browse_id(artists[0].get('id') or '')
+                            break
+                except Exception:
+                    primary_artist_id = None
+        input_primary_artist[inp] = primary_artist_id
+        if primary_artist_id:
+            artist_to_inputs.setdefault(primary_artist_id, []).append(inp)
+        else:
+            artist_to_inputs.setdefault(None, []).append(inp)
+
+    # ---- Функция, собирающая кандидатов для артиста (будет выполняться в пуле) ----
+    def gather_for_artist(aid):
+        """Возвращает список normalized candidates для артиста aid (не включая exclude_ids)."""
+        candidates = []
+        if not aid:
+            return candidates
+        # кэш lookup
+        with cache_lock:
+            if aid in artist_cache:
+                art_page = artist_cache[aid]
+            else:
+                try:
+                    art_page = _ytm.get_artist(aid)
+                except Exception:
+                    art_page = {}
+                artist_cache[aid] = art_page
+
+        # 1) songs/tracks/top
+        songs_block = art_page.get('songs') or art_page.get('tracks') or {}
+        if isinstance(songs_block, dict):
+            songs_list = songs_block.get('results') or []
+        elif isinstance(songs_block, list):
+            songs_list = songs_block
+        else:
+            songs_list = []
+        for s in songs_list:
+            norm = normalize_track_obj(s)
+            if not norm:
+                continue
+            # фильтр оффишн
+            if official_only and len(norm['artists']) == 1 and norm['artists'][0]['name'] == "YouTube":
+                continue
+            candidates.append(norm)
+            if len(candidates) >= per_artist_limit:
+                return candidates
+
+        # 2) если мало -> пробуем несколько первых альбомов (ограниченно)
+        alb_pairs = []
+        for key in ("albums", "singles", "albumReleases", "singleReleases"):
+            sec = art_page.get(key, {})
+            bid = sec.get("browseId")
+            params = sec.get("params")
+            if bid and params:
+                alb_pairs.append((normalize_browse_id(bid), params))
+        if not alb_pairs:
+            for section in art_page.get('sections', []) or []:
+                title = (section.get('title') or "").lower()
+                if "album" in title or "single" in title or "release" in title or "discography" in title:
+                    bid = section.get("browseId") or section.get("endpoint", {}).get("browseId") or ''
+                    params = None
+                    cont = section.get("continuations") or []
+                    if cont:
+                        params = cont[0].get("nextContinuationData", {}).get("continuation") or cont[0].get("nextEndpoint", {}).get("params")
+                    if bid:
+                        alb_pairs.append((normalize_browse_id(bid), params))
+
+        tried = 0
+        for (bid, params) in alb_pairs:
+            if tried >= album_pairs_limit or len(candidates) >= per_artist_limit:
+                break
+            tried += 1
+            # если есть params — используем get_artist_albums
+            try:
+                items = []
+                if params:
+                    items = _ytm.get_artist_albums(bid, params, limit=3) or []
+                else:
+                    # если bid выглядит как album id — попробуем get_album
+                    try:
+                        album_page = None
+                        s_norm = normalize_browse_id(bid)
+                        with cache_lock:
+                            album_page = album_cache.get(s_norm)
+                        if album_page is None:
+                            try:
+                                album_page = _ytm.get_album(s_norm)
+                            except Exception:
+                                album_page = {}
+                            with cache_lock:
+                                album_cache[s_norm] = album_page
+                        items = [{'browseId': s_norm}]  # маркер что нужно взять этот альбом
+                    except Exception:
+                        items = []
+                for it in items:
+                    sbid = it.get('browseId') or it.get('id') or ''
+                    if not sbid:
+                        continue
+                    s_norm = normalize_browse_id(sbid)
+                    # получить album_page (с кэшем)
+                    with cache_lock:
+                        album_page = album_cache.get(s_norm)
+                    if album_page is None:
+                        try:
+                            album_page = _ytm.get_album(s_norm)
+                        except Exception:
+                            album_page = {}
+                        with cache_lock:
+                            album_cache[s_norm] = album_page
+                    for tr in (album_page.get('tracks') or [])[:tracks_per_album]:
+                        norm = normalize_track_obj(tr)
+                        if not norm:
+                            continue
+                        if official_only and len(norm['artists']) == 1 and norm['artists'][0]['name'] == "YouTube":
+                            continue
+                        candidates.append(norm)
+                        if len(candidates) >= per_artist_limit:
+                            break
+                    if len(candidates) >= per_artist_limit:
+                        break
+            except Exception:
+                continue
+
+        # Deduplicate by id preserving order
+        seen = set()
+        dedup = []
+        for c in candidates:
+            cid = c.get('id')
+            if cid and cid not in seen:
+                seen.add(cid)
+                dedup.append(c)
+        return dedup[:per_artist_limit]
+
+    # ---- Параллельно собираем кандидатов для всех уникальных артистов ----
+    unique_artists = [aid for aid in artist_to_inputs.keys() if aid]
+    artist_candidates = {}  # aid -> list of candidates
+    if unique_artists:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, max(1, len(unique_artists)))) as ex:
+            future_to_aid = { ex.submit(gather_for_artist, aid): aid for aid in unique_artists }
+            for fut in concurrent.futures.as_completed(future_to_aid):
+                aid = future_to_aid[fut]
+                try:
+                    artist_candidates[aid] = fut.result() or []
+                except Exception:
+                    artist_candidates[aid] = []
+
+    # ---- Теперь распределяем кандидатов по входам ----
+    results = {}
+    # Чтобы избежать повторов в ответах, будем пытаться выдавать уникальные кандидаты по артисту
+    for aid, inputs_for_artist in artist_to_inputs.items():
+        if not aid:
+            # для None — просто возвращаем оригинал
+            for inp in inputs_for_artist:
+                results[inp] = [ original_objs.get(inp) ]
+            continue
+        pool = artist_candidates.get(aid, [])
+        # Shuffle for randomness
+        random.shuffle(pool)
+        # если пул меньше количества входов, мы позволим повторы, но сначала выдадим уникальные
+        used_ids = set()
+        idx = 0
+        for inp in inputs_for_artist:
+            orig = original_objs.get(inp, {})
+            orig_id = orig.get('id')
+            # найдем кандидат, не совпадающий с входными id (input_ids) и не равный оригиналу
+            chosen = None
+            while idx < len(pool):
+                cand = pool[idx]
+                idx += 1
+                if not cand:
+                    continue
+                cid = cand.get('id')
+                if not cid:
+                    continue
+                if cid == orig_id:
+                    continue
+                if cid in input_ids:
+                    # исключаем исходники из всей группы
+                    continue
+                if cid in used_ids:
+                    continue
+                # OK
+                chosen = cand
+                used_ids.add(cid)
+                break
+            # если не нашли уникального — попробуем взять любой, кроме orig_id
+            if not chosen:
+                for cand in pool:
+                    cid = cand.get('id')
+                    if cid and cid != orig_id and cid not in used_ids and cid not in input_ids:
+                        chosen = cand
+                        used_ids.add(cid)
+                        break
+            # финальный fallback — оригинал
+            if not chosen:
+                chosen = orig
+            results[inp] = [chosen]
+
+    # ---- Вернём JSON ----
     return json.dumps({"results": results}, ensure_ascii=False)

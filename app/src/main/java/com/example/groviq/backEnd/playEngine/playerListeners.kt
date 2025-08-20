@@ -11,6 +11,8 @@ import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
+import com.example.groviq.globalContext
 import com.example.groviq.playerManager
 import com.example.groviq.service.pendingDirection
 import com.example.groviq.service.songPendingIntentNavigationDirection
@@ -63,6 +65,8 @@ fun createListeners(
     }
 
     playerManager.player!!.addListener(object : Player.Listener {
+
+        var trackEndingHandled = false
 
         override fun onPlaybackStateChanged(state: Int) {
             when (state) {
@@ -119,12 +123,32 @@ fun createListeners(
             }
         }
 
+        override fun onEvents(player: Player, events: Player.Events) {
+            val duration = player.duration
+            val position = player.currentPosition
+            val remaining = duration - position
 
+            if (!trackEndingHandled && remaining in 0..12000) {
+                if (!playerManager.doesSongHaveNext(mainViewModel)) {
+                    trackEndingHandled = true // больше не вызовется для этого трека
+                    CoroutineScope(Dispatchers.Main).launch {
+                        searchViewModel.prepareRelatedTracks(
+                            globalContext!!,
+                            mainViewModel.uiState.value.playingHash,
+                            mainViewModel
+                        )
+                    }
+                }
+            }
+
+            if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                trackEndingHandled = false
+            }
+        }
 
     })
 
-    val scope = CoroutineScope(
-        Dispatchers.Main)
+    val scope = CoroutineScope(Dispatchers.Main)
 
     scope.launch {
         snapshotFlow { songPendingIntentNavigationDirection.value }

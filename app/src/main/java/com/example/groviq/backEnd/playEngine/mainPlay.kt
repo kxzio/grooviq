@@ -19,7 +19,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.database.ExoDatabaseProvider
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -33,6 +37,8 @@ import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
+import com.example.groviq.backEnd.searchEngine.lastRecommendListProcessed
+import com.example.groviq.backEnd.searchEngine.preparedRecommendList
 import com.example.groviq.backEnd.streamProcessor.cancelFetchForSong
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
@@ -51,7 +57,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.concurrent.Executors
+
 
 @UnstableApi
 class AudioPlayerManager(context: Context) {
@@ -67,15 +75,25 @@ class AudioPlayerManager(context: Context) {
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
 
-    val mediaSourceFactory = DefaultMediaSourceFactory(globalContext!!)
-        .setDataSourceFactory(
-            DefaultHttpDataSource.Factory()
-                .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(10_000)
-                .setReadTimeoutMs(10_000)
-                .setKeepPostFor302Redirects(true)
-                .setTransferListener(DefaultBandwidthMeter.getSingletonInstance(globalContext!!))
-        )
+    val cacheDir = File(context.cacheDir, "media")
+    val cacheEvictor = LeastRecentlyUsedCacheEvictor(100L * 1024L * 1024L)
+    val databaseProvider = ExoDatabaseProvider(context)
+
+    val simpleCache = SimpleCache(cacheDir, cacheEvictor, databaseProvider)
+
+    val upstreamFactory = DefaultHttpDataSource.Factory()
+        .setAllowCrossProtocolRedirects(true)
+        .setConnectTimeoutMs(10_000)
+        .setReadTimeoutMs(10_000)
+        .setKeepPostFor302Redirects(true)
+        .setTransferListener(DefaultBandwidthMeter.getSingletonInstance(context))
+
+    val cacheDataSourceFactory = CacheDataSource.Factory()
+        .setCache(simpleCache)
+        .setUpstreamDataSourceFactory(upstreamFactory)
+        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+    val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
 
     val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!)
         .setLoadControl(loadControl)
@@ -137,7 +155,6 @@ class AudioPlayerManager(context: Context) {
 
             currentPlaybackJob      ?.cancel()
             currentRelatedTracksJob ?.cancel()
-
             mainViewModel.setSongsLoadingStatus(false)
 
         }
@@ -147,6 +164,14 @@ class AudioPlayerManager(context: Context) {
 
 
         setSongProgress(0f, 0L)
+
+        //erase the list, that we prepared for song
+        preparedRecommendList       = mutableListOf()
+        if (userPressed)
+        {
+            //no song to recommend
+            lastRecommendListProcessed  = mutableListOf()
+        }
 
         if (mainViewModel.uiState.value.shouldRebuild && userPressed)
         {
@@ -266,6 +291,7 @@ class AudioPlayerManager(context: Context) {
 
                     fetchQueueStream(mainViewModel)
 
+
                 }
             }
 
@@ -290,6 +316,38 @@ class AudioPlayerManager(context: Context) {
         player!!.release()
     }
 
+    fun doesSongHaveNext(mainViewModel: PlayerViewModel) : Boolean
+    {
+        val view = mainViewModel.uiState.value
+        val repeatMode = view.repeatMode
+        val isShuffle = view.isShuffle
+        val currentQueue = view.currentQueue
+
+        if (currentQueue.isNullOrEmpty())
+            return false
+
+        val originalQueue = view.originalQueue
+        val pos = view.posInQueue
+
+        if (repeatMode == repeatMods.REPEAT_ONE) {
+            return true
+        }
+
+        val nextIndex = pos + 1
+
+        if (nextIndex < currentQueue.size) {
+            return true
+        }
+
+        // reached end of queue
+        if (repeatMode == repeatMods.REPEAT_ALL) {
+            return true
+        }
+
+        return false
+
+    }
+
     fun nextSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel) {
 
         val view = mainViewModel.uiState.value
@@ -303,7 +361,6 @@ class AudioPlayerManager(context: Context) {
 
         val originalQueue = view.originalQueue
         val pos = view.posInQueue
-
 
         if (repeatMode == repeatMods.REPEAT_ONE) {
             // Повтор одного трека
@@ -336,10 +393,15 @@ class AudioPlayerManager(context: Context) {
 
         player.stop()
 
+        if (mainViewModel.uiState.value.songsLoader == true)
+            return
+
         currentRelatedTracksJob?.cancel()
 
         currentRelatedTracksJob = CoroutineScope(Dispatchers.Main).launch {
             // NO REPEAT
+
+            mainViewModel.setSongsLoadingStatus(true)
 
             val audioSourcePath = searchViewModel.addRelatedTracksToCurrentQueue(
                 globalContext!!,

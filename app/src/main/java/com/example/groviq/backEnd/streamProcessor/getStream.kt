@@ -2,13 +2,16 @@ package com.example.groviq.backEnd.streamProcessor
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaItem
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
+import com.example.groviq.backEnd.playEngine.Preloader
 import com.example.groviq.backEnd.streamProcessor.innerTubeMine.getBestAudioStreamUrl
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
+import com.example.groviq.playerManager
 import com.example.groviq.retryWithBackoff
 import com.example.groviq.waitForInternet
 import kotlinx.coroutines.CoroutineScope
@@ -141,6 +144,8 @@ fun cancelFetchForSong(songKey: String, mainViewModel: PlayerViewModel) {
 var currentFetchQueueJob: Job? = null
 
 fun fetchQueueStream(mainViewModel: PlayerViewModel) {
+    val preloader = Preloader(playerManager.cacheDataSourceFactory, globalContext!!)
+
     CoroutineScope(Dispatchers.Main).launch {
         currentFetchQueueJob?.cancelAndJoin()
 
@@ -151,42 +156,62 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
         val fromIndex = (currentPos - 3).coerceAtLeast(0)
         val toIndex = (currentPos + 3).coerceAtMost(currentQueue.size)
 
+        val aroundSongs = currentQueue
+            .mapNotNull { it.hashKey }
+            .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
+            .subList(fromIndex, toIndex)
+            .filterIndexed { idx, _ -> (fromIndex + idx) != currentPos }
+
         currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 supervisorScope {
-                    currentQueue.mapNotNull { it.hashKey }
-                        .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
-                        .subList(fromIndex, toIndex)
-                        .map { song ->
-                            async {
-                                if (!isActive || song.progressStatus.streamHandled || !song.shouldGetStream()) return@async
+
+                    aroundSongs.map { song ->
+                        async {
+                            if (!isActive || song.progressStatus.streamHandled || !song.shouldGetStream()) return@async
+
+                            withContext(Dispatchers.Main) {
+                                mainViewModel.updateStatusForSong(
+                                    song.link,
+                                    song.progressStatus.copy(streamHandled = true)
+                                )
+                            }
+
+                            try {
+                                val audioUrl = getBestAudioStreamUrl(song.link)
+                                if (!isActive || audioUrl == null) return@async
 
                                 withContext(Dispatchers.Main) {
-                                    mainViewModel.updateStatusForSong(
-                                        song.link,
-                                        song.progressStatus.copy(streamHandled = true)
-                                    )
+                                    mainViewModel.updateStreamForSong(song.link, audioUrl)
                                 }
-
-                                try {
-                                    val audioUrl = getBestAudioStreamUrl(song.link)
-                                    if (!isActive || audioUrl == null) return@async
-                                    withContext(Dispatchers.Main) {
-                                        mainViewModel.updateStreamForSong(song.link, audioUrl)
-                                    }
-                                } finally {
-                                    withContext(NonCancellable + Dispatchers.Main) {
-                                        val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@withContext
-                                        if (latest.progressStatus.streamHandled) {
-                                            mainViewModel.updateStatusForSong(
-                                                song.link,
-                                                latest.progressStatus.copy(streamHandled = false)
-                                            )
-                                        }
+                            } finally {
+                                withContext(NonCancellable + Dispatchers.Main) {
+                                    val latest = mainViewModel.uiState.value.allAudioData[song.link] ?: return@withContext
+                                    if (latest.progressStatus.streamHandled) {
+                                        mainViewModel.updateStatusForSong(
+                                            song.link,
+                                            latest.progressStatus.copy(streamHandled = false)
+                                        )
                                     }
                                 }
                             }
+                        }
+                    }.awaitAll()
+
+                    supervisorScope {
+                        aroundSongs.mapNotNull { song ->
+                            val audioUrl = song.stream.streamUrl
+                            if (audioUrl != null) {
+                                async {
+                                    val mediaItem = MediaItem.Builder()
+                                        .setUri(audioUrl)
+                                        .setMediaId(song.link)
+                                        .build()
+                                    preloader.doPreload(mediaItem, bytesToRead = 256 * 1024)
+                                }
+                            } else null
                         }.awaitAll()
+                    }
                 }
             } finally {
                 withContext(NonCancellable + Dispatchers.Main) {

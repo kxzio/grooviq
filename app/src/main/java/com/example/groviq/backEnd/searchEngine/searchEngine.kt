@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -19,14 +20,17 @@ import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.backEnd.dataStructures.streamInfo
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
+import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.getPythonModule
 import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +43,7 @@ import kotlinx.serialization.json.Json
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.random.Random
 
 
 class SearchViewModelFactory() : ViewModelProvider.Factory {
@@ -57,6 +62,13 @@ var currentArtistJob: Job? = null
 
 var currentTrackJob: Job? = null
 
+
+//recommend list, that we do before song ends
+var preparedRecommendList : MutableList < songData > = mutableListOf()
+
+//we store the song, that we already get the recomndation list, to use his again, to make new recommendations based on this song.
+//reset on playerPressed play
+var lastRecommendListProcessed : MutableList < String > = mutableListOf()
 
 class SearchViewModel : ViewModel() {
 
@@ -518,40 +530,148 @@ class SearchViewModel : ViewModel() {
 
         if (!hasInternetConnection(context)) return ""
 
-        mainViewModel.setSongsLoadingStatus(true)
+        return withContext(Dispatchers.IO)
+        {
+            try {
 
-        return withContext(Dispatchers.IO) {
-            val trackMetaJson = try {
-                getPythonModule(context)
-                    .callAttr("getRelatedTracks", request)
-                    .toString()
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
+                val random = Random.nextInt(0, 1488)
+
+                if (preparedRecommendList.isNullOrEmpty())
+                {
+                    val trackMetaJson = try {
+
+                        //we should get another same list for this song again
+                        if (lastRecommendListProcessed.isNullOrEmpty().not())
+                        {
+                            val gson = Gson()
+                            val json = gson.toJson(lastRecommendListProcessed)
+                            getPythonModule(context)
+                                .callAttr("replaceSongs", json)
+                                .toString()
+                        }
+                        else
+                        {
+                            getPythonModule(context)
+                                .callAttr("getRelatedTracks", request)
+                                .toString()
+                        }
+
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                        null
+                    }
+
+                    val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
+                    val tracks = trackDtos.map { trackDtoToSongData(it) }
+
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.setAlbumTracks(
+                            request + "source-related-tracks" + random,
+                            tracks,
+                            audioSourceName = "Похожие треки",
+                            audioSourceArtist = emptyList(),
+                            audioSourceYear = ""
+                        )
+
+                        tracks.forEach { track ->
+                            addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks" + random)
+                        }
+
+                        mainViewModel.setSongsLoadingStatus(false)
+                        lastRecommendListProcessed = tracks.map { it.link }.toMutableList()
+                    }
+
+                    request + "source-related-tracks" + random
                 }
-                null
-            }
+                else
+                {
 
-            val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
-            val tracks = trackDtos.map { trackDtoToSongData(it) }
+                    val tracks = preparedRecommendList
 
-            withContext(Dispatchers.Main) {
-                mainViewModel.setAlbumTracks(
-                    request + "source-related-tracks",
-                    tracks,
-                    audioSourceName = "Похожие треки",
-                    audioSourceArtist = emptyList(),
-                    audioSourceYear = ""
-                )
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.setAlbumTracks(
+                            request + "source-related-tracks" + random,
+                            tracks,
+                            audioSourceName = "Похожие треки",
+                            audioSourceArtist = emptyList(),
+                            audioSourceYear = ""
+                        )
 
-                tracks.forEach { track ->
-                    addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks")
+                        tracks.forEach { track ->
+                            addToCurrentQueue(mainViewModel, track.link, request + "source-related-tracks" + random)
+                        }
+
+                        mainViewModel.setSongsLoadingStatus(false)
+                        lastRecommendListProcessed = tracks.map { it.link }.toMutableList()
+                    }
+
+                    request + "source-related-tracks" + random
                 }
 
-                mainViewModel.setSongsLoadingStatus(false)
-            }
 
-            request + "source-related-tracks"
+            } finally {
+                withContext(
+                    NonCancellable + Dispatchers.Main) {
+                    mainViewModel.setSongsLoadingStatus(false)
+                }
+            }
+        }
+    }
+
+    suspend fun prepareRelatedTracks(
+        context: Context,
+        request: String,
+        mainViewModel: PlayerViewModel
+    ){
+
+        if (!hasInternetConnection(context)) return
+
+        withContext(Dispatchers.IO) {
+            try {
+
+                if (preparedRecommendList.isNullOrEmpty())
+                {
+                    val trackMetaJson = try {
+
+                        //we should get another same list for this song again
+                        if (lastRecommendListProcessed.isNullOrEmpty().not())
+                        {
+                            val gson = Gson()
+                            val json = gson.toJson(lastRecommendListProcessed)
+                            getPythonModule(context)
+                                .callAttr("replaceSongs", json)
+                                .toString()
+                        }
+                        else
+                        {
+                            getPythonModule(context)
+                                .callAttr("getRelatedTracks", request)
+                                .toString()
+                        }
+
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                        null
+                    }
+
+                    val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
+                    val tracks = trackDtos.map { trackDtoToSongData(it) }
+
+                    withContext(Dispatchers.Main) {
+                        preparedRecommendList = tracks.toMutableList()
+                    }
+
+                }
+
+            } finally {
+                withContext(
+                    NonCancellable + Dispatchers.Main) {
+                }
+            }
         }
     }
 
