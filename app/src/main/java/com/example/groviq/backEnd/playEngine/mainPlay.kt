@@ -256,23 +256,13 @@ class AudioPlayerManager(context: Context) {
                     val smallBitmap = Bitmap.createScaledBitmap(songArt, 256, 256, true)
                     val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
 
-                    val emptyMediaItemNext = androidx.media3.common.MediaItem.Builder()
-                        .setUri("")
-                        .setMediaId("MOVE_TO_NEXT")
-                        .build()
-
-                    val emptyMediaItemPrev = androidx.media3.common.MediaItem.Builder()
-                        .setUri("")
-                        .setMediaId("MOVE_TO_PREVIOUS")
-                        .build()
-
                     val mediaUri: Uri = if (song.file != null && song.file!!.exists()) {
                         Uri.fromFile(song.file!!)
                     } else {
                         Uri.parse(streamUrl)
                     }
 
-                    val mediaItem = androidx.media3.common.MediaItem.Builder()
+                    val mediaItem = MediaItem.Builder()
                         .setUri(mediaUri)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
@@ -289,7 +279,6 @@ class AudioPlayerManager(context: Context) {
                     player!!.playWhenReady = true
                     player!!.repeatMode = Player.REPEAT_MODE_OFF
                     player!!.shuffleModeEnabled = false
-
 
                     //save updated stream
                     mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashkey]!!)
