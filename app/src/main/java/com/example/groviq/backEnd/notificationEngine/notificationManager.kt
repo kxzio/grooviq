@@ -206,6 +206,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
                     val builder = NotificationCompat.Builder(globalContext!!, NOTIF_CHANNEL_ID)
                         .setContentTitle(playerManager.player.mediaMetadata.title ?: "Title")
                         .setContentText(playerManager.player.mediaMetadata.artist ?: "Artist")
+                        .setContentIntent(pendingIntent)
                         .setSmallIcon(androidx.media3.session.R.drawable.media_session_service_notification_ic_music_note)
                         .setStyle(
                             androidx.media.app.NotificationCompat.MediaStyle()
