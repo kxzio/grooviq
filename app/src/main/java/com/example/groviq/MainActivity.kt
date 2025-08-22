@@ -57,7 +57,6 @@ val playerManager: AudioPlayerManager by lazy {
 private lateinit var nextReceiver: BroadcastReceiver
 private lateinit var prevReceiver: BroadcastReceiver
 
-
 class MainActivity :
     ComponentActivity() {
 

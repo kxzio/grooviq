@@ -95,6 +95,7 @@ class AudioPlayerManager(context: Context) {
 
     val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
 
+
     val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!)
         .setLoadControl(loadControl)
         .setMediaSourceFactory(mediaSourceFactory)
@@ -112,6 +113,8 @@ class AudioPlayerManager(context: Context) {
         }
 
     var player = CustomPlayer(notOverridedPlayer)
+
+
 
     //thread controllers
     private var currentPlaybackJob: Job? = null
@@ -134,6 +137,10 @@ class AudioPlayerManager(context: Context) {
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)
             return
+
+        trackEndingHandled = false
+
+        createListeners(searchViewModel, mainViewModel)
 
         //check cooldown
         val now = SystemClock.uptimeMillis()
@@ -195,10 +202,6 @@ class AudioPlayerManager(context: Context) {
             mainViewModel.setLastSourceBuilded(mainViewModel.uiState.value.playingAudioSourceHash)
         }
 
-        if (mainViewModel.uiState.value.lastSourceBuilded != mainViewModel.uiState.value.playingAudioSourceHash)
-        {
-            preloadedTracks.clear()
-        }
 
         //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
         mainViewModel.clearUnusedAudioSourcedAndSongs(searchViewModel)
@@ -264,6 +267,7 @@ class AudioPlayerManager(context: Context) {
 
                     val mediaItem = MediaItem.Builder()
                         .setUri(mediaUri)
+                        .setTag(song.link)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
                                 .setTitle(song.title)
@@ -282,6 +286,8 @@ class AudioPlayerManager(context: Context) {
 
                     //save updated stream
                     mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashkey]!!)
+
+                    updateNextSongHash(mainViewModel)
 
                     fetchQueueStream(mainViewModel)
 

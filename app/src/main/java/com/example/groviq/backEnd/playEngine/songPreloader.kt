@@ -19,19 +19,11 @@ import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import kotlinx.coroutines.*
 
-var preloadedTracks = mutableSetOf<String>()
 
 class Preloader(private val dataSourceFactory: DataSource.Factory, private val context: Context) {
 
 
-    private var preloadJob: Job? = null
-
     suspend fun preload(mediaItem: MediaItem, bytesToRead: Int = 256 * 1024): Boolean {
-        if (!preloadedTracks.add(mediaItem.mediaId ?: "")) {
-            println("🔹 Already preloaded: ${mediaItem.mediaId}")
-            return true
-        }
-
         return doPreload(mediaItem, bytesToRead)
     }
 
@@ -40,8 +32,8 @@ class Preloader(private val dataSourceFactory: DataSource.Factory, private val c
     )
     suspend fun doPreload(mediaItem: MediaItem, bytesToRead: Int): Boolean =
         withContext(Dispatchers.IO) {
-            val uri = mediaItem.localConfiguration?.uri ?: return@withContext false
-            val dataSpec = DataSpec(uri)
+            val uri = mediaItem.localConfiguration?.uri ?: mediaItem.localConfiguration?.uri ?: mediaItem.playbackProperties?.uri
+            val dataSpec = DataSpec(uri!!)
             val dataSource = dataSourceFactory.createDataSource()
 
             try {
@@ -49,7 +41,7 @@ class Preloader(private val dataSourceFactory: DataSource.Factory, private val c
                 var firstByteReceived = false
 
                 DataSourceInputStream(dataSource, dataSpec).use { input ->
-                    val buffer = ByteArray(16 * 1024)
+                    val buffer = ByteArray(64 * 1024)
 
                     while (totalRead < bytesToRead) {
                         val read = input.read(buffer)
@@ -70,7 +62,5 @@ class Preloader(private val dataSourceFactory: DataSource.Factory, private val c
                 false
             }
         }
-    fun cancel() {
-        preloadJob?.cancel()
-    }
+
 }

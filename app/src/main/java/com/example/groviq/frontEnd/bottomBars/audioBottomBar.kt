@@ -61,16 +61,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.util.UnstableApi
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.dataStructures.songProgressState
+import com.example.groviq.backEnd.playEngine.trackEndingHandled
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.formatTime
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.playerManager
+import com.example.groviq.service.nextSongHashPending
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +90,9 @@ fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchVie
     mainSheetDraw(sheetState, showSheet, {showSheet = !showSheet}, mainViewModel,searchViewModel, content)
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {

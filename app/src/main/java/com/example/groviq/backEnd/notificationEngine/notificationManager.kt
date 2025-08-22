@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
 import android.support.v4.media.session.MediaSessionCompat
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
@@ -59,10 +60,33 @@ enum class pendingDirection {
 //the requst of navigation artist
 val songPendingIntentNavigationDirection = mutableStateOf<pendingDirection>(pendingDirection.EMPTY)
 
+//the requst of navigation artist
+val nextSongHashPending = mutableStateOf<String>("")
+
 
 @UnstableApi
 class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
+
     override fun seekToNext() {
+        if (mediaItemCount > 1) {
+            val currentIndex = currentMediaItemIndex
+            if (currentIndex != C.INDEX_UNSET && currentIndex + 1 < mediaItemCount) {
+                val nextItem = getMediaItemAt(currentIndex + 1)
+
+                val nextTag = nextItem.localConfiguration?.tag as? String
+
+                if (nextSongHashPending.value == nextTag) {
+                    super.seekToNext()
+                    Toast.makeText(globalContext!!, "auto", Toast.LENGTH_SHORT).show()
+                    return
+
+                } else {
+                    songPendingIntentNavigationDirection.value = pendingDirection.TO_NEXT_SONG
+                    return
+                }
+            }
+        }
+
         songPendingIntentNavigationDirection.value = pendingDirection.TO_NEXT_SONG
     }
 

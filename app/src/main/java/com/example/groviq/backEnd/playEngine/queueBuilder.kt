@@ -1,6 +1,7 @@
 package com.example.groviq.backEnd.playEngine
 
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.service.nextSongHashPending
 
 data class queueElement(
     val hashKey     : String,
@@ -76,6 +77,7 @@ fun createQueueOnAudioSourceHash(mainViewModel: PlayerViewModel, requstedHash: S
     //set queue
     mainViewModel.setQueue(newCurrentQueue)
     mainViewModel.setPosInQueue(newCurrentQueue.indexOfFirst { it.hashKey == requstedHash })
+    updateNextSongHash(mainViewModel)
 }
 
 fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
@@ -97,6 +99,7 @@ fun updatePosInQueue(mainViewModel : PlayerViewModel, hash : String)
 
     mainViewModel.setQueue(rebuilt.toMutableList())
     mainViewModel.setPosInQueue(rebuilt.indexOfFirst { it.hashKey == hash })
+    updateNextSongHash(mainViewModel)
 
 }
 
@@ -106,6 +109,7 @@ fun moveToNextPosInQueue(mainViewModel : PlayerViewModel)
         return
 
     mainViewModel.setPosInQueue(  mainViewModel.uiState.value.posInQueue + 1 )
+    updateNextSongHash(mainViewModel)
 }
 
 fun moveToPrevPosInQueue(mainViewModel : PlayerViewModel)
@@ -114,6 +118,7 @@ fun moveToPrevPosInQueue(mainViewModel : PlayerViewModel)
         return
 
     mainViewModel.setPosInQueue(  mainViewModel.uiState.value.posInQueue - 1 )
+    updateNextSongHash(mainViewModel)
 }
 
 fun toggleShuffle(mainViewModel: PlayerViewModel, isShuffle : Boolean) {
@@ -137,6 +142,7 @@ fun toggleShuffle(mainViewModel: PlayerViewModel, isShuffle : Boolean) {
 
     mainViewModel.setQueue(newQueue)
     mainViewModel.setPosInQueue(0)
+    updateNextSongHash(mainViewModel)
 }
 
 fun onShuffleToogle(mainViewModel: PlayerViewModel, isShuffle : Boolean)
@@ -170,6 +176,7 @@ fun addToCurrentQueue(
     val insertPosOriginal = basePos + 1 + existingOrigAddsAfter
     origList.add(insertPosOriginal.coerceIn(0, origList.size), elem)
     mainViewModel.setOriginalQueue(origList)
+    updateNextSongHash(mainViewModel)
 }
 
 fun removeFromQueue (mainViewModel: PlayerViewModel, currentIndex: Int) {
@@ -200,7 +207,9 @@ fun removeFromQueue (mainViewModel: PlayerViewModel, currentIndex: Int) {
     }
     mainViewModel.setPosInQueue(newPos)
     mainViewModel.setShouldRebuild(true)
+    updateNextSongHash(mainViewModel)
 }
+
 fun moveInQueue(mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
     val view = mainViewModel.uiState.value
     if (fromIndex !in view.currentQueue.indices) return
@@ -233,4 +242,18 @@ fun moveInQueue(mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
     }
     mainViewModel.setPosInQueue(newPos)
     mainViewModel.setShouldRebuild(true)
+    updateNextSongHash(mainViewModel)
+}
+
+fun updateNextSongHash(mainViewModel: PlayerViewModel) {
+    val uiState = mainViewModel.uiState.value
+    val queue = uiState.currentQueue
+
+    val currentPos = uiState.posInQueue ?: return
+    val nextPos = currentPos + 1
+
+    if (queue.isNullOrEmpty() || nextPos >= queue.size) return
+
+    val nextSong = queue[nextPos] ?: return
+    nextSongHashPending.value = nextSong.hashKey
 }
