@@ -27,7 +27,6 @@ import com.example.groviq.frontEnd.bottomBars.audioBottomSheet
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.groviq.LocalActivity
 import com.example.groviq.frontEnd.bottomBars.trackSettingsBottomBar
-import com.example.groviq.playerManager
 
 //global nav controller for screens
 val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {

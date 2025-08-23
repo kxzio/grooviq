@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
@@ -72,7 +73,6 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.formatTime
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
-import com.example.groviq.playerManager
 import com.example.groviq.service.nextSongHashPending
 import kotlinx.coroutines.launch
 
@@ -141,7 +141,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                     IconButton(
                         onClick =
                         {
-                            playerManager.prevSong(mainViewModel, searchViewModel = searchViewModel )
+                            MyApplication.playerManager.prevSong(mainViewModel, searchViewModel = searchViewModel )
                         },
                     ) {
                         Icon(
@@ -163,9 +163,9 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             onClick =
                             {
                                 if (mainUiState.currentStatus == playerStatus.PAUSE)
-                                    playerManager.resume()
+                                    MyApplication.playerManager.resume()
                                 if (mainUiState.currentStatus == playerStatus.PLAYING)
-                                    playerManager.pause()
+                                    MyApplication.playerManager.pause()
                             },
                         ) {
                             Icon(
@@ -182,7 +182,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                     IconButton(
                         onClick =
                         {
-                            playerManager.nextSong(mainViewModel, searchViewModel)
+                            MyApplication.playerManager.nextSong(mainViewModel, searchViewModel)
                         },
                     ) {
                         Icon(
@@ -285,11 +285,11 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             value = songProgressUi.value.progress,
                             onValueChange = { newProgress ->
 
-                                val duration = playerManager.player!!.duration
+                                val duration = MyApplication.playerManager.player!!.duration
                                 val newPosition = (duration * newProgress).toLong()
 
                                 setSongProgress(newProgress, newPosition)
-                                playerManager.player!!.seekTo(newPosition)
+                                MyApplication.playerManager.player!!.seekTo(newPosition)
 
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -312,7 +312,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             IconButton(
                                 onClick =
                                 {
-                                    playerManager.prevSong(mainViewModel, searchViewModel)
+                                    MyApplication.playerManager.prevSong(mainViewModel, searchViewModel)
                                 },
                             ) {
                                 Icon(
@@ -328,9 +328,9 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                 onClick =
                                 {
                                     if (mainUiState.currentStatus == playerStatus.PAUSE)
-                                        playerManager.resume()
+                                        MyApplication.playerManager.resume()
                                     if (mainUiState.currentStatus == playerStatus.PLAYING)
-                                        playerManager.pause()
+                                        MyApplication.playerManager.pause()
                                 },
                             ) {
                                 Icon(
@@ -345,7 +345,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             IconButton(
                                 onClick =
                                 {
-                                    playerManager.nextSong(mainViewModel, searchViewModel)
+                                    MyApplication.playerManager.nextSong(mainViewModel, searchViewModel)
                                 },
                             ) {
                                 Icon(

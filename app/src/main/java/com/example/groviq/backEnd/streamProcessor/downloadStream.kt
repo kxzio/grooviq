@@ -4,7 +4,6 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.documentfile.provider.DocumentFile
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
-import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.isSmall
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +45,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import com.example.groviq.MyApplication
 import com.example.groviq.retryWithBackoff
 import kotlinx.coroutines.*
 import java.nio.file.Files
@@ -98,7 +98,8 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
     currentDownloading?.cancel()
 
     // no internet start
-    if (!hasInternetConnection(globalContext!!)) return
+    if (!hasInternetConnection(
+            MyApplication.globalContext!!)) return
 
     //take song
     val song = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: return
@@ -161,8 +162,8 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
                     .take(8)
                 val uniqueName = "${safeAlbum}__${urlHash}.mp3"
                 val partName = "$uniqueName.part"
-                val finalFile = File(globalContext!!.getExternalFilesDir(null), uniqueName)
-                val partFile = File(globalContext!!.getExternalFilesDir(null), partName)
+                val finalFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), uniqueName)
+                val partFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), partName)
 
                 // if file already downloaded - exit
                 if (finalFile.exists() && totalSize > 0 && finalFile.length() == totalSize) {
@@ -411,7 +412,7 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
             } catch (e: Exception) {
                 //show error
                 runOnMain {
-                    Toast.makeText(globalContext, "Ошибка загрузки: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(MyApplication.globalContext, "Ошибка загрузки: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             } finally {
                 // CANCEL flag of downloading
@@ -497,7 +498,7 @@ fun deleteDownloadedAudioFile(
 
             //downloading from mediastore
             try {
-                val ctx = globalContext ?: applicationContextPlaceholder()
+                val ctx = MyApplication.globalContext ?: applicationContextPlaceholder()
                 docFile?.let { f ->
                     //delete from mediastore
                     deleteFromMediaStoreIfExists(ctx, f)
@@ -525,7 +526,7 @@ fun deleteDownloadedAudioFile(
             if (!anyDeleted) {
                 //error. show it on ui
                 runOnMain {
-                    Toast.makeText(globalContext, "Не удалось удалить файл (возможно, он используется)", Toast.LENGTH_LONG).show()
+                    Toast.makeText(MyApplication.globalContext, "Не удалось удалить файл (возможно, он используется)", Toast.LENGTH_LONG).show()
                 }
             }
 
@@ -533,7 +534,7 @@ fun deleteDownloadedAudioFile(
             //cancel
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
-                Toast.makeText(globalContext, "Ошибка при удалении: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(MyApplication.globalContext, "Ошибка при удалении: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }

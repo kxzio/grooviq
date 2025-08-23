@@ -36,11 +36,10 @@ import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionResult
 import androidx.media3.ui.PlayerNotificationManager
 import com.example.groviq.MainActivity
+import com.example.groviq.MyApplication
 import com.example.groviq.R
 import com.example.groviq.backEnd.playEngine.AudioPlayerManager
 import com.example.groviq.backEnd.playEngine.createListeners
-import com.example.groviq.globalContext
-import com.example.groviq.playerManager
 import com.example.groviq.service.PlayerService.Companion.NOTIF_CHANNEL_ID
 import com.example.groviq.service.PlayerService.Companion.NOTIF_ID
 import com.google.common.collect.ImmutableList
@@ -77,7 +76,7 @@ class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
 
                 if (nextSongHashPending.value == nextTag) {
                     super.seekToNext()
-                    Toast.makeText(globalContext!!, "auto", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(MyApplication.globalContext!!, "auto", Toast.LENGTH_SHORT).show()
                     return
 
                 } else {
@@ -137,7 +136,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         createNotificationChannel()
 
 
-        mediaSession = MediaSession.Builder(this, playerManager.player)
+        mediaSession = MediaSession.Builder(this, MyApplication.playerManager.player)
             .setId("app_media_session")
             .build()
 
@@ -191,11 +190,11 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
                         "Previous", prevPending
                     )
                     val playPauseAction = NotificationCompat.Action(
-                        if (playerManager.player.isPlaying)
+                        if (MyApplication.playerManager.player.isPlaying)
                             androidx.media3.session.R.drawable.media3_notification_pause
                         else
                             androidx.media3.session.R.drawable.media3_notification_play,
-                        if (playerManager.player.isPlaying) "Pause" else "Play",
+                        if (MyApplication.playerManager.player.isPlaying) "Pause" else "Play",
                         playPausePending
                     )
                     val nextAction = NotificationCompat.Action(
@@ -203,9 +202,9 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
                         "Next", nextPending
                     )
 
-                    val builder = NotificationCompat.Builder(globalContext!!, NOTIF_CHANNEL_ID)
-                        .setContentTitle(playerManager.player.mediaMetadata.title ?: "Title")
-                        .setContentText(playerManager.player.mediaMetadata.artist ?: "Artist")
+                    val builder = NotificationCompat.Builder(MyApplication.globalContext!!, NOTIF_CHANNEL_ID)
+                        .setContentTitle(MyApplication.playerManager.player.mediaMetadata.title ?: "Title")
+                        .setContentText(MyApplication.playerManager.player.mediaMetadata.artist ?: "Artist")
                         .setContentIntent(pendingIntent)
                         .setSmallIcon(androidx.media3.session.R.drawable.media_session_service_notification_ic_music_note)
                         .setStyle(
@@ -229,7 +228,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         playerNotificationManager.setMediaSessionToken(mediaSession.sessionCompatToken)
 
 
-        playerNotificationManager.setPlayer(playerManager.player)
+        playerNotificationManager.setPlayer(MyApplication.playerManager.player)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
@@ -250,7 +249,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         super.onDestroy()
         try { playerNotificationManager.setPlayer(null) } catch (e: Throwable) {}
         try { mediaSession.release() } catch (e: Throwable) {}
-        try { playerManager.player.release() } catch (e: Throwable) {}
+        try { MyApplication.playerManager.player.release() } catch (e: Throwable) {}
     }
 }
 

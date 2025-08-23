@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchingRequest
-import com.example.groviq.globalContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

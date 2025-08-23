@@ -48,14 +48,6 @@ import android.content.IntentFilter
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.SearchViewModelFactory
 
-var globalContext : Context? = null
-
-val playerManager: AudioPlayerManager by lazy {
-    AudioPlayerManager(globalContext!!)
-}
-
-private lateinit var nextReceiver: BroadcastReceiver
-private lateinit var prevReceiver: BroadcastReceiver
 
 class MainActivity :
     ComponentActivity() {
@@ -72,8 +64,6 @@ class MainActivity :
         super.onCreate(
             savedInstanceState
         )
-
-        globalContext = this.applicationContext
 
         //start python
         if (!Python.isStarted()) {
@@ -94,27 +84,6 @@ class MainActivity :
 
         val factorySearch     = SearchViewModelFactory()
         val viewModelSearch   = ViewModelProvider(this, factorySearch).get(SearchViewModel::class.java)
-
-
-        nextReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                playerManager.nextSong(viewModel, viewModelSearch)
-            }
-        }
-
-        prevReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                playerManager.prevSong(viewModel, viewModelSearch)
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(nextReceiver, IntentFilter("ACTION_NEXT_SONG"), RECEIVER_NOT_EXPORTED)
-            registerReceiver(prevReceiver, IntentFilter("ACTION_PREV_SONG"), RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(nextReceiver, IntentFilter("ACTION_NEXT_SONG"))
-            registerReceiver(prevReceiver, IntentFilter("ACTION_PREV_SONG"))
-        }
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -138,15 +107,26 @@ class MainActivity :
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(nextReceiver)
-        unregisterReceiver(prevReceiver)
     }
 
 }
 
-class MyApplication : Application() {
+@UnstableApi
+class MyApplication : Application()
+{
+    companion object {
+        @Volatile
+        lateinit var globalContext: Context
+        @Volatile
+        lateinit var playerManager: AudioPlayerManager
+    }
+
     override fun onCreate() {
         super.onCreate()
+
+        globalContext = applicationContext
+
+        playerManager = AudioPlayerManager(applicationContext)
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             appendLog(

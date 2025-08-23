@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
@@ -17,8 +18,6 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
 import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
 import com.example.groviq.bitmapToCompressedBytes
-import com.example.groviq.globalContext
-import com.example.groviq.playerManager
 import com.example.groviq.service.pendingDirection
 import com.example.groviq.service.songPendingIntentNavigationDirection
 import kotlinx.coroutines.CoroutineScope
@@ -28,11 +27,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.logging.Handler
 
+private var attachedPlayer      : Player? = null
+private var attachedListener    : Player.Listener? = null
+private var snapshotJob         : kotlinx.coroutines.Job? = null
 
-private var attachedPlayer: Player? = null
-
-private var attachedListener: Player.Listener? = null
-private var snapshotJob: kotlinx.coroutines.Job? = null
 var trackEndingHandled = false
 
 @OptIn(
@@ -43,7 +41,7 @@ fun createListeners(
     mainViewModel: PlayerViewModel, //player view
 )
 {
-    val player = playerManager.player ?: return
+    val player = MyApplication.playerManager.player ?: return
 
     if (attachedPlayer === player) return
 
@@ -107,7 +105,7 @@ fun createListeners(
                 }
                 Player.STATE_ENDED -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
-                    playerManager.nextSong(mainViewModel, searchViewModel)
+                    MyApplication.playerManager.nextSong(mainViewModel, searchViewModel)
                 }
                 Player.STATE_IDLE -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
@@ -152,11 +150,11 @@ fun createListeners(
             val remaining = duration - position
 
             if (!trackEndingHandled && remaining in 0..25_000) {
-                if (!playerManager.doesSongHaveNext(mainViewModel)) {
+                if (!MyApplication.playerManager.doesSongHaveNext(mainViewModel)) {
                     trackEndingHandled = true
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                         searchViewModel.prepareRelatedTracks(
-                            globalContext!!,
+                            MyApplication.globalContext!!,
                             mainViewModel.uiState.value.playingHash,
                             mainViewModel
                         )
@@ -206,11 +204,11 @@ fun createListeners(
                             .build()
 
 
-                        playerManager.player.addMediaItem(mediaItem)
+                        MyApplication.playerManager.player.addMediaItem(mediaItem)
 
-                        val currentIndex = playerManager.player.currentMediaItemIndex
+                        val currentIndex = MyApplication.playerManager.player.currentMediaItemIndex
                         if (currentIndex > 0) {
-                            playerManager.player.removeMediaItems(0, currentIndex)
+                            MyApplication.playerManager.player.removeMediaItems(0, currentIndex)
                         }
 
 
@@ -236,11 +234,11 @@ fun createListeners(
             .collect { direction ->
                 when (direction) {
                     pendingDirection.TO_NEXT_SONG -> {
-                        playerManager.nextSong(mainViewModel, searchViewModel)
+                        MyApplication.playerManager.nextSong(mainViewModel, searchViewModel)
                         songPendingIntentNavigationDirection.value = pendingDirection.EMPTY
                     }
                     pendingDirection.TO_PREVIOUS_SONG -> {
-                        playerManager.prevSong(mainViewModel, searchViewModel)
+                        MyApplication.playerManager.prevSong(mainViewModel, searchViewModel)
                         songPendingIntentNavigationDirection.value = pendingDirection.EMPTY
                     }
                     pendingDirection.EMPTY -> {

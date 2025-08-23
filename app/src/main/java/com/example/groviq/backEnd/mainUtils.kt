@@ -168,10 +168,10 @@ suspend fun <T> retryWithBackoff(
 // --- ждём доступности сети (polling) ---
 suspend fun waitForInternet(maxWaitMs: Long = 60_000L, checkIntervalMs: Long = 1000L) {
     val start = System.currentTimeMillis()
-    while (!hasInternetConnection(globalContext!!) && (System.currentTimeMillis() - start) < maxWaitMs) {
+    while (!hasInternetConnection(MyApplication.globalContext!!) && (System.currentTimeMillis() - start) < maxWaitMs) {
         delay(checkIntervalMs)
     }
-    if (!hasInternetConnection(globalContext!!)) {
+    if (!hasInternetConnection(MyApplication.globalContext!!)) {
         throw IOException("No internet available after waiting $maxWaitMs ms")
     }
 }

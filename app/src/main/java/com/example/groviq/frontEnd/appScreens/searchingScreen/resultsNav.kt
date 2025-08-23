@@ -30,13 +30,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchType
 import com.example.groviq.frontEnd.Screen
-import com.example.groviq.globalContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -71,9 +71,9 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                 // Запускаем новую через 1 секунду
                 searchJob = CoroutineScope(Dispatchers.Main).launch {
                     delay(350L)
-                    if (globalContext != null) {
+                    if (MyApplication.globalContext != null) {
                         searchViewModel.getResultsOfSearchByString(
-                            globalContext!!,
+                            MyApplication.globalContext!!,
                             searchingRequest.value
                         )
                     }
@@ -92,9 +92,9 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                     focusManager.clearFocus()
                     searchJob?.cancel()
 
-                    if (globalContext != null) {
+                    if (MyApplication.globalContext != null) {
                         searchViewModel.getResultsOfSearchByString(
-                            globalContext!!,
+                            MyApplication.globalContext!!,
                             searchingRequest.value
                         )
                     }
@@ -160,7 +160,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                             val trackLink = "https://music.youtube.com/watch?v=${result.link_id}"
 
                             //request to get info
-                            searchViewModel.getTrack(globalContext!!, trackLink, mainViewModel)
+                            searchViewModel.getTrack(MyApplication.globalContext!!, trackLink, mainViewModel)
 
                             //wait track and play
                             mainViewModel.waitTrackAndPlay(searchViewModel, trackLink, trackLink)

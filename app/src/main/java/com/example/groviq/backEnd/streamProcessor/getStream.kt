@@ -3,15 +3,14 @@ package com.example.groviq.backEnd.streamProcessor
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.backEnd.playEngine.Preloader
 import com.example.groviq.backEnd.streamProcessor.innerTubeMine.getBestAudioStreamUrl
 import com.example.groviq.getPythonModule
-import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
-import com.example.groviq.playerManager
 import com.example.groviq.retryWithBackoff
 import com.example.groviq.waitForInternet
 import kotlinx.coroutines.CoroutineScope
@@ -58,7 +57,7 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
     val job = fetchScope.launch {
         try {
             // if we have to internet, wait 60s and then retry
-            if (!hasInternetConnection(globalContext!!)) {
+            if (!hasInternetConnection(MyApplication.globalContext!!)) {
                 //dont fall, wait 60s
                 try {
                     waitForInternet(maxWaitMs = 60_000L, checkIntervalMs = 1_000L)
@@ -144,7 +143,8 @@ fun cancelFetchForSong(songKey: String, mainViewModel: PlayerViewModel) {
 var currentFetchQueueJob: Job? = null
 
 fun fetchQueueStream(mainViewModel: PlayerViewModel) {
-    val preloader = Preloader(playerManager.cacheDataSourceFactory, globalContext!!)
+    val preloader = Preloader(
+        MyApplication.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
 
     CoroutineScope(Dispatchers.Main).launch {
         currentFetchQueueJob?.cancelAndJoin()
@@ -308,7 +308,7 @@ fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
 
         currentFetchImageJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                val audioImage = getPythonModule(globalContext!!)
+                val audioImage = getPythonModule(MyApplication.globalContext!!)
                     .callAttr("getTrackImage", songKey)
                     ?.toString()
 

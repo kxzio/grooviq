@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
@@ -48,8 +49,7 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.frontEnd.appScreens.openArtist
-import com.example.groviq.globalContext
-import com.example.groviq.playerManager
+
 
 @Composable
 fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
@@ -70,13 +70,13 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
     val albumUrl = Uri.decode(rawEncoded).takeIf { it.isNotBlank() }
         ?: return
 
-    if (globalContext != null) {
+    if (MyApplication.globalContext != null) {
 
         if (mainUiState.audioData.containsKey(albumUrl).not())
         {
             LaunchedEffect(albumUrl) {
                 searchViewModel.getAlbum(
-                    context = globalContext!!,
+                    context = MyApplication.globalContext!!,
                     request = albumUrl,
                     mainViewModel
                 )
@@ -202,7 +202,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                         mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
                         updatePosInQueue(mainViewModel, song.link)
                         mainViewModel.deleteUserAdds()
-                        playerManager.play(song.link, mainViewModel, searchViewModel,true)
+                        MyApplication.playerManager.play(song.link, mainViewModel, searchViewModel,true)
                     })
 
             }

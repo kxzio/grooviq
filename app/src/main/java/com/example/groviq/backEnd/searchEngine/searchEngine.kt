@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.audioEnterPoint
 import com.example.groviq.backEnd.dataStructures.audioSource
@@ -23,7 +24,6 @@ import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.getPythonModule
-import com.example.groviq.globalContext
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
 import com.google.gson.Gson
@@ -87,7 +87,8 @@ class SearchViewModel : ViewModel() {
         searchJob?.cancel()
 
         searchJob = CoroutineScope(Dispatchers.IO).launch {
-            if (!hasInternetConnection(globalContext!!)) {
+            if (!hasInternetConnection(
+                    MyApplication.globalContext!!)) {
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(
                         searchResults = mutableListOf(),

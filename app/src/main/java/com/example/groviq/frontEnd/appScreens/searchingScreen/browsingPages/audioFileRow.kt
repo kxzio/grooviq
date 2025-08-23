@@ -53,10 +53,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
-import com.example.groviq.globalContext
 import com.example.groviq.vibrateLight
 
 
@@ -220,7 +220,7 @@ fun SwipeToQueueItem(
 
                                 //Swipe accepted
                                 addToCurrentQueue(mainViewModel, song.link, audioSource)
-                                vibrateLight(globalContext!!)
+                                vibrateLight(MyApplication.globalContext!!)
                             }
                             if (offsetX.value < addToLikesSwipeThreshold) {
 
@@ -231,7 +231,8 @@ fun SwipeToQueueItem(
                                 else
                                     mainViewModel.addSongToAudioSource(song.link, "Favourite")
 
-                                vibrateLight(globalContext!!)
+                                vibrateLight(
+                                    MyApplication.globalContext!!)
 
                                 mainViewModel.saveSongToRoom(song)
                                 mainViewModel.saveAudioSourcesToRoom()

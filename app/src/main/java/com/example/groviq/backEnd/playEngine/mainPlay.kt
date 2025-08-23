@@ -32,6 +32,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.bumptech.glide.Glide
 import com.example.groviq.MainActivity
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
@@ -44,10 +45,8 @@ import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
 import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
 import com.example.groviq.bitmapToCompressedBytes
-import com.example.groviq.globalContext
 import com.example.groviq.isServiceRunning
 import com.example.groviq.isSmall
-import com.example.groviq.playerManager
 import com.example.groviq.service.CustomPlayer
 import com.example.groviq.service.PlayerService
 import kotlinx.coroutines.CoroutineScope
@@ -96,7 +95,7 @@ class AudioPlayerManager(context: Context) {
     val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
 
 
-    val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(globalContext!!)
+    val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(MyApplication.globalContext!!)
         .setLoadControl(loadControl)
         .setMediaSourceFactory(mediaSourceFactory)
         .setSeekBackIncrementMs(10_000)
@@ -245,12 +244,12 @@ class AudioPlayerManager(context: Context) {
                 //back to UI layer
                 withContext(Dispatchers.Main)
                 {
-                    val svcIntent = Intent(globalContext, PlayerService::class.java)
-                    if (!isServiceRunning(globalContext!!, PlayerService::class.java)) {
+                    val svcIntent = Intent(MyApplication.globalContext, PlayerService::class.java)
+                    if (!isServiceRunning(MyApplication.globalContext!!, PlayerService::class.java)) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            ContextCompat.startForegroundService(globalContext, svcIntent)
+                            ContextCompat.startForegroundService(MyApplication.globalContext, svcIntent)
                         } else {
-                            globalContext!!.startService(svcIntent)
+                            MyApplication.globalContext!!.startService(svcIntent)
                         }
                     }
 
@@ -364,7 +363,7 @@ class AudioPlayerManager(context: Context) {
 
         if (repeatMode == repeatMods.REPEAT_ONE) {
             // Повтор одного трека
-            playerManager.play(currentQueue[pos].hashKey, mainViewModel, searchViewModel )
+            MyApplication.playerManager.play(currentQueue[pos].hashKey, mainViewModel, searchViewModel )
             return
         }
 
@@ -373,7 +372,7 @@ class AudioPlayerManager(context: Context) {
         if (nextIndex < currentQueue.size) {
             moveToNextPosInQueue(mainViewModel)
             val newPos = mainViewModel.uiState.value.posInQueue
-            playerManager.play(currentQueue[newPos].hashKey, mainViewModel, searchViewModel)
+            MyApplication.playerManager.play(currentQueue[newPos].hashKey, mainViewModel, searchViewModel)
             return
         }
 
@@ -387,7 +386,7 @@ class AudioPlayerManager(context: Context) {
 
             mainViewModel.setQueue(newQueue)
             mainViewModel.setPosInQueue(0)
-            playerManager.play(newQueue[0].hashKey, mainViewModel, searchViewModel)
+            MyApplication.playerManager.play(newQueue[0].hashKey, mainViewModel, searchViewModel)
             return
         }
 
@@ -404,7 +403,7 @@ class AudioPlayerManager(context: Context) {
             mainViewModel.setSongsLoadingStatus(true)
 
             val audioSourcePath = searchViewModel.addRelatedTracksToCurrentQueue(
-                globalContext!!,
+                MyApplication.globalContext!!,
                 currentQueue[pos].hashKey,
                 mainViewModel
             )

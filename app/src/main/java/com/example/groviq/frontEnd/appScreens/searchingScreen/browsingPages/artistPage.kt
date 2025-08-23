@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
@@ -42,8 +43,6 @@ import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
-import com.example.groviq.globalContext
-import com.example.groviq.playerManager
 
 @Composable
 fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
@@ -65,13 +64,13 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
     val artistUrl = Uri.decode(rawEncoded).takeIf { it.isNotBlank() }
         ?: return
 
-    if (globalContext != null) {
+    if (MyApplication.globalContext != null) {
 
         if (artistUrl != searchUiState.currentArtist.url)
         {
             LaunchedEffect(artistUrl) {
                 searchViewModel.getArtist(
-                    context = globalContext!!,
+                    context = MyApplication.globalContext!!,
                     request = artistUrl,
                     mainViewModel
                 )
@@ -132,7 +131,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                         mainViewModel.setPlayingAudioSourceHash(artistUrl)
                         updatePosInQueue(mainViewModel, song.link)
                         mainViewModel.deleteUserAdds()
-                        playerManager.play(song.link, mainViewModel, searchViewModel, true)
+                        MyApplication.playerManager.play(song.link, mainViewModel, searchViewModel, true)
                     }
                 )
             }

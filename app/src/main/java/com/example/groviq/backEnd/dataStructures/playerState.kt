@@ -5,14 +5,13 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
-import com.example.groviq.globalContext
-import com.example.groviq.playerManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,7 +86,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     fun loadAllFromRoom() {
         viewModelScope.launch {
             val (songsMap, audioMap) = withContext(Dispatchers.IO) {
-                repository.loadAllAudioAndSources(globalContext!!)
+                repository.loadAllAudioAndSources(MyApplication.globalContext!!)
             }
             // обновляем state на main
             _uiState.value = _uiState.value.copy(
@@ -98,7 +97,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     fun saveSongToRoom(song: songData) {
-        viewModelScope.launch(Dispatchers.IO) { repository.saveSong(this@PlayerViewModel, song, globalContext!!) }
+        viewModelScope.launch(Dispatchers.IO) { repository.saveSong(this@PlayerViewModel, song, MyApplication.globalContext!!) }
     }
 
     fun saveAudioSourcesToRoom() {
@@ -464,8 +463,8 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun waitTrackAndPlay(searchViewModel: SearchViewModel, hash: String, audioSourcePath: String) {
 
-        if (playerManager.player != null)
-            playerManager.player!!.stop()
+        if (MyApplication.playerManager.player != null)
+            MyApplication.playerManager.player!!.stop()
 
         viewModelScope.launch {
 
@@ -479,7 +478,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             setPlayingAudioSourceHash(audioSourcePath)
             updatePosInQueue(this@PlayerViewModel, track.link)
             deleteUserAdds()
-            playerManager.play(track.link, this@PlayerViewModel, searchViewModel, true)
+            MyApplication.playerManager.play(track.link, this@PlayerViewModel, searchViewModel, true)
         }
     }
 
@@ -494,7 +493,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 .first()
 
             //start
-            playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
+            MyApplication.playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
         }
     }
 
