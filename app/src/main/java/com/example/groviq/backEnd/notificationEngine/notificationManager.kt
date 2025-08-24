@@ -35,6 +35,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionResult
 import androidx.media3.ui.PlayerNotificationManager
+import com.example.groviq.AppViewModels
 import com.example.groviq.MainActivity
 import com.example.groviq.MyApplication
 import com.example.groviq.R
@@ -136,7 +137,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         createNotificationChannel()
 
 
-        mediaSession = MediaSession.Builder(this, MyApplication.playerManager.player)
+        mediaSession = MediaSession.Builder(this, AppViewModels.player.playerManager.player)
             .setId("app_media_session")
             .build()
 
@@ -190,11 +191,11 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
                         "Previous", prevPending
                     )
                     val playPauseAction = NotificationCompat.Action(
-                        if (MyApplication.playerManager.player.isPlaying)
+                        if (AppViewModels.player.playerManager.player.isPlaying)
                             androidx.media3.session.R.drawable.media3_notification_pause
                         else
                             androidx.media3.session.R.drawable.media3_notification_play,
-                        if (MyApplication.playerManager.player.isPlaying) "Pause" else "Play",
+                        if (AppViewModels.player.playerManager.player.isPlaying) "Pause" else "Play",
                         playPausePending
                     )
                     val nextAction = NotificationCompat.Action(
@@ -203,8 +204,8 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
                     )
 
                     val builder = NotificationCompat.Builder(MyApplication.globalContext!!, NOTIF_CHANNEL_ID)
-                        .setContentTitle(MyApplication.playerManager.player.mediaMetadata.title ?: "Title")
-                        .setContentText(MyApplication.playerManager.player.mediaMetadata.artist ?: "Artist")
+                        .setContentTitle(AppViewModels.player.playerManager.player.mediaMetadata.title ?: "Title")
+                        .setContentText(AppViewModels.player.playerManager.player.mediaMetadata.artist ?: "Artist")
                         .setContentIntent(pendingIntent)
                         .setSmallIcon(androidx.media3.session.R.drawable.media_session_service_notification_ic_music_note)
                         .setStyle(
@@ -228,7 +229,8 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         playerNotificationManager.setMediaSessionToken(mediaSession.sessionCompatToken)
 
 
-        playerNotificationManager.setPlayer(MyApplication.playerManager.player)
+        playerNotificationManager.setPlayer(
+            AppViewModels.player.playerManager.player)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
@@ -249,7 +251,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         super.onDestroy()
         try { playerNotificationManager.setPlayer(null) } catch (e: Throwable) {}
         try { mediaSession.release() } catch (e: Throwable) {}
-        try { MyApplication.playerManager.player.release() } catch (e: Throwable) {}
+        try { AppViewModels.player.playerManager.player.release() } catch (e: Throwable) {}
     }
 }
 

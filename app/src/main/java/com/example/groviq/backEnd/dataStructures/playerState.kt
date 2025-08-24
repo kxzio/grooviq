@@ -5,7 +5,10 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.util.UnstableApi
+import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
+import com.example.groviq.backEnd.playEngine.AudioPlayerManager
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
@@ -78,10 +81,13 @@ class PlayerViewModelFactory(private val repository: DataRepository) : ViewModel
 }
 
 
+@UnstableApi
 class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(playerState())
     val uiState: StateFlow<playerState> = _uiState
+
+    val playerManager = AudioPlayerManager(MyApplication.globalContext)
 
     fun loadAllFromRoom() {
         viewModelScope.launch {
@@ -463,8 +469,8 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun waitTrackAndPlay(searchViewModel: SearchViewModel, hash: String, audioSourcePath: String) {
 
-        if (MyApplication.playerManager.player != null)
-            MyApplication.playerManager.player!!.stop()
+        if (AppViewModels.player.playerManager.player != null)
+            AppViewModels.player.playerManager.player!!.stop()
 
         viewModelScope.launch {
 
@@ -478,7 +484,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             setPlayingAudioSourceHash(audioSourcePath)
             updatePosInQueue(this@PlayerViewModel, track.link)
             deleteUserAdds()
-            MyApplication.playerManager.play(track.link, this@PlayerViewModel, searchViewModel, true)
+            AppViewModels.player.playerManager.play(track.link, this@PlayerViewModel, searchViewModel, true)
         }
     }
 
@@ -493,7 +499,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 .first()
 
             //start
-            MyApplication.playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
+            AppViewModels.player.playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
         }
     }
 

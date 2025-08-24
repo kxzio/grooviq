@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
@@ -41,7 +42,7 @@ fun createListeners(
     mainViewModel: PlayerViewModel, //player view
 )
 {
-    val player = MyApplication.playerManager.player ?: return
+    val player = AppViewModels.player.playerManager.player ?: return
 
     if (attachedPlayer === player) return
 
@@ -105,7 +106,7 @@ fun createListeners(
                 }
                 Player.STATE_ENDED -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
-                    MyApplication.playerManager.nextSong(mainViewModel, searchViewModel)
+                    AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
                 }
                 Player.STATE_IDLE -> {
                     mainViewModel.setPlayerStatus(playerStatus.IDLE)
@@ -150,7 +151,7 @@ fun createListeners(
             val remaining = duration - position
 
             if (!trackEndingHandled && remaining in 0..25_000) {
-                if (!MyApplication.playerManager.doesSongHaveNext(mainViewModel)) {
+                if (!AppViewModels.player.playerManager.doesSongHaveNext(mainViewModel)) {
                     trackEndingHandled = true
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                         searchViewModel.prepareRelatedTracks(
@@ -204,11 +205,11 @@ fun createListeners(
                             .build()
 
 
-                        MyApplication.playerManager.player.addMediaItem(mediaItem)
+                        AppViewModels.player.playerManager.player.addMediaItem(mediaItem)
 
-                        val currentIndex = MyApplication.playerManager.player.currentMediaItemIndex
+                        val currentIndex = AppViewModels.player.playerManager.player.currentMediaItemIndex
                         if (currentIndex > 0) {
-                            MyApplication.playerManager.player.removeMediaItems(0, currentIndex)
+                            AppViewModels.player.playerManager.player.removeMediaItems(0, currentIndex)
                         }
 
 
@@ -234,11 +235,11 @@ fun createListeners(
             .collect { direction ->
                 when (direction) {
                     pendingDirection.TO_NEXT_SONG -> {
-                        MyApplication.playerManager.nextSong(mainViewModel, searchViewModel)
+                        AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
                         songPendingIntentNavigationDirection.value = pendingDirection.EMPTY
                     }
                     pendingDirection.TO_PREVIOUS_SONG -> {
-                        MyApplication.playerManager.prevSong(mainViewModel, searchViewModel)
+                        AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel)
                         songPendingIntentNavigationDirection.value = pendingDirection.EMPTY
                     }
                     pendingDirection.EMPTY -> {

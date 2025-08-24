@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
@@ -131,7 +132,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                         mainViewModel.setPlayingAudioSourceHash(artistUrl)
                         updatePosInQueue(mainViewModel, song.link)
                         mainViewModel.deleteUserAdds()
-                        MyApplication.playerManager.play(song.link, mainViewModel, searchViewModel, true)
+                        AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel, true)
                     }
                 )
             }

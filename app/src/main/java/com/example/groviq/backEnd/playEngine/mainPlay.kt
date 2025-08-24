@@ -31,6 +31,7 @@ import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.bumptech.glide.Glide
+import com.example.groviq.AppViewModels
 import com.example.groviq.MainActivity
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -363,7 +364,7 @@ class AudioPlayerManager(context: Context) {
 
         if (repeatMode == repeatMods.REPEAT_ONE) {
             // Повтор одного трека
-            MyApplication.playerManager.play(currentQueue[pos].hashKey, mainViewModel, searchViewModel )
+            AppViewModels.player.playerManager.play(currentQueue[pos].hashKey, mainViewModel, searchViewModel )
             return
         }
 
@@ -372,7 +373,7 @@ class AudioPlayerManager(context: Context) {
         if (nextIndex < currentQueue.size) {
             moveToNextPosInQueue(mainViewModel)
             val newPos = mainViewModel.uiState.value.posInQueue
-            MyApplication.playerManager.play(currentQueue[newPos].hashKey, mainViewModel, searchViewModel)
+            AppViewModels.player.playerManager.play(currentQueue[newPos].hashKey, mainViewModel, searchViewModel)
             return
         }
 
@@ -386,7 +387,7 @@ class AudioPlayerManager(context: Context) {
 
             mainViewModel.setQueue(newQueue)
             mainViewModel.setPosInQueue(0)
-            MyApplication.playerManager.play(newQueue[0].hashKey, mainViewModel, searchViewModel)
+            AppViewModels.player.playerManager.play(newQueue[0].hashKey, mainViewModel, searchViewModel)
             return
         }
 

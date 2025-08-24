@@ -45,89 +45,76 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.SearchViewModelFactory
 
 
-class MainActivity :
-    ComponentActivity() {
+class MainActivity : ComponentActivity() {
 
-    @SuppressLint(
-        "UnspecifiedRegisterReceiverFlag"
-    )
-    @OptIn(
-        UnstableApi::class
-    )
-    override fun onCreate(
-        savedInstanceState: Bundle?
-    ) {
-        super.onCreate(
-            savedInstanceState
-        )
+    @OptIn(UnstableApi::class)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-        //start python
+        // start python
         if (!Python.isStarted()) {
-            Python.start(
-                AndroidPlatform(this.applicationContext)
-            )
+            Python.start(AndroidPlatform(this.applicationContext))
         }
 
-        //start pipe for streams
+        // start pipe for streams
         initNewPipe()
 
-        //init viewmodel
-        val db          = AppDatabase.getInstance(this.applicationContext)
-        val repo        = DataRepository(db)
-
-        val factory     = PlayerViewModelFactory(repo)
-        val viewModel   = ViewModelProvider(this, factory).get(PlayerViewModel::class.java)
-
-        val factorySearch     = SearchViewModelFactory()
-        val viewModelSearch   = ViewModelProvider(this, factorySearch).get(SearchViewModel::class.java)
-
-
+        // permissions for notifications
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1
+                )
             }
         }
 
+        // set localization
         val locale = Locale("en", "US")
-        NewPipe.setupLocalization(
-            Localization.fromLocale(locale)
-        )
+        NewPipe.setupLocalization(Localization.fromLocale(locale))
 
+        // UI
         enableEdgeToEdge()
         setContent {
             GroviqTheme {
-                start(viewModel, viewModelSearch)
+                start(AppViewModels.player, AppViewModels.search)
             }
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-    }
-
 }
 
 @UnstableApi
-class MyApplication : Application()
-{
+class MyApplication : Application(), ViewModelStoreOwner {
+
     companion object {
         @Volatile
-        lateinit var globalContext: Context
+        lateinit var instance: MyApplication
+            private set
         @Volatile
-        lateinit var playerManager: AudioPlayerManager
+        lateinit var globalContext: Context
+            private set
     }
+
+    // именно как val, а не метод
+    override val viewModelStore: ViewModelStore by lazy { ViewModelStore() }
 
     override fun onCreate() {
         super.onCreate()
-
+        instance = this
         globalContext = applicationContext
 
-        playerManager = AudioPlayerManager(applicationContext)
-
+        // глобальный обработчик ошибок
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             appendLog(
                 this,
@@ -135,16 +122,53 @@ class MyApplication : Application()
                 "Crash in thread ${thread.name}: ${throwable.message}",
                 throwable
             )
-
             Thread.sleep(500)
-
             android.os.Process.killProcess(android.os.Process.myPid())
             exitProcess(10)
         }
-
     }
 }
 
+// --------------------------- GLOBAL VIEWMODELS ----------------------------
+@UnstableApi
+object AppViewModels {
+    val player: PlayerViewModel by lazy {
+        val app = MyApplication.instance
+        val db = AppDatabase.getInstance(app.applicationContext)
+        val repo = DataRepository(db)
+        val factory = PlayerViewModelFactory(repo)
+        ViewModelProvider(app, factory).get(PlayerViewModel::class.java)
+    }
+
+    val search: SearchViewModel by lazy {
+        val app = MyApplication.instance
+        val factory = SearchViewModelFactory()
+        ViewModelProvider(app, factory).get(SearchViewModel::class.java)
+    }
+}
+
+
+// -------------------- ViewModels Singleton --------------------
+@UnstableApi
+object ViewModels {
+    private var playerViewModel: PlayerViewModel? = null
+
+    fun player(repo: DataRepository): PlayerViewModel {
+        if (playerViewModel == null) {
+            val factory = PlayerViewModelFactory(repo)
+            playerViewModel = ViewModelProvider(
+                MyApplication.instance,
+                factory
+            ).get(PlayerViewModel::class.java)
+        }
+        return playerViewModel!!
+    }
+}
+
+
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun start(viewModel: PlayerViewModel, searchView : SearchViewModel)
 {

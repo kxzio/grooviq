@@ -3,6 +3,7 @@ package com.example.groviq.backEnd.streamProcessor
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
@@ -144,7 +145,7 @@ var currentFetchQueueJob: Job? = null
 
 fun fetchQueueStream(mainViewModel: PlayerViewModel) {
     val preloader = Preloader(
-        MyApplication.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
+        AppViewModels.player.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
 
     CoroutineScope(Dispatchers.Main).launch {
         currentFetchQueueJob?.cancelAndJoin()
