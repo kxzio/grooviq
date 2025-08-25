@@ -77,6 +77,10 @@ import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.service.nextSongHashPending
 import kotlinx.coroutines.launch
 
+//the request of navigation radio for track
+val showSheet = mutableStateOf<Boolean>(false)
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
@@ -86,9 +90,8 @@ fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchVie
         confirmValueChange = { true }
     )
 
-    var showSheet by rememberSaveable { mutableStateOf(false) }
 
-    mainSheetDraw(sheetState, showSheet, {showSheet = !showSheet}, mainViewModel,searchViewModel, content)
+    mainSheetDraw(sheetState, showSheet.value, {showSheet.value = !showSheet.value}, mainViewModel,searchViewModel, content)
 }
 
 @androidx.annotation.OptIn(

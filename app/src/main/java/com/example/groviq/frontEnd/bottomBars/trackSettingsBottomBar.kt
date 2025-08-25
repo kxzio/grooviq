@@ -290,6 +290,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     }
 
     buttonForSettingBar("Перейти к альбому", Icons.Rounded.Album, {
+        showSheet.value = false
         openAlbum(track!!.album_original_link)
         onClose()
     })
@@ -301,6 +302,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
             onScreenMove(settingPages.SELECT_ARTIST_TO_MOVE)
         }
         else {
+            showSheet.value = false
             openArtist(track!!.artists.first().url)
             onClose()
         }
@@ -316,6 +318,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     })
 
     buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
+        showSheet.value = false
         openRadio(track.link)
         onClose()
     })
@@ -334,6 +337,7 @@ fun drawSelectArtistPage(mainViewModel : PlayerViewModel, track: songData?, onCl
             Text(text = artist.title, color = Color(255, 255, 255), fontSize = 21.sp, modifier = Modifier.clickable {
                 openArtist(artist.url)
                 onClose()
+                showSheet.value = false
             })
         }
     }
@@ -408,7 +412,7 @@ fun drawQueuePage(
 
         // ПРОСТОЕ И БЕЗОПАСНОЕ МАППИНГ: originalIndex = start + filteredIndex
         val fromOriginalIndex = start + from.index
-        val toOriginalIndex = start + to.index
+        val toOriginalIndex = (start + to.index).coerceIn(start, endExclusive - 1)
 
         // дополнительно проверим границы оригинальной очереди
         if (fromOriginalIndex !in queue.indices || toOriginalIndex !in queue.indices) {

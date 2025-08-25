@@ -144,17 +144,17 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
     val albumUrl = Uri.decode(rawEncoded).takeIf { it.isNotBlank() }
         ?: return
 
-    var audioSource by remember { mutableStateOf("") }
+    val sourceKey = remember(albumUrl) { "${albumUrl}_source-related-tracks_radio" }
 
     if (MyApplication.globalContext != null) {
 
-        if (mainUiState.audioData.containsKey(albumUrl).not())
-        {
+        if (!mainUiState.audioData.containsKey(sourceKey)) {
             LaunchedEffect(albumUrl) {
-                audioSource = searchViewModel.addRelatedTracksToAudioSource(
+                // возвращать из функции можно сразу sourceKey
+                searchViewModel.addRelatedTracksToAudioSource(
                     context = MyApplication.globalContext!!,
                     request = albumUrl,
-                    mainViewModel
+                    mainViewModel = mainViewModel
                 )
             }
         }
@@ -180,15 +180,15 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 
             }
 
-            LaunchedEffect(audioSource)
+            LaunchedEffect(sourceKey)
             {
-                fetchAudioSource(audioSource, mainViewModel)
+                fetchAudioSource(sourceKey, mainViewModel)
             }
 
             //update focus to prevent deleting the audio source if this path is UI opened
-            mainViewModel.updateBrowserHashFocus(audioSource)
+            mainViewModel.updateBrowserHashFocus(sourceKey)
 
-            showDefaultAudioSource(audioSource, mainViewModel, searchViewModel)
+            showDefaultAudioSource(sourceKey, mainViewModel, searchViewModel)
         }
     }
 }
