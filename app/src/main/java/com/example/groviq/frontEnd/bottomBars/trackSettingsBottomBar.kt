@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,6 +66,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
@@ -74,6 +76,7 @@ import com.example.groviq.backEnd.streamProcessor.deleteDownloadedAudioFile
 import com.example.groviq.backEnd.streamProcessor.downloadAudioFile
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
+import com.example.groviq.frontEnd.appScreens.openRadio
 import com.example.groviq.frontEnd.screenConnectorNavigation
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -310,6 +313,11 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 
     buttonForSettingBar("Просмотреть очередь", Icons.Rounded.QueueMusic, {
         onScreenMove(settingPages.QUEUE_SHOW_LIST_SCREEN)
+    })
+
+    buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
+        openRadio(track.link)
+        onClose()
     })
 }
 

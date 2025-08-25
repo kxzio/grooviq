@@ -19,6 +19,13 @@ val artistPendingNavigation = mutableStateOf<String?>(null)
 //the request of navigation album
 val albumPendingNavigation = mutableStateOf<String?>(null)
 
+//the request of navigation radio for track
+val trackRadioPendingNavigation = mutableStateOf<String?>(null)
+
+
+fun openRadio(link: String) {
+    trackRadioPendingNavigation.value = link
+}
 
 fun openArtist(link: String) {
     artistPendingNavigation.value = link

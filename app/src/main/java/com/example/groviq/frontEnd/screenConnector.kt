@@ -52,7 +52,9 @@ import com.example.groviq.frontEnd.appScreens.playlistsScreen.playlistDetailList
 import com.example.groviq.frontEnd.appScreens.playlistsScreen.playlistList
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showArtistFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceFromSurf
+import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceOfRadio
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchResultsNavigation
+import com.example.groviq.frontEnd.appScreens.trackRadioPendingNavigation
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -100,6 +102,7 @@ fun connectScreens(
     val navControllers = remember {
         mutableStateMapOf<Screen, NavHostController>()
     }
+
     items.forEach { screen ->
         if (navControllers[screen] == null) {
             navControllers[screen] = rememberNavController()
@@ -160,6 +163,19 @@ fun connectScreens(
             }
         }
 
+        val pendingRadioLink = trackRadioPendingNavigation.value
+        LaunchedEffect(pendingRadioLink) {
+            if (pendingRadioLink != null) {
+                val encoded = Uri.encode(pendingRadioLink)
+                currentTab = Screen.Searching
+                val targetController = navControllers[Screen.Searching]!!
+                targetController.navigate("${Screen.Searching.route}/radio/$encoded") {
+                    launchSingleTop = true
+                }
+                trackRadioPendingNavigation.value = null
+            }
+        }
+
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             items.forEach { screen ->
                 val controller = navControllers[screen]!!
@@ -204,6 +220,11 @@ fun connectScreens(
                                     arguments = listOf(navArgument("album_url") { type = NavType.StringType })
                                 ) {
                                     showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
+                                }
+                                composable("${Screen.Searching.route}/radio/{track_url}",
+                                    arguments = listOf(navArgument("track_url") { type = NavType.StringType })
+                                ) {
+                                    showAudioSourceOfRadio(it, searchViewModel, mainViewModel, controller)
                                 }
                                 composable("${Screen.Searching.route}/artist/{artist_url}",
                                     arguments = listOf(navArgument("artist_url") { type = NavType.StringType })

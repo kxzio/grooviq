@@ -1,6 +1,7 @@
 package com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,13 +31,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.example.groviq.AppViewModels
@@ -114,6 +118,77 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
             mainViewModel.updateBrowserHashFocus(albumUrl)
 
             showDefaultAudioSource(albumUrl, mainViewModel, searchViewModel)
+        }
+    }
+}
+
+@OptIn(
+    UnstableApi::class
+)
+@Composable
+fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
+                            searchViewModel : SearchViewModel, //search view
+                            mainViewModel   : PlayerViewModel, //player view
+                            searchingScreenNav: NavHostController
+)
+{
+
+    val searchUiState   by searchViewModel.uiState.collectAsState()
+    val mainUiState     by mainViewModel.uiState.collectAsState()
+
+    val rawEncoded = backStackEntry.arguments
+        ?.getString("track_url")
+        ?: return
+
+    //getting the decoded full link to album
+    val albumUrl = Uri.decode(rawEncoded).takeIf { it.isNotBlank() }
+        ?: return
+
+    var audioSource by remember { mutableStateOf("") }
+
+    if (MyApplication.globalContext != null) {
+
+        if (mainUiState.audioData.containsKey(albumUrl).not())
+        {
+            LaunchedEffect(albumUrl) {
+                audioSource = searchViewModel.addRelatedTracksToAudioSource(
+                    context = MyApplication.globalContext!!,
+                    request = albumUrl,
+                    mainViewModel
+                )
+            }
+        }
+
+        Column()
+        {
+            if (searchUiState.publicErrors != publucErrors.CLEAN)
+            {
+                if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
+                {
+                    Text(text = "Нет подключения к интернету")
+                }
+                else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
+                {
+                    Text(text = "Ничего не найдено")
+                }
+            }
+
+            if (searchUiState.gettersInProcess == true)
+            {
+                CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                return@Column
+
+            }
+
+            LaunchedEffect(audioSource)
+            {
+                fetchAudioSource(audioSource, mainViewModel)
+            }
+
+            //update focus to prevent deleting the audio source if this path is UI opened
+            mainViewModel.updateBrowserHashFocus(audioSource)
+
+            showDefaultAudioSource(audioSource, mainViewModel, searchViewModel)
         }
     }
 }
