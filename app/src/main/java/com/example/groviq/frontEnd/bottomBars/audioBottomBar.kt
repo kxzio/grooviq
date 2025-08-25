@@ -285,21 +285,53 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                         Spacer(Modifier.height(30.dp))
 
-                        Slider(
-                            value = songProgressUi.value.progress,
-                            onValueChange = { newProgress ->
+                        Box(contentAlignment = Alignment.Center)
+                        {
+                            LinearProgressIndicator(
+                                progress = AppViewModels.player.playerManager.player.bufferedPercentage / 100f,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                                color = Color(
+                                    239,
+                                    128,
+                                    132,
+                                    110
+                                ),
+                                trackColor = Color(
+                                    239,
+                                    128,
+                                    132,
+                                    50
+                                )
+                            )
 
-                                val duration = AppViewModels.player.playerManager.player!!.duration
-                                val newPosition = (duration * newProgress).toLong()
+                            Slider(
+                                value = songProgressUi.value.progress,
+                                onValueChange = { newProgress ->
 
-                                setSongProgress(newProgress, newPosition)
-                                AppViewModels.player.playerManager.player!!.seekTo(newPosition)
+                                    val duration = AppViewModels.player.playerManager.player!!.duration
+                                    val newPosition = (duration * newProgress).toLong()
 
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            steps = 0,
-                            valueRange = 0f..1f,
-                        )
+                                    setSongProgress(newProgress, newPosition)
+                                    AppViewModels.player.playerManager.player!!.seekTo(newPosition)
+
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                steps = 0,
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color(
+                                        239,
+                                        128,
+                                        132,
+                                        255
+                                    ),
+                                    inactiveTrackColor = Color.Transparent
+                                )
+                            )
+
+                        }
+
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
