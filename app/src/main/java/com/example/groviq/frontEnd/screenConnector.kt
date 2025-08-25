@@ -141,11 +141,17 @@ fun connectScreens(
         LaunchedEffect(pendingArtistLink) {
             if (pendingArtistLink != null) {
                 val encoded = Uri.encode(pendingArtistLink)
-                currentTab = Screen.Searching // переключаем таб
+                currentTab = Screen.Searching
                 val targetController = navControllers[Screen.Searching]!!
-                targetController.navigate("${Screen.Searching.route}/artist/$encoded") {
-                    launchSingleTop = true
+
+                val route = "${Screen.Searching.route}/artist/$encoded"
+                if (targetController.graph.findNode(route) != null)
+                {
+                    targetController.navigate(route) {
+                        launchSingleTop = true
+                    }
                 }
+
                 artistPendingNavigation.value = null
             }
         }
@@ -156,8 +162,12 @@ fun connectScreens(
                 val encoded = Uri.encode(pendingAlbumLink)
                 currentTab = Screen.Searching
                 val targetController = navControllers[Screen.Searching]!!
-                targetController.navigate("${Screen.Searching.route}/album/$encoded") {
-                    launchSingleTop = true
+                val route = "${Screen.Searching.route}/album/$encoded"
+                if (targetController.graph.findNode(route) != null)
+                {
+                    targetController.navigate(route) {
+                        launchSingleTop = true
+                    }
                 }
                 albumPendingNavigation.value = null
             }
@@ -169,8 +179,12 @@ fun connectScreens(
                 val encoded = Uri.encode(pendingRadioLink)
                 currentTab = Screen.Searching
                 val targetController = navControllers[Screen.Searching]!!
-                targetController.navigate("${Screen.Searching.route}/radio/$encoded") {
-                    launchSingleTop = true
+                val route = "${Screen.Searching.route}/radio/$encoded"
+                if (targetController.graph.findNode(route) != null)
+                {
+                    targetController.navigate(route) {
+                        launchSingleTop = true
+                    }
                 }
                 trackRadioPendingNavigation.value = null
             }

@@ -294,7 +294,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                     239,
                                     128,
                                     132,
-                                    110
+                                    90
                                 ),
                                 trackColor = Color(
                                     239,
