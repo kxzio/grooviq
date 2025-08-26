@@ -66,7 +66,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
@@ -92,6 +94,9 @@ fun openTrackSettingsBottomBar(requestHash: String, audioSource : String = "IT_E
     currentSettingsOpenedAudioSource.value = audioSource
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @OptIn(
     ExperimentalMaterial3Api::class
 )
@@ -185,6 +190,9 @@ enum class settingPages{
     ADD_TO_PLAYLIST_SCREEN
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @OptIn(
     ExperimentalMaterial3Api::class
 )
@@ -220,13 +228,28 @@ fun drawSettingsBottomBar(mainViewModel : PlayerViewModel, requestHash : String,
 
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @Composable
 fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
 {
 
     Row()
     {
-        Image(track!!.art!!.asImageBitmap(), null, Modifier.size(35.dp))
+        if (track!!.art != null)
+        {
+            Image(track!!.art!!.asImageBitmap(), null, Modifier.size(35.dp))
+
+        }
+        else if (track!!.art_link != null)
+        {
+            AsyncImage(
+                model = track!!.art_link,
+                contentDescription = null,
+                Modifier.size(35.dp)
+            )
+        }
 
         Column()
         {
@@ -324,6 +347,9 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     })
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @Composable
 fun drawSelectArtistPage(mainViewModel : PlayerViewModel, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
 {
@@ -345,6 +371,9 @@ fun drawSelectArtistPage(mainViewModel : PlayerViewModel, track: songData?, onCl
 
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @Composable
 fun drawPlaylistsToAdd(mainViewModel : PlayerViewModel, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
 {
@@ -369,6 +398,9 @@ fun drawPlaylistsToAdd(mainViewModel : PlayerViewModel, track: songData?, onClos
 
 }
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @Composable
 fun drawQueuePage(
     mainViewModel: PlayerViewModel,
@@ -467,13 +499,25 @@ fun drawQueuePage(
                         )
                     }
 
-                    track?.art?.let { bitmap ->
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
+                    if (track!!.art != null)
+                    {
+                        track?.art?.let { bitmap ->
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size(35.dp)
+                            )
+                        }
+                    }
+                    else if (track!!.art_link != null)
+                    {
+                        AsyncImage(
+                            model = track!!.art_link,
                             contentDescription = null,
-                            modifier = Modifier.size(35.dp)
+                            Modifier.size(35.dp)
                         )
                     }
+
 
 
                     track?.let { t ->

@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
+import coil.compose.AsyncImage
 import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -258,6 +259,13 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         if (song!!.art != null)
                         {
                             Image(song!!.art!!.asImageBitmap(), null)
+                        }
+                        else if (song!!.art_link != null)
+                        {
+                            AsyncImage(
+                                model = song.art_link,
+                                contentDescription = null,
+                            )
                         }
 
                         Text(song.title, Modifier.clickable {

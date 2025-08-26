@@ -71,6 +71,8 @@ data class playerState(
     var isShuffle   : Boolean = false,
     var repeatMode  : repeatMods = repeatMods.NO_REPEAT,
 
+    //saved audiosources
+
     )
 
 
@@ -200,6 +202,22 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         )
     }
 
+    fun toggleStrictSaveAudioSource(request: String) {
+        val currentState = _uiState.value
+        val updatedAudioData = currentState.audioData.toMutableMap()
+
+        val oldValue = updatedAudioData[request]?.shouldBeSavedStrictly
+
+        if (oldValue != null) {
+            val updatedItem = updatedAudioData[request]!!.copy(
+                shouldBeSavedStrictly = !oldValue
+            )
+            updatedAudioData[request] = updatedItem
+        }
+
+        _uiState.value = currentState.copy(audioData = updatedAudioData)
+    }
+
     fun setTrack(request: String, song : songData,
     ) {
 
@@ -272,23 +290,6 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         _uiState.value = currentState.copy(audioData = updatedAudioData)
     }
 
-    fun setTracksWihtoutSource(tracks: List<songData>
-    ) {
-
-        //function for browsing to add new audiosource and chain audiofiles to new audiosource
-        val currentUiState = _uiState.value
-
-        val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
-        for (track in tracks) {
-            if (!updatedAllAudio.containsKey(track.link)) {
-                updatedAllAudio[track.link] = track
-            }
-        }
-
-        _uiState.value = currentUiState.copy(
-            allAudioData = updatedAllAudio,
-        )
-    }
 
     fun removeSongFromAudioSource(songLink: String, audioSource: String) {
 
@@ -394,11 +395,12 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
         _uiState.value.audioData = _uiState.value.audioData.filter {
 
-            it.key == currentPlayingAudioSource         ||              //we play this audioSource
-            playlists.containsKey(it.key)               ||              //this audioSource is playlist
-            it.key == uiState.value.searchBroserFocus   ||              //this audiosource is UI focused
-            currentQueueAudioSources.contains(it.key)   ||              //this audiosource is used for queue building
-            it.key == searchViewModel.uiState.value.currentArtist.url   //current opened artist popular songs
+            _uiState.value.audioData[it.key]?.shouldBeSavedStrictly ?: false || //this audiosource is saved strictly
+            it.key == currentPlayingAudioSource         ||                      //we play this audioSource
+            playlists.containsKey(it.key)               ||                      //this audioSource is playlist
+            it.key == uiState.value.searchBroserFocus   ||                      //this audiosource is UI focused
+            currentQueueAudioSources.contains(it.key)   ||                      //this audiosource is used for queue building
+            it.key == searchViewModel.uiState.value.currentArtist.url           //current opened artist popular songs
 
         }.toMutableMap()
 
@@ -445,7 +447,8 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     {
         //the main logic of filter motion
         //logic operation :
-        // 1.
+        // 1. playlists
+        // 2. strict saved
 
         val saveable = getPlaylists()
 
@@ -453,10 +456,19 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     }
 
+    fun isPlaylist(audioSource: String) : Boolean
+    {
+
+        val isPlaylist  = audioSource.contains("https://").not()
+
+        return isPlaylist
+
+    }
+
     fun getPlaylists() : Map<String, audioSource>
     {
 
-        val playlists  = _uiState.value.audioData.filter { !it.key.contains("https://") }
+        val playlists  = _uiState.value.audioData.filter { isPlaylist(it.key) }
 
         return playlists
 

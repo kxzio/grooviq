@@ -8,5 +8,8 @@ data class audioSource(
     var nameOfAudioSource     : String = "",
     var artistsOfAudioSource  : List<ArtistDto> = emptyList(),
     var yearOfAudioSource     : String = "",
-    var songIds: MutableList<String> = mutableListOf()
+    var songIds: MutableList<String> = mutableListOf(),
+
+    //params that make audiosource be saved by user
+    var shouldBeSavedStrictly : Boolean = false
 )

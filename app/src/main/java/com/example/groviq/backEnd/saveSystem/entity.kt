@@ -18,6 +18,7 @@ data class SongEntity(
     val playingEnterPoint: audioEnterPoint,
     val duration: Long,
     val artPath: String?,
+    val artLink: String?,
     val number: Int?,
     val album_original_link: String?,
     val filePath: String?,
@@ -29,5 +30,6 @@ data class AudioSourceEntity(
     val nameOfAudioSource: String,
     val artistsOfAudioSource: List<ArtistDto>,
     val yearOfAudioSource: String,
-    val songIds: List<String>
+    val songIds: List<String>,
+    val shouldBeSavedStrictly : Boolean
 )

@@ -1,6 +1,8 @@
 package com.example.groviq.backEnd.saveSystem
 
 import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.audioSource
 import com.example.groviq.backEnd.dataStructures.songData
@@ -33,6 +35,9 @@ class DataRepository(private val db: AppDatabase) {
         return Pair(songs, sources)
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     fun saveSong(playerViewModel: PlayerViewModel, song: songData, context: Context) {
 
         //we have to make decision, to keep this entity, or delete
@@ -49,6 +54,9 @@ class DataRepository(private val db: AppDatabase) {
 
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     fun saveAudioSources(playerViewModel: PlayerViewModel) {
 
         val existing = audioDao.getAll()

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
+import coil.compose.AsyncImage
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
@@ -267,23 +268,31 @@ fun SwipeToQueueItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (song.art != null) {
 
-                    Box()
-                    {
+                Box()
+                {
+                    if (song.art != null) {
                         Image(
                             song.art!!.asImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier.size(35.dp)
                         )
-
-                        SquareProgressBox(song.progressStatus.downloadingProgress.toInt(),
-                            size = 36.dp)
-
+                    }
+                    else if (song.art_link != null)
+                    {
+                        AsyncImage(
+                            model = song.art_link,
+                            contentDescription = null,
+                            Modifier.size(35.dp)
+                        )
                     }
 
 
+                    SquareProgressBox(song.progressStatus.downloadingProgress.toInt(), size = 36.dp)
+
                 }
+
+
 
                 Column(modifier = Modifier.padding(start = 8.dp)) {
                     Text(song.title, maxLines = 1, fontSize = 12.sp)

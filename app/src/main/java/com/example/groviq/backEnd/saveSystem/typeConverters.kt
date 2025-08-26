@@ -104,7 +104,8 @@ fun songData.toEntity(context: Context): SongEntity {
         artPath = artFilePath,
         number = this.number,
         album_original_link = this.album_original_link,
-        filePath = filePath
+        filePath = filePath,
+        artLink = this.art_link
     )
 }
 
@@ -129,7 +130,8 @@ fun SongEntity.toDomain(context: Context): songData {
         art = bitmap,
         number = this.number,
         album_original_link = this.album_original_link ?: "",
-        file = file
+        file = file,
+        art_link = this.artLink ?: ""
     )
 }
 
@@ -138,12 +140,14 @@ fun audioSource.toEntity(key: String): AudioSourceEntity = AudioSourceEntity(
     nameOfAudioSource = this.nameOfAudioSource,
     artistsOfAudioSource = this.artistsOfAudioSource,
     yearOfAudioSource = this.yearOfAudioSource,
-    songIds = this.songIds
+    songIds = this.songIds,
+    shouldBeSavedStrictly = this.shouldBeSavedStrictly
 )
 
 fun AudioSourceEntity.toDomain(): audioSource = audioSource(
     nameOfAudioSource = this.nameOfAudioSource,
     artistsOfAudioSource = this.artistsOfAudioSource,
     yearOfAudioSource = this.yearOfAudioSource,
-    songIds = this.songIds.toMutableList()
+    songIds = this.songIds.toMutableList(),
+    shouldBeSavedStrictly = this.shouldBeSavedStrictly
 )

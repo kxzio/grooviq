@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
@@ -43,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -56,6 +60,9 @@ import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.frontEnd.appScreens.openArtist
 
 
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                             searchViewModel : SearchViewModel, //search view
@@ -150,7 +157,6 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 
         if (!mainUiState.audioData.containsKey(sourceKey)) {
             LaunchedEffect(albumUrl) {
-                // возвращать из функции можно сразу sourceKey
                 searchViewModel.addRelatedTracksToAudioSource(
                     context = MyApplication.globalContext!!,
                     request = albumUrl,
@@ -194,6 +200,9 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 }
 
 //render albums or playlists detail screens
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel )
 {
@@ -209,6 +218,8 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
         ?.mapNotNull { mainUiState.allAudioData[it] }
         ?: emptyList()
 
+    val isPlaylist = mainViewModel.isPlaylist(audioSourcePath)
+
     Column {
 
         Column()
@@ -221,7 +232,19 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
             }
             else
             {
-                Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(80.dp))
+                if (songs.firstOrNull()?.art_link != null)
+                {
+                    AsyncImage(
+                        model = songs.firstOrNull()?.art_link,
+                        contentDescription = null,
+                        Modifier.size(80.dp)
+                    )
+                }
+                else
+                {
+                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(80.dp))
+                }
+
             }
 
             if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
@@ -260,6 +283,24 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
             if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
             {
                 Text(audioSource!!.yearOfAudioSource)
+            }
+
+            if (isPlaylist.not())
+            {
+                Button(onClick = {
+                    mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
+                    mainViewModel.saveAudioSourcesToRoom()
+                })
+                {
+                    if (mainUiState.audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
+                    {
+                        Text("Удалить")
+                    }
+                    else
+                    {
+                        Text("Сохранить")
+                    }
+                }
             }
 
         }

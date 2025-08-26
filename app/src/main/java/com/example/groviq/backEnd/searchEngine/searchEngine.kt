@@ -7,11 +7,13 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.OptIn
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.util.UnstableApi
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.audioEnterPoint
@@ -82,6 +84,10 @@ class SearchViewModel : ViewModel() {
 
     //results getter
     private var searchJob: Job? = null
+
+    @OptIn(
+        UnstableApi::class
+    )
     fun getResultsOfSearchByString(context: Context, request: String) {
         val appContext = context.applicationContext
         searchJob?.cancel()
@@ -156,7 +162,9 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-
+    @OptIn(
+        UnstableApi::class
+    )
     fun getAlbum(
         context: Context,
         request: String,
@@ -185,8 +193,6 @@ class SearchViewModel : ViewModel() {
                 //parsing
                 val albumDto = parseAlbumJson(albumMetaJson)
 
-                val albumBitmap = loadBitmapFromUrl(albumDto.image_url)
-
                 //mapping the results from parsed values
                 val tracks = albumDto.tracks.map { t ->
                     songData(
@@ -198,7 +204,8 @@ class SearchViewModel : ViewModel() {
                         number = t.track_num,
                         progressStatus = songProgressStatus(),
                         playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-                        art = albumBitmap,
+                        art = null,
+                        art_link = albumDto.image_url,
                         album_original_link = request
                     )
                 }
@@ -285,6 +292,9 @@ class SearchViewModel : ViewModel() {
         )
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     fun getArtist(
         context: Context,
         request: String, mainViewModel: PlayerViewModel
@@ -455,6 +465,9 @@ class SearchViewModel : ViewModel() {
             )
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     fun getTrack(
         context: Context,
         request: String,
@@ -479,8 +492,6 @@ class SearchViewModel : ViewModel() {
 
                 val trackDto = parseTrackJson(trackMetaJson)
 
-                val trackBitmap = loadBitmapFromUrl(trackDto.imageUrl!!)
-
                 val trackData = songData(
                     link = trackDto.url,
                     title = trackDto.title,
@@ -490,7 +501,8 @@ class SearchViewModel : ViewModel() {
                     number = 1,
                     progressStatus = songProgressStatus(),
                     playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-                    art = trackBitmap,
+                    art = null,
+                    art_link = trackDto.imageUrl!!,
                     album_original_link = trackDto.albumUrl
                 )
 
@@ -508,9 +520,7 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    suspend fun trackDtoToSongData(track: TrackDto): songData {
-        val albumBitmap = loadBitmapFromUrl(track.imageUrl ?: "")
-
+    fun trackDtoToSongData(track: TrackDto): songData {
         return songData(
             link = track.url,
             title = track.title,
@@ -520,11 +530,14 @@ class SearchViewModel : ViewModel() {
             number = track.track_num,
             progressStatus = songProgressStatus(),
             playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-            art = albumBitmap,
+            art_link = track.imageUrl!!,
             album_original_link = track.albumUrl
         )
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     suspend fun addRelatedTracksToCurrentQueue(
         context: Context,
         request: String,
@@ -649,6 +662,9 @@ class SearchViewModel : ViewModel() {
         }
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     suspend fun addRelatedTracksToAudioSource(
         context: Context,
         request: String,
@@ -699,6 +715,9 @@ class SearchViewModel : ViewModel() {
         }
     }
 
+    @OptIn(
+        UnstableApi::class
+    )
     suspend fun prepareRelatedTracks(
         context: Context,
         request: String,

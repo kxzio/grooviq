@@ -48,8 +48,10 @@ data class songData(
     //duration of song
     var duration: Long = 0L,
 
-    //album cover
+    //album cover - bitmap version
     var art    : Bitmap? = null,
+    //album cover - straight link version
+    var art_link : String? = null,
 
     //number of song
     var number : Int? = null,
