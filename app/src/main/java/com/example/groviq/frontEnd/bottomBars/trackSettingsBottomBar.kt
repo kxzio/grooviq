@@ -414,45 +414,28 @@ fun drawQueuePage(
     var isReordering by remember { mutableStateOf(false) }
 
     val filteredQueue = remember(mainUiState.currentQueue, mainUiState.posInQueue) {
-        val start = mainUiState.posInQueue.coerceAtLeast(0)
-        val endExclusive = minOf(mainUiState.currentQueue.size, start + 41)
+        val start = (mainUiState.posInQueue + 1).coerceAtMost(mainUiState.currentQueue.size)
+        val endExclusive = minOf(mainUiState.currentQueue.size, start + 40)
         if (start < endExclusive) mainUiState.currentQueue.subList(start, endExclusive).toList()
         else emptyList()
     }
 
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        println("Moving from ${from.index} to ${to.index}")
-
         val queue = mainUiState.currentQueue
-        if (queue.isEmpty()) {
-            println("Queue is empty, aborting move")
-            return@rememberReorderableLazyListState
-        }
+        if (queue.isEmpty()) return@rememberReorderableLazyListState
 
-        // текущая позиция и границы — рассчитываем один раз (тот же способ, что и для filteredQueue)
-        val start = mainUiState.posInQueue.coerceAtLeast(0)
-        val endExclusive = minOf(queue.size, start + 41)
+        // согласуем start и endExclusive с filteredQueue
+        val start = (mainUiState.posInQueue + 1).coerceAtMost(queue.size)
+        val endExclusive = minOf(queue.size, start + 40)
+        val localFilteredSize = endExclusive - start
 
-        // localFilteredSize — размер списка, с которым вы работаете в UI
-        val localFilteredSize = if (start < endExclusive) endExclusive - start else 0
+        if (from.index !in 0 until localFilteredSize || to.index !in 0 until localFilteredSize) return@rememberReorderableLazyListState
 
-        // проверяем валидность индексов относительно видимого (filtered) списка
-        if (from.index !in 0 until localFilteredSize || to.index !in 0 until localFilteredSize) {
-            println("Invalid filtered indices: from=${from.index}, to=${to.index}, filtered size=$localFilteredSize, start=$start, endExclusive=$endExclusive")
-            return@rememberReorderableLazyListState
-        }
-
-        // ПРОСТОЕ И БЕЗОПАСНОЕ МАППИНГ: originalIndex = start + filteredIndex
         val fromOriginalIndex = start + from.index
-        val toOriginalIndex = (start + to.index).coerceIn(start, endExclusive - 1)
+        val toOriginalIndex = start + to.index
 
-        // дополнительно проверим границы оригинальной очереди
-        if (fromOriginalIndex !in queue.indices || toOriginalIndex !in queue.indices) {
-            println("Invalid original indices after mapping: from=$fromOriginalIndex, to=$toOriginalIndex, queue size=${queue.size}")
-            return@rememberReorderableLazyListState
-        }
+        if (fromOriginalIndex !in queue.indices || toOriginalIndex !in queue.indices) return@rememberReorderableLazyListState
 
-        // вызываем вашу функцию перемещения
         moveInQueue(mainViewModel, fromOriginalIndex, toOriginalIndex)
     }
 
@@ -488,7 +471,7 @@ fun drawQueuePage(
                     //detele using original index
                     IconButton(
                         onClick = {
-                            val originalIndex = mainUiState.currentQueue.indexOf(filteredQueue[indexFiltered])
+                            val originalIndex = mainUiState.posInQueue + 1 + indexFiltered
                             removeFromQueue(mainViewModel, originalIndex)
                         }
                     ) {

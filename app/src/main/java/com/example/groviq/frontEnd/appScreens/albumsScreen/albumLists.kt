@@ -105,12 +105,15 @@ fun albumLists(searchingScreenNav: NavHostController,
                             }
 
                         }
-                        Text(
-                            mainUiState.audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"
-                        )
-                        Text(
-                            mainUiState.audioData[result.key]?.artistsOfAudioSource?.joinToString { it.title } ?: "Неизвестный исполнитель"
-                        )
+                        Column{
+                            Text(
+                                mainUiState.audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"
+                            )
+                            Text(
+                                mainUiState.audioData[result.key]?.artistsOfAudioSource?.joinToString { it.title } ?: "Неизвестный исполнитель"
+                            )
+                        }
+
                     }
 
                 }
