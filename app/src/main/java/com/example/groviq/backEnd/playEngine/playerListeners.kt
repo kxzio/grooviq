@@ -19,6 +19,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
 import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
 import com.example.groviq.bitmapToCompressedBytes
+import com.example.groviq.service.nextSongHashPending
 import com.example.groviq.service.pendingDirection
 import com.example.groviq.service.songPendingIntentNavigationDirection
 import kotlinx.coroutines.CoroutineScope
@@ -127,8 +128,10 @@ fun createListeners(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+
             trackEndingHandled = false
             addTrackToMediaItems?.cancel()
+
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
 
                 moveToNextPosInQueue(mainViewModel)
@@ -141,6 +144,7 @@ fun createListeners(
                 }
 
                 fetchQueueStream(mainViewModel)
+
             }
         }
 
@@ -187,21 +191,27 @@ fun createListeners(
                             Uri.parse(streamUrl)
                         }
 
-                        val songArt = mainViewModel.awaitSongArt(mainViewModel, song.link)
+                        val songArtResult = mainViewModel.awaitSongArt(mainViewModel, nextSongHash)
 
-                        val smallBitmap = Bitmap.createScaledBitmap(songArt, 256, 256, true)
-                        val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+                        val mediaMetadataBuilder = MediaMetadata.Builder()
+                            .setTitle(song.title)
+                            .setArtist(song.artists.joinToString { it.title })
+
+                        when (songArtResult) {
+                            is PlayerViewModel.SongArtResult.BitmapResult -> {
+                                val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
+                                val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+                                mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                            }
+                            is PlayerViewModel.SongArtResult.UrlResult -> {
+                                mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
+                            }
+                        }
 
                         val mediaItem = MediaItem.Builder()
                             .setUri(mediaUri)
                             .setTag(song.link)
-                            .setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setTitle(song.title)
-                                    .setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                                    .setArtist(song.artists.map { it.title }.joinToString())
-                                    .build()
-                            )
+                            .setMediaMetadata(mediaMetadataBuilder.build())
                             .build()
 
 

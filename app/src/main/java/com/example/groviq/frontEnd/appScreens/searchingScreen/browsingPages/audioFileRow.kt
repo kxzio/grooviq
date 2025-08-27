@@ -314,6 +314,9 @@ fun SwipeToQueueItem(
                             mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
                         else
                             mainViewModel.addSongToAudioSource(song.link, "Favourite")
+
+                        mainViewModel.saveSongToRoom(song)
+                        mainViewModel.saveAudioSourcesToRoom()
                     }
                 ) {
                     Icon(

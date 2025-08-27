@@ -46,6 +46,7 @@ import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.backEnd.streamProcessor.fetchNewImage
 import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
 import com.example.groviq.bitmapToCompressedBytes
+import com.example.groviq.getImageSizeFromUrl
 import com.example.groviq.isServiceRunning
 import com.example.groviq.isSmall
 import com.example.groviq.service.CustomPlayer
@@ -59,6 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.Executors
+import kotlin.math.min
 
 
 @UnstableApi
@@ -226,17 +228,16 @@ class AudioPlayerManager(context: Context) {
 
             }
 
-            //update image if size is small
-            if (song.art != null)
-            {
-                if (song.art!!.isSmall(200, 200))
-                {
+            val artLink = song.art_link
+            if (artLink != null) {
+                val size = getImageSizeFromUrl(artLink)
+                val tooSmall = size == null || min(size.first, size.second) < 200
+                if (tooSmall) {
                     fetchNewImage(mainViewModel, song.link)
                 }
-            }
-            else
+            } else {
                 fetchNewImage(mainViewModel, song.link)
-
+            }
 
             //reactive waiting for stream url
             val streamUrl = mainViewModel.awaitStreamUrlFor(hashkey)
@@ -245,19 +246,23 @@ class AudioPlayerManager(context: Context) {
                 //back to UI layer
                 withContext(Dispatchers.Main)
                 {
-                    val svcIntent = Intent(MyApplication.globalContext, PlayerService::class.java)
-                    if (!isServiceRunning(MyApplication.globalContext!!, PlayerService::class.java)) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            ContextCompat.startForegroundService(MyApplication.globalContext, svcIntent)
-                        } else {
-                            MyApplication.globalContext!!.startService(svcIntent)
+
+                    val songArtResult = mainViewModel.awaitSongArt(mainViewModel, hashkey)
+
+                    val mediaMetadataBuilder = MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artists.joinToString { it.title })
+
+                    when (songArtResult) {
+                        is PlayerViewModel.SongArtResult.BitmapResult -> {
+                            val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
+                            val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+                            mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        }
+                        is PlayerViewModel.SongArtResult.UrlResult -> {
+                            mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
                         }
                     }
-
-                    val songArt = mainViewModel.awaitSongArt(mainViewModel, hashkey)
-
-                    val smallBitmap = Bitmap.createScaledBitmap(songArt, 256, 256, true)
-                    val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
 
                     val mediaUri: Uri = if (song.file != null && song.file!!.exists()) {
                         Uri.fromFile(song.file!!)
@@ -268,13 +273,7 @@ class AudioPlayerManager(context: Context) {
                     val mediaItem = MediaItem.Builder()
                         .setUri(mediaUri)
                         .setTag(song.link)
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(song.title)
-                                .setArtist(song.artists.map { it.title }.joinToString())
-                                .setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                                .build()
-                        )
+                        .setMediaMetadata(mediaMetadataBuilder.build())
                         .build()
 
                     player!!.setMediaItem(
@@ -283,6 +282,15 @@ class AudioPlayerManager(context: Context) {
                     player!!.playWhenReady = true
                     player!!.repeatMode = Player.REPEAT_MODE_OFF
                     player!!.shuffleModeEnabled = false
+
+                    val svcIntent = Intent(MyApplication.globalContext, PlayerService::class.java)
+                    if (!isServiceRunning(MyApplication.globalContext!!, PlayerService::class.java)) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            ContextCompat.startForegroundService(MyApplication.globalContext, svcIntent)
+                        } else {
+                            MyApplication.globalContext!!.startService(svcIntent)
+                        }
+                    }
 
                     //save updated stream
                     mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashkey]!!)

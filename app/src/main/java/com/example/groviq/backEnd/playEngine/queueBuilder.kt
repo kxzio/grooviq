@@ -1,5 +1,7 @@
 package com.example.groviq.backEnd.playEngine
 
+import androidx.media3.common.C
+import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.service.nextSongHashPending
 
@@ -256,4 +258,14 @@ fun updateNextSongHash(mainViewModel: PlayerViewModel) {
 
     val nextSong = queue[nextPos] ?: return
     nextSongHashPending.value = nextSong.hashKey
+
+    val player = AppViewModels.player.playerManager.player
+    val currentIndex = player.currentMediaItemIndex
+
+    if (currentIndex != C.INDEX_UNSET) {
+        // оставляем только текущий и следующий
+        while (player.mediaItemCount > currentIndex + 1) {
+            player.removeMediaItem(currentIndex + 1)
+        }
+    }
 }

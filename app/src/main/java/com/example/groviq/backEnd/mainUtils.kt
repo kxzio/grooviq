@@ -175,3 +175,22 @@ suspend fun waitForInternet(maxWaitMs: Long = 60_000L, checkIntervalMs: Long = 1
         throw IOException("No internet available after waiting $maxWaitMs ms")
     }
 }
+
+suspend fun getImageSizeFromUrl(url: String): Pair<Int, Int>? = withContext(Dispatchers.IO) {
+    try {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        connection.doInput = true
+        connection.connect()
+        connection.inputStream.use { input ->
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeStream(input, null, options)
+            if (options.outWidth > 0 && options.outHeight > 0) {
+                return@withContext options.outWidth to options.outHeight
+            }
+        }
+        null
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}

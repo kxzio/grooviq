@@ -15,6 +15,8 @@ import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.hasInternetConnection
+import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,6 +108,19 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun saveSongToRoom(song: songData) {
         viewModelScope.launch(Dispatchers.IO) { repository.saveSong(this@PlayerViewModel, song, MyApplication.globalContext!!) }
+    }
+
+    fun saveSongsFromSourceToRoom(string: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+
+            val songs = _uiState.value.audioData[string]?.songIds
+                ?.mapNotNull { _uiState.value.allAudioData[it] }
+                ?: emptyList()
+
+            songs.forEach { song ->
+                repository.saveSong(this@PlayerViewModel, song, MyApplication.globalContext!!)
+            }
+        }
     }
 
     fun saveAudioSourcesToRoom() {
@@ -345,14 +360,14 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
-    fun updateImageForSong(songLink: String, Image : Bitmap) {
+    fun updateImageForSong(songLink: String, link : String) {
         val currentState = _uiState.value
 
         val updatedAllAudioData = currentState.allAudioData.toMutableMap()
 
         val song = updatedAllAudioData[songLink]
         if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(art = Image)
+            updatedAllAudioData[songLink] = song.copy(art_link = link)
             _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
@@ -429,31 +444,23 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         )
     }
 
-    fun isSongSavable(song : songData) : Boolean
-    {
-        //the main logic of filter motion
-        //logic operation :
-        // 1. song in playlist
+    fun isSongSavable(song: songData): Boolean {
 
-        val playlists    = getPlaylists()
+        val playlists = getPlaylists()
 
-        val shouldSave = playlists.filter { it.value.songIds.contains(song.link) }.size > 0
+        val inPlaylist = playlists.any { it.value.songIds.contains(song.link) }
+        val inStrictSource = _uiState.value.audioData.any { (_, src) ->
+            src.shouldBeSavedStrictly && song.link in src.songIds
+        }
 
-        return shouldSave
-
+        return inPlaylist || inStrictSource
     }
 
-    fun getSavableAudioSources() : Map<String, audioSource>
-    {
-        //the main logic of filter motion
-        //logic operation :
-        // 1. playlists
-        // 2. strict saved
+    fun getSavableAudioSources(): Map<String, audioSource> {
+        val playlists = getPlaylists()
+        val strictSaved = _uiState.value.audioData.filter { it.value.shouldBeSavedStrictly }
 
-        val saveable = getPlaylists()
-
-        return saveable
-
+        return playlists + strictSaved
     }
 
     fun isPlaylist(audioSource: String) : Boolean
@@ -525,18 +532,31 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         artListeners.remove(listener)
     }
 
+    sealed class SongArtResult {
+        data class BitmapResult(val bitmap: Bitmap) : SongArtResult()
+        data class UrlResult(val url: String) : SongArtResult()
+    }
 
-    suspend fun awaitSongArt(mainViewModel: PlayerViewModel, songKey: String): Bitmap {
-        val song = mainViewModel.uiState.value.allAudioData[songKey] ?: throw Exception("Song not found")
+    suspend fun awaitSongArt(mainViewModel: PlayerViewModel, songKey: String): SongArtResult {
+        val song = mainViewModel.uiState.value.allAudioData[songKey]
+            ?: throw Exception("Song not found")
 
-        song.art?.let { return it }
+        // 1. Уже есть Bitmap → вернуть сразу
+        song.art?.let { return SongArtResult.BitmapResult(it) }
 
+        // 2. Есть art_link и интернет → вернуть ссылку, не качаем
+        val artLink = song.art_link
+        if (artLink != null && hasInternetConnection(MyApplication.globalContext)) {
+            return SongArtResult.UrlResult(artLink)
+        }
+
+        // 3. Ждём появления Bitmap через listener
         return suspendCancellableCoroutine { cont ->
             val listener = object : (String, Bitmap?) -> Unit {
                 override fun invoke(key: String, bitmap: Bitmap?) {
                     if (key == songKey && bitmap != null) {
                         mainViewModel.removeArtListener(this)
-                        cont.resume(bitmap) {}
+                        cont.resume(SongArtResult.BitmapResult(bitmap)) {}
                     }
                 }
             }

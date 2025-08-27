@@ -161,6 +161,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
             .mapNotNull { it.hashKey }
             .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
             .subList(fromIndex, toIndex)
+            .filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
             .filterIndexed { idx, _ -> (fromIndex + idx) != currentPos }
 
         currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
@@ -243,11 +244,12 @@ fun fetchAudioSource(audioSource: String, mainViewModel: PlayerViewModel) {
             val songs = mainViewModel.uiState.value.audioData[audioSource]
                 ?.songIds
                 ?.mapNotNull { mainViewModel.uiState.value.allAudioData[it] }
+                ?.filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
                 ?: emptyList()
 
             try {
                 supervisorScope {
-                    songs.filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
+                    songs
                         .chunked(5)
                         .forEach { batch ->
                             batch.map { song ->
@@ -315,11 +317,10 @@ fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
 
                 if (!isActive || audioImage.isNullOrEmpty()) return@launch
 
-                val trackBitmap = loadBitmapFromUrl(audioImage) ?: return@launch
                 if (!isActive) return@launch
 
                 withContext(Dispatchers.Main) {
-                    mainViewModel.updateImageForSong(songKey, trackBitmap)
+                    mainViewModel.updateImageForSong(songKey, audioImage)
                 }
             } catch (e: Exception) {
                 println("Error fetching image for $songKey: ${e.message}")

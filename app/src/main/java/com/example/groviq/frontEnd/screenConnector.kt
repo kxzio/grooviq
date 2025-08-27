@@ -47,6 +47,7 @@ import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.appScreens.albumPendingNavigation
+import com.example.groviq.frontEnd.appScreens.albumsScreen.albumLists
 import com.example.groviq.frontEnd.appScreens.artistPendingNavigation
 import com.example.groviq.frontEnd.appScreens.playlistsScreen.playlistDetailList
 import com.example.groviq.frontEnd.appScreens.playlistsScreen.playlistList
@@ -254,6 +255,16 @@ fun connectScreens(
                                     arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
                                 ) {
                                     playlistDetailList(it, searchViewModel, mainViewModel)
+                                }
+                            }
+                            Screen.Albums    -> {
+                                composable(Screen.Albums.route) {
+                                    albumLists(controller, searchViewModel, mainViewModel)
+                                }
+                                composable("${Screen.Albums.route}/album/{album_url}",
+                                    arguments = listOf(navArgument("album_url") { type = NavType.StringType })
+                                ) {
+                                    showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
                                 }
                             }
                             else -> {

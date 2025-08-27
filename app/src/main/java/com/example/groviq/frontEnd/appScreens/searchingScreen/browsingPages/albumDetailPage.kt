@@ -290,6 +290,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                 Button(onClick = {
                     mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
                     mainViewModel.saveAudioSourcesToRoom()
+                    mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
                 })
                 {
                     if (mainUiState.audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
