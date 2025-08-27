@@ -50,9 +50,9 @@ this player allows users to manage music efficiently, search for artists and alb
 
 
 <p float="left">
-  <img src="https://i.imgur.com/J4dVLC0.jpeg" width="300" style="margin-right: 10px;"/>
-  <img src="https://i.imgur.com/h5sa83r.jpeg" width="300" style="margin-right: 10px;"/>
-  <img src="https://i.imgur.com/VsCeiEw.jpeg" width="300"/>
+  <img src="https://i.imgur.com/J4dVLC0.jpeg" width="200" style="margin-right: 10px;"/>
+  <img src="https://i.imgur.com/h5sa83r.jpeg" width="200" style="margin-right: 10px;"/>
+  <img src="https://i.imgur.com/VsCeiEw.jpeg" width="200"/>
 </p>
 
 ## technologies used
