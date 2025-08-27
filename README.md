@@ -30,8 +30,8 @@ this player allows users to manage music efficiently, search for artists and alb
 - **recommendations**: receive personalized track recommendations based on your listening habits, playlists, and search history. designed to help discover new music while keeping user preferences in mind.  
 
 <p float="left">
-  <img src="https://i.imgur.com/HyJuxeX.jpeg" width="300" height = "330" style="margin-right: 10px;"/>
-  <img src="https://i.imgur.com/7DNFmcL.jpeg" width="300" height = "330" />
+  <img src="https://i.imgur.com/HyJuxeX.jpeg" width="200" height = "230" style="margin-right: 10px;"/>
+  <img src="https://i.imgur.com/7DNFmcL.jpeg" width="200" height = "230" />
 </p>
 
 - **streaming audio**: supports playback of streaming audio from online sources. tracks are buffered efficiently to prevent playback interruptions.  
@@ -50,9 +50,9 @@ this player allows users to manage music efficiently, search for artists and alb
 
 
 <p float="left">
-  <img src="https://i.imgur.com/J4dVLC0.jpeg" width="200" style="margin-right: 10px;"/>
-  <img src="https://i.imgur.com/h5sa83r.jpeg" width="200" style="margin-right: 10px;"/>
-  <img src="https://i.imgur.com/VsCeiEw.jpeg" width="200"/>
+  <img src="https://i.imgur.com/J4dVLC0.jpeg" width="220" style="margin-right: 10px;"/>
+  <img src="https://i.imgur.com/h5sa83r.jpeg" width="220" style="margin-right: 10px;"/>
+  <img src="https://i.imgur.com/VsCeiEw.jpeg" width="220"/>
 </p>
 
 ## technologies used
