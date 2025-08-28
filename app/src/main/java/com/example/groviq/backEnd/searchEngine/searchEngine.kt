@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
+import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.audioEnterPoint
@@ -64,6 +65,10 @@ var currentAlbumJob: Job? = null
 var currentArtistJob: Job? = null
 
 var currentTrackJob: Job? = null
+
+// daily playlist getter with one job active
+var currentDailyListJob: Job? = null
+var currentMoodListJob : Job? = null
 
 
 //recommend list, that we do before song ends
@@ -580,7 +585,9 @@ class SearchViewModel : ViewModel() {
                     }
 
                     val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
-                    val tracks = trackDtos.map { trackDtoToSongData(it) }
+                    var tracks = trackDtos.map { trackDtoToSongData(it) }
+
+                    tracks = tracks.filter { it.link != request }
 
                     withContext(Dispatchers.Main) {
                         mainViewModel.setAlbumTracks(
@@ -607,7 +614,9 @@ class SearchViewModel : ViewModel() {
                         delay(100)
                     }
 
-                    val tracks = preparedRecommendList
+                    var tracks = preparedRecommendList
+
+                    tracks = tracks.filter { it.link != request }.toMutableList()
 
                     withContext(Dispatchers.Main) {
                         mainViewModel.setAlbumTracks(
@@ -630,7 +639,9 @@ class SearchViewModel : ViewModel() {
                 }
                 else {
 
-                    val tracks = preparedRecommendList
+                    var tracks = preparedRecommendList
+
+                    tracks = tracks.filter { it.link != request }.toMutableList()
 
                     withContext(Dispatchers.Main) {
                         mainViewModel.setAlbumTracks(
@@ -694,7 +705,9 @@ class SearchViewModel : ViewModel() {
                 }
 
                 val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
-                val tracks = trackDtos.map { trackDtoToSongData(it) }
+                var tracks = trackDtos.map { trackDtoToSongData(it) }
+
+                tracks = tracks.filter { it.link != request }
 
                 withContext(Dispatchers.Main) {
                     mainViewModel.setAlbumTracks(
@@ -762,7 +775,7 @@ class SearchViewModel : ViewModel() {
                     val tracks = trackDtos.map { trackDtoToSongData(it) }
 
                     withContext(Dispatchers.Main) {
-                        preparedRecommendList = tracks.toMutableList()
+                        preparedRecommendList = tracks.filter { it.link != request }.toMutableList()
                         preparationInProgress = false
                     }
 
@@ -821,6 +834,228 @@ class SearchViewModel : ViewModel() {
 
         return allTracks
     }
+
+    @OptIn(UnstableApi::class)
+    fun createDailyPlaylist(mainViewModel: PlayerViewModel) {
+        // if a job is already running, don't start a new one
+        if (currentDailyListJob?.isActive == true) return
+
+        val uiState = mainViewModel.uiState.value
+        val biggestPlaylist = uiState.audioData.entries.maxByOrNull { it.value.songIds.size } ?: return
+        val audioSource = biggestPlaylist.value
+        val key = biggestPlaylist.key
+
+        // only generate if the source is a playlist
+        if (!mainViewModel.isPlaylist(key)) return
+
+        // check if there are enough songs to create a playlist
+        if (audioSource.songIds.size < 10) return // not enough songs, abort
+
+        // collect initial song hashes
+        val playlistNewSongsHashes = mutableListOf<String>().apply {
+            // add 3 random songs
+            repeat(3) {
+                audioSource.songIds.randomOrNull()?.let { add(it) }
+            }
+
+            // add last 5 songs
+            addAll(audioSource.songIds.takeLast(5))
+
+            // get top 3 artists and pick 3 songs each (balanced)
+            val songs = audioSource.songIds.mapNotNull { uiState.allAudioData[it] }
+            val topArtists = songs.groupingBy { it.artists[0].url }
+                .eachCount()
+                .entries
+                .sortedByDescending { it.value }
+                .take(3)
+                .map { it.key }
+
+            val balancedTopSongs = topArtists.flatMap { artistUrl ->
+                songs.filter { it.artists[0].url == artistUrl }.shuffled().take(3)
+            }.shuffled()
+
+            addAll(balancedTopSongs.map { it.link })
+
+            // random diversity songs
+            val diversitySongs = songs.groupBy { it.artists[0].url }
+                .values
+                .mapNotNull { it.randomOrNull() }
+                .shuffled()
+                .take(3)
+
+            addAll(diversitySongs.map { it.link })
+
+            shuffle()
+        }
+
+        // start coroutine to fetch related tracks
+        currentDailyListJob = viewModelScope.launch {
+            try {
+                // take only first 20 tracks for request
+                val limitedSongs = playlistNewSongsHashes.take(20)
+
+                // perform heavy work on io dispatcher
+                val allTracks = withContext(Dispatchers.IO) {
+                    val trackMetaJson = try {
+                        getPythonModule(MyApplication.globalContext!!)
+                            .callAttr("getRelatedTracks", limitedSongs.toTypedArray(), 6)
+                            .toString()
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    val result = mutableListOf<songData>()
+                    if (trackMetaJson != null) {
+                        val trackDtos = parseRelatedJson(trackMetaJson)
+                        // filter out songs already in our initial list
+                        trackDtos.filter { it.url !in playlistNewSongsHashes }.forEach { dto ->
+                            result.add(trackDtoToSongData(dto))
+                        }
+                    }
+                    result
+                }
+
+                val finalLimited = allTracks.distinctBy { it.link }.take(25)
+
+                // check if we actually got enough tracks
+                if (finalLimited.isEmpty()) return@launch
+
+                // update ui on main thread
+                withContext(Dispatchers.Main) {
+                    mainViewModel.setAlbumTracks(
+                        "DAILY_PLAYLIST_AUTOGENERATED",
+                        finalLimited,
+                        audioSourceName = "Плейлист дня",
+                        audioSourceArtist = emptyList(),
+                        audioSourceYear = "",
+                        autoGeneratedB = true
+                    )
+                }
+            } catch (e: CancellationException) {
+                // job was cancelled, ignore
+            } catch (e: Exception) {
+                // log other unexpected errors
+                e.printStackTrace()
+            } finally {
+                // cleanup job reference
+                currentDailyListJob = null
+            }
+        }
+    }
+
+    @OptIn(UnstableApi::class)
+    fun createFourSpecialPlaylists(mainViewModel: PlayerViewModel) {
+        // if a job is already running, don't start a new one
+        if (currentMoodListJob?.isActive == true) return
+
+        val uiState = mainViewModel.uiState.value
+        val biggestPlaylist = uiState.audioData.entries.maxByOrNull { it.value.songIds.size } ?: return
+        val audioSource = biggestPlaylist.value
+        val key = biggestPlaylist.key
+
+        // only generate if the source is a playlist
+        if (!mainViewModel.isPlaylist(key)) return
+
+        val allSongs = audioSource.songIds.mapNotNull { uiState.allAudioData[it] }
+
+        // abort if not enough songs to create meaningful playlists
+        if (allSongs.size < 10) return
+
+        val topArtists = allSongs.groupingBy { it.artists[0].url }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .take(2)
+            .map { it.key }
+
+        val lastSongs = audioSource.songIds.takeLast(30).mapNotNull { uiState.allAudioData[it] }
+        var newArtists = lastSongs.map { it.artists[0].url }
+            .distinct()
+            .filter { it !in topArtists }
+            .take(2)
+
+        if (newArtists.isNullOrEmpty())
+            newArtists = lastSongs.map { it.artists[0].url }
+            .distinct()
+            .take(2)
+
+        val playlistsMap = mutableMapOf<String, MutableList<songData>>()
+
+        // cancel previous job if any
+        currentMoodListJob?.cancel()
+        currentMoodListJob = viewModelScope.launch {
+            try {
+                val playlistRequests = mutableListOf<Pair<String, List<String>>>()
+
+                // prepare requests for python module
+                topArtists.forEachIndexed { index, artistUrl ->
+                    val playlistName = "Настроение ${index + 1}"
+                    val songsHashes = allSongs.filter { it.artists[0].url == artistUrl }.map { it.link }
+                    playlistRequests.add(playlistName to songsHashes)
+                }
+
+                newArtists.forEachIndexed { index, artistUrl ->
+                    val playlistName = "Вам может понравиться ${index + 1}"
+                    val songsHashes = lastSongs.filter { it.artists[0].url == artistUrl }.map { it.link }
+                    playlistRequests.add(playlistName to songsHashes)
+                }
+
+                // heavy work on io dispatcher
+                withContext(Dispatchers.IO) {
+                    playlistRequests.forEach { (playlistName, hashes) ->
+                        val trackMetaJson = try {
+                            getPythonModule(MyApplication.globalContext!!)
+                                .callAttr("getRelatedTracks", hashes.toTypedArray(), 6)
+                                .toString()
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        val playlistTracks = mutableListOf<songData>()
+                        if (trackMetaJson != null) {
+                            val trackDtos = parseRelatedJson(trackMetaJson)
+                            // exclude songs already in original source
+                            trackDtos.filter { it.url !in audioSource.songIds }.forEach { dto ->
+                                playlistTracks.add(trackDtoToSongData(dto))
+                            }
+                        }
+
+                        // skip empty playlists
+                        if (playlistTracks.isNotEmpty()) {
+                            playlistsMap[playlistName] = playlistTracks
+                        }
+                    }
+                }
+
+                // update ui on main thread
+                withContext(Dispatchers.Main) {
+                    playlistsMap.entries.toList().forEachIndexed { index, (playlistName, tracks) ->
+                        if (tracks.isNotEmpty()) {
+                            mainViewModel.setAlbumTracks(
+                                "MOOD_PLAYLIST_AUTOGENERATED_${index + 1}",
+                                tracks.distinctBy { it.link }.take(20),
+                                audioSourceName = playlistName,
+                                audioSourceArtist = emptyList(),
+                                audioSourceYear = "",
+                                autoGeneratedB = true
+                            )
+                        }
+                    }
+                }
+
+            } catch (e: CancellationException) {
+                // job was cancelled, ignore
+            } catch (e: Exception) {
+                e.printStackTrace() // log unexpected errors
+            } finally {
+                // cleanup job reference
+                currentMoodListJob = null
+            }
+        }
+    }
+
+
+
 }
 
 

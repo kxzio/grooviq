@@ -111,7 +111,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
     }
 
     private lateinit var mediaSession: MediaSession
-    private lateinit var playerNotificationManager: PlayerNotificationManager
+    lateinit var playerNotificationManager: PlayerNotificationManager
 
     override fun onCreate() {
         super.onCreate()

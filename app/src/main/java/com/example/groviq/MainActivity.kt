@@ -57,15 +57,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // start python
         if (!Python.isStarted()) {
             Python.start(AndroidPlatform(this.applicationContext))
         }
 
-        // start pipe for streams
         initNewPipe()
 
-        // permissions for notifications
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
@@ -80,11 +77,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // set localization
         val locale = Locale("en", "US")
         NewPipe.setupLocalization(Localization.fromLocale(locale))
 
-        // UI
         enableEdgeToEdge()
         setContent {
             GroviqTheme {
@@ -106,7 +101,6 @@ class MyApplication : Application(), ViewModelStoreOwner {
             private set
     }
 
-    // именно как val, а не метод
     override val viewModelStore: ViewModelStore by lazy { ViewModelStore() }
 
     override fun onCreate() {
@@ -114,7 +108,6 @@ class MyApplication : Application(), ViewModelStoreOwner {
         instance = this
         globalContext = applicationContext
 
-        // глобальный обработчик ошибок
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             appendLog(
                 this,

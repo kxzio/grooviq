@@ -45,7 +45,10 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import com.example.groviq.MyApplication
+import com.example.groviq.loadBitmapFromUrl
 import com.example.groviq.retryWithBackoff
 import kotlinx.coroutines.*
 import java.nio.file.Files
@@ -92,6 +95,9 @@ suspend fun Call.awaitResponseCancellable(): Response =
     }
 
 
+@OptIn(
+    UnstableApi::class
+)
 fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
 
     //cancel previous
@@ -291,6 +297,8 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
                         partFile.renameTo(finalFile)
                     }
 
+                    mainViewModel.uiState.value.allAudioData[song.link]!!.art = loadBitmapFromUrl(song.art_link!!)
+
                     //final updates
                     runOnMain {
                         val downloadedFile = if (finalFile.exists()) finalFile else partFile
@@ -438,6 +446,9 @@ fun runOnMain(block: () -> Unit) {
 
 val downloadJobs: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
 
+@OptIn(
+    UnstableApi::class
+)
 fun deleteDownloadedAudioFile(
     mainViewModel: PlayerViewModel,
     hashToDownload: String,

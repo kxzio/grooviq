@@ -21,6 +21,9 @@ from ytmusicapi.setup import setup_browser
 from ytmusicapi.navigation import nav
 import concurrent.futures
 import threading
+import json
+from typing import Union, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _ytm = YTMusic()
 
@@ -563,7 +566,7 @@ def extract_video_id(url_or_id: str) -> str:
         return m.group(1)
     return url_or_id.strip()
 
-def getRelatedTracks(track_id_or_url, max_results=20, official_only=True):
+def getRelatedTracks(track_ids_or_urls: Union[str, List[str]], max_results=20, official_only=True):
     def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
         if not entity_id:
             return ''
@@ -580,149 +583,139 @@ def getRelatedTracks(track_id_or_url, max_results=20, official_only=True):
         """Приводим browseId/artist id к последнему сегменту (UC..., или id без префикса)."""
         if not bid:
             return ''
-        # если у нас '/channel/UC...' или '/artist/...' — берем последний сегмент
         return bid.split('/')[-1]
 
-    results = {}
-    official_tracks = []
-    seen_urls = set()
+    def process_single(track_id_or_url: str):
+        results = {}
+        seen_urls = set()
+        try:
+            video_id = extract_video_id(track_id_or_url)
 
-    try:
-        video_id = extract_video_id(track_id_or_url)
+            # --- получаем watch playlist (источник кандидатов) ---
+            watch_playlist = _ytm.get_watch_playlist(video_id, limit=max_results * 3)
+            tracks = watch_playlist.get('tracks', [])
 
-        # --- получаем watch playlist (источник кандидатов) ---
-        watch_playlist = _ytm.get_watch_playlist(video_id, limit=max_results * 3)
-        tracks = watch_playlist.get('tracks', [])
+            # --- пытаемся найти текущий трек в плейлисте чтобы узнать главного артиста ---
+            main_artist_id = None
+            main_artist_name = None
+            for t in tracks:
+                if t.get('videoId') == video_id:
+                    artists = t.get('artists', []) or []
+                    if artists:
+                        main_artist_id = normalize_browse_id(artists[0].get('id') or '')
+                        main_artist_name = artists[0].get('name', '')
+                    break
 
-        # --- пытаемся найти текущий трек в плейлисте чтобы узнать главного артиста ---
-        main_artist_id = None
-        main_artist_name = None
-        for t in tracks:
-            if t.get('videoId') == video_id:
-                artists = t.get('artists', []) or []
-                if artists:
-                    # берем первого артиста как "главного"
-                    main_artist_id = normalize_browse_id(artists[0].get('id') or '')
-                    main_artist_name = artists[0].get('name', '')
-                break
+            # --- related artists ---
+            related_ids_set = set()
+            related_names_set = set()
+            if main_artist_id:
+                try:
+                    art = _ytm.get_artist(main_artist_id)
+                    related_data = art.get("related", {}).get("results", []) or []
+                    for item in related_data:
+                        bid = item.get('browseId', '') or ''
+                        name = item.get('title', '') or ''
+                        if bid:
+                            related_ids_set.add(normalize_browse_id(bid))
+                        if name:
+                            related_names_set.add(name.lower())
+                except Exception:
+                    related_ids_set = set()
+                    related_names_set = set()
 
-        # --- если нашли главного артиста, получаем related artists у него ---
-        related_artists_info = []  # список словарей как в твоём примере
-        related_ids_set = set()
-        related_names_set = set()
-        if main_artist_id:
-            try:
-                art = _ytm.get_artist(main_artist_id)
-                related_data = art.get("related", {}).get("results", []) or []
-                for item in related_data:
-                    bid = item.get('browseId', '') or ''
-                    name = item.get('title', '') or ''
-                    thumb = (item.get("thumbnails") or [{}])[-1].get("url", "") if item.get("thumbnails") else ""
-                    related_artists_info.append({
-                        "name": name,
-                        "url": f"https://music.youtube.com/channel/{bid}",
-                        "image_url": thumb
-                    })
-                    if bid:
-                        related_ids_set.add(normalize_browse_id(bid))
-                    if name:
-                        related_names_set.add(name.lower())
-            except Exception:
-                # если get_artist упал — просто продолжим без related
-                related_artists_info = []
-                related_ids_set = set()
-                related_names_set = set()
+            # --- подготовим два списка ---
+            priority_buffer = []
+            normal_buffer = []
 
-        # --- подготовим два списка: приоритетные и обычные ---
-        priority_buffer = []
-        normal_buffer = []
-
-        for track in tracks:
-            vid = track.get('videoId')
-            if not vid:
-                continue
-
-            track_url = f"https://music.youtube.com/watch?v={vid}"
-            if track_url in seen_urls:
-                continue
-            seen_urls.add(track_url)
-
-            # --- Title & duration ---
-            title = track.get('title', '')
-            duration_ms = int(track.get('lengthSeconds', 0)) * 1000 \
-                          or track.get('durationMillis', 0) \
-                          or _duration_to_millis(track.get('duration'))
-
-            # --- Artists ---
-            artists_info = [
-                {'name': ar.get('name', ''), 'url': make_ytm_url(ar.get('id') or '')}
-                for ar in track.get('artists', []) or []
-            ]
-
-            # --- Фильтр "официальные релизы" ---
-            if official_only:
-                if len(artists_info) == 1 and artists_info[0]['name'] == "YouTube":
+            for track in tracks:
+                vid = track.get('videoId')
+                if not vid:
                     continue
 
-            # --- Image ---
-            image_url = ''
-            if track.get('thumbnail'):
-                # некоторые структуры используют 'thumbnail', некоторые 'thumbnails'
-                image_url = track['thumbnail'][-1].get('url', '')
-            else:
-                thumbs = track.get('thumbnails') or track.get('album', {}).get('thumbnails') or []
-                if isinstance(thumbs, list) and thumbs:
-                    image_url = thumbs[-1].get('url', '')
+                track_url = f"https://music.youtube.com/watch?v={vid}"
+                if track_url in seen_urls:
+                    continue
+                seen_urls.add(track_url)
 
-            # --- Album ---
-            album_data = track.get('album', {})
-            album_url = make_ytm_url(album_data.get('id') or '', "album")
+                title = track.get('title', '')
+                duration_ms = int(track.get('lengthSeconds', 0)) * 1000 \
+                              or track.get('durationMillis', 0) \
+                              or _duration_to_millis(track.get('duration'))
 
-            # --- собранный объект ---
-            obj = {
-                'id': vid or '',
-                'title': title,
-                'duration_ms': duration_ms,
-                'url': track_url,
-                'image_url': image_url,
-                'album_url': album_url,
-                'artists': artists_info
-            }
+                artists_info = [
+                    {'name': ar.get('name', ''), 'url': make_ytm_url(ar.get('id') or '')}
+                    for ar in track.get('artists', []) or []
+                ]
 
-            # --- определяем приоритетность: пересекается ли любой артист с related ---
-            is_priority = False
-            for ar in track.get('artists', []) or []:
-                aid = normalize_browse_id(ar.get('id') or '')
-                aname = (ar.get('name') or '').lower()
-                if aid and aid in related_ids_set:
-                    is_priority = True
+                if official_only:
+                    if len(artists_info) == 1 and artists_info[0]['name'] == "YouTube":
+                        continue
+
+                image_url = ''
+                if track.get('thumbnail'):
+                    image_url = track['thumbnail'][-1].get('url', '')
+                else:
+                    thumbs = track.get('thumbnails') or track.get('album', {}).get('thumbnails') or []
+                    if isinstance(thumbs, list) and thumbs:
+                        image_url = thumbs[-1].get('url', '')
+
+                album_data = track.get('album', {})
+                album_url = make_ytm_url(album_data.get('id') or '', "album")
+
+                obj = {
+                    'id': vid or '',
+                    'title': title,
+                    'duration_ms': duration_ms,
+                    'url': track_url,
+                    'image_url': image_url,
+                    'album_url': album_url,
+                    'artists': artists_info
+                }
+
+                # --- приоритет ---
+                is_priority = False
+                for ar in track.get('artists', []) or []:
+                    aid = normalize_browse_id(ar.get('id') or '')
+                    aname = (ar.get('name') or '').lower()
+                    if aid and aid in related_ids_set:
+                        is_priority = True
+                        break
+                    if aname and aname in related_names_set:
+                        is_priority = True
+                        break
+
+                if is_priority:
+                    priority_buffer.append(obj)
+                else:
+                    normal_buffer.append(obj)
+
+                if len(priority_buffer) + len(normal_buffer) >= max_results * 3:
                     break
-                if aname and aname in related_names_set:
-                    is_priority = True
-                    break
 
-            if is_priority:
-                priority_buffer.append(obj)
-            else:
-                normal_buffer.append(obj)
+            final = priority_buffer + normal_buffer
+            final = final[:max_results]
 
-            # если собрали достаточно — можем оптимально остановить раньше
-            if len(priority_buffer) + len(normal_buffer) >= max_results * 3:
-                # держим некоторый запас, затем обрежем до max_results
-                break
+            results[track_id_or_url] = final
+        except Exception:
+            results[track_id_or_url] = []
 
-        # --- финальная последовательность: сначала priority, затем normal ---
-        final = priority_buffer + normal_buffer
-        final = final[:max_results]
+        return results
 
-        results[track_id_or_url] = final
+    # --- главный блок ---
+    if isinstance(track_ids_or_urls, str):
+        track_ids = [track_ids_or_urls]
+    else:
+        track_ids = track_ids_or_urls
 
-    except Exception as e:
-        # сохраняем пустой результат (как раньше)
-        results[track_id_or_url] = []
+    all_results = {}
+    with ThreadPoolExecutor(max_workers=min(8, len(track_ids))) as executor:
+        futures = {executor.submit(process_single, tid): tid for tid in track_ids}
+        for future in as_completed(futures):
+            result = future.result()
+            all_results.update(result)
 
-    return json.dumps({"results": results}, ensure_ascii=False)
-
+    return json.dumps({"results": all_results}, ensure_ascii=False)
 
 def replaceSongs(json_list, official_only: bool = True,
                       per_artist_limit: int = 10,

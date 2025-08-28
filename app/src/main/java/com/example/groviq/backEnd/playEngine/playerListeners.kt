@@ -17,8 +17,10 @@ import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.currentRelatedTracksJob
+import com.example.groviq.backEnd.streamProcessor.fetchNewImage
 import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
 import com.example.groviq.bitmapToCompressedBytes
+import com.example.groviq.getImageSizeFromUrl
 import com.example.groviq.service.nextSongHashPending
 import com.example.groviq.service.pendingDirection
 import com.example.groviq.service.songPendingIntentNavigationDirection
@@ -28,6 +30,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.logging.Handler
+import kotlin.math.min
 
 private var attachedPlayer      : Player? = null
 private var attachedListener    : Player.Listener? = null
@@ -183,12 +186,25 @@ fun createListeners(
                     addTrackToMediaItems?.cancel()
 
                     addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
+
+
                         val mediaUri: Uri = if (song.file?.exists() == true) {
                             Uri.fromFile(song.file)
                         } else {
                             val streamUrl = mainViewModel.awaitStreamUrlFor(song.link)
                                 ?: return@launch
                             Uri.parse(streamUrl)
+                        }
+
+                        val artLink = song.art_link
+                        if (artLink != null) {
+                            val size = getImageSizeFromUrl(artLink)
+                            val tooSmall = size == null || min(size.first, size.second) < 200
+                            if (tooSmall) {
+                                fetchNewImage(mainViewModel, song.link)
+                            }
+                        } else {
+                            fetchNewImage(mainViewModel, song.link)
                         }
 
                         val songArtResult = mainViewModel.awaitSongArt(mainViewModel, nextSongHash)

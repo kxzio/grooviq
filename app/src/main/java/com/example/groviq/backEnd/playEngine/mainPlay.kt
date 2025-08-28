@@ -227,7 +227,6 @@ class AudioPlayerManager(context: Context) {
                 }
 
             }
-
             val artLink = song.art_link
             if (artLink != null) {
                 val size = getImageSizeFromUrl(artLink)
@@ -302,6 +301,7 @@ class AudioPlayerManager(context: Context) {
 
                 }
             }
+
 
 
         }
