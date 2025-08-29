@@ -390,7 +390,6 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
-
     suspend fun awaitStreamUrlFor(hash: String): String? {
         return uiState
             .map { state -> state.allAudioData[hash]?.stream?.streamUrl?.takeIf { it.isNotEmpty() } }
