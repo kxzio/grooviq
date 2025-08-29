@@ -261,8 +261,10 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         val song = mainUiState.allAudioData[mainUiState.playingHash]
 
                         asyncedImage(
-                            song,
+                            song, Modifier.size(110.dp)
                         )
+
+                        Spacer(Modifier.height(15.dp))
 
                         Text(song?.title ?: "", Modifier.clickable {
                             openAlbum(song?.album_original_link ?: "")
@@ -270,7 +272,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         })
 
 
-                        Spacer(Modifier.height(30.dp))
+                        Spacer(Modifier.height(15.dp))
 
                         Row()
                         {
