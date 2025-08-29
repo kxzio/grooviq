@@ -57,6 +57,7 @@ import coil.compose.AsyncImage
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
+import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.vibrateLight
 
@@ -271,22 +272,10 @@ fun SwipeToQueueItem(
 
                 Box()
                 {
-                    if (song.art != null) {
-                        Image(
-                            song.art!!.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.size(35.dp)
-                        )
-                    }
-                    else if (song.art_link != null)
-                    {
-                        AsyncImage(
-                            model = song.art_link,
-                            contentDescription = null,
-                            Modifier.size(35.dp)
-                        )
-                    }
-
+                    asyncedImage(
+                        song,
+                        Modifier.size(35.dp)
+                    )
 
                     SquareProgressBox(song.progressStatus.downloadingProgress.toInt(), size = 36.dp)
 

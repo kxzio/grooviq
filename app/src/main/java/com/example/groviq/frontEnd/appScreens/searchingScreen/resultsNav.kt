@@ -37,6 +37,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchType
 import com.example.groviq.frontEnd.Screen
+import com.example.groviq.frontEnd.asyncedImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -168,9 +169,8 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                         }
                     })
                     {
-                        AsyncImage(
-                            model = result.image_url,
-                            contentDescription = null,
+                        asyncedImage(
+                            result.image_url,
                             modifier = Modifier
                                 .size(
                                     65.dp

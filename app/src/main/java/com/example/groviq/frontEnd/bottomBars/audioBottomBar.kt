@@ -75,6 +75,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.formatTime
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
+import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.service.nextSongHashPending
 import kotlinx.coroutines.launch
 
@@ -82,6 +83,9 @@ import kotlinx.coroutines.launch
 val showSheet = mutableStateOf<Boolean>(false)
 
 
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
@@ -256,20 +260,12 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                         val song = mainUiState.allAudioData[mainUiState.playingHash]
 
-                        if (song!!.art != null)
-                        {
-                            Image(song!!.art!!.asImageBitmap(), null)
-                        }
-                        else if (song!!.art_link != null)
-                        {
-                            AsyncImage(
-                                model = song.art_link,
-                                contentDescription = null,
-                            )
-                        }
+                        asyncedImage(
+                            song,
+                        )
 
-                        Text(song.title, Modifier.clickable {
-                            openAlbum(song.album_original_link)
+                        Text(song?.title ?: "", Modifier.clickable {
+                            openAlbum(song?.album_original_link ?: "")
                             onToogleSheet()
                         })
 
@@ -278,7 +274,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                         Row()
                         {
-                            song.artists.forEach { artist ->
+                            song?.artists?.forEach { artist ->
 
                                 Text(
                                     artist.title + if (artist != song.artists.last()) ", " else "",
@@ -346,7 +342,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(text = formatTime(songProgressUi.value.position))
-                            Text(text = formatTime(song.duration))
+                            Text(text = formatTime(song?.duration ?: 0L))
                         }
 
                         Row(
@@ -470,7 +466,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             IconButton(
                                 onClick =
                                 {
-                                    openTrackSettingsBottomBar(song.link)
+                                    openTrackSettingsBottomBar(song?.link ?: "")
                                 },
                             ) {
                                 Icon(

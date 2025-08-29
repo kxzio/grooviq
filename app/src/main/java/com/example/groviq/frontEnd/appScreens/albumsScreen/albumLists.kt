@@ -30,6 +30,7 @@ import coil.compose.AsyncImage
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.Screen
+import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
 
 @Composable
@@ -83,28 +84,14 @@ fun albumLists(searchingScreenNav: NavHostController,
                             ?.mapNotNull { mainUiState.allAudioData[it] }
                             ?: emptyList()
 
-                        val mainArt = songs.firstOrNull()?.art
-
-                        if (mainArt != null)
-                        {
-                            Image(mainArt.asImageBitmap(), null, Modifier.size(85.dp))
-                        }
-                        else
-                        {
-                            if (songs.firstOrNull()?.art_link != null)
-                            {
-                                AsyncImage(
-                                    model = songs.firstOrNull()?.art_link,
-                                    contentDescription = null,
-                                    Modifier.size(85.dp)
-                                )
-                            }
-                            else
-                            {
+                        asyncedImage(
+                            songs.firstOrNull(),
+                            Modifier.size(85.dp),
+                            onEmptyImageCallback = {
                                 Icon(Icons.Rounded.Album, "", Modifier.size(85.dp))
                             }
+                        )
 
-                        }
                         Column{
                             Text(
                                 mainUiState.audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"

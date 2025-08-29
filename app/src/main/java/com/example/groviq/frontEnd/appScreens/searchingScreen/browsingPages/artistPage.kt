@@ -21,7 +21,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +47,7 @@ import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
+import com.example.groviq.frontEnd.asyncedImage
 
 @Composable
 fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
@@ -84,7 +88,6 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Ошибки и прогресс
             if (searchUiState.publicErrors != publucErrors.CLEAN) {
                 item {
                     when (searchUiState.publicErrors) {
@@ -102,14 +105,12 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 return@LazyColumn
             }
 
-            // Обложка артиста
             item {
-                AsyncImage(
-                    model = searchUiState.currentArtist.imageUrl,
-                    contentDescription = null,
+                asyncedImage(
+                    searchUiState.currentArtist.imageUrl,
                     modifier = Modifier
                         .size(120.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(4.dp)),
                 )
             }
 
@@ -156,9 +157,8 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                                 searchingScreenNav.navigate("${Screen.Searching.route}/album/$encoded")
                             }
                         ) {
-                            AsyncImage(
-                                model = album.image_url,
-                                contentDescription = null,
+                            asyncedImage(
+                                album.image_url,
                                 modifier = Modifier
                                     .size(110.dp)
                                     .clip(RoundedCornerShape(4.dp))
@@ -184,9 +184,8 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 ) {
                     items(searchUiState.currentArtist.relatedArtists) { item ->
                         Column(Modifier.clickable { openArtist(item.url) }) {
-                            AsyncImage(
-                                model = item.imageUrl,
-                                contentDescription = null,
+                            asyncedImage(
+                                item.imageUrl,
                                 modifier = Modifier
                                     .size(120.dp)
                                     .clip(CircleShape)

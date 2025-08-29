@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Person
@@ -58,6 +59,7 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.frontEnd.appScreens.openArtist
+import com.example.groviq.frontEnd.asyncedImage
 
 
 @OptIn(
@@ -224,28 +226,13 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
         Column()
         {
-            val mainArt = songs.firstOrNull()?.art
-
-            if (mainArt != null)
-            {
-                Image(mainArt.asImageBitmap(), null, Modifier.size(80.dp))
-            }
-            else
-            {
-                if (songs.firstOrNull()?.art_link != null)
-                {
-                    AsyncImage(
-                        model = songs.firstOrNull()?.art_link,
-                        contentDescription = null,
-                        Modifier.size(80.dp)
-                    )
+            asyncedImage(
+                songs.firstOrNull(),
+                Modifier.size(85.dp),
+                onEmptyImageCallback = {
+                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(85.dp))
                 }
-                else
-                {
-                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(80.dp))
-                }
-
-            }
+            )
 
             if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
             {

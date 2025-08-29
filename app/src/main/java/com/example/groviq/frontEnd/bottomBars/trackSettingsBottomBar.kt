@@ -79,6 +79,7 @@ import com.example.groviq.backEnd.streamProcessor.downloadAudioFile
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.appScreens.openRadio
+import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.screenConnectorNavigation
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -237,25 +238,16 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 
     Row()
     {
-        if (track!!.art != null)
-        {
-            Image(track!!.art!!.asImageBitmap(), null, Modifier.size(35.dp))
-
-        }
-        else if (track!!.art_link != null)
-        {
-            AsyncImage(
-                model = track!!.art_link,
-                contentDescription = null,
-                Modifier.size(35.dp)
-            )
-        }
+        asyncedImage(
+            track,
+            Modifier.size(35.dp)
+        )
 
         Column()
         {
-            Text(track.title, color = Color.White)
+            Text(track?.title ?: "", color = Color.White)
             Text(
-                track.artists.joinToString { it.title },
+                track?.artists?.joinToString { it.title } ?: "",
                 maxLines = 1,
                 fontSize = 10.sp,
                 color = Color.Gray
@@ -482,25 +474,10 @@ fun drawQueuePage(
                         )
                     }
 
-                    if (track!!.art != null)
-                    {
-                        track?.art?.let { bitmap ->
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier.size(35.dp)
-                            )
-                        }
-                    }
-                    else if (track!!.art_link != null)
-                    {
-                        AsyncImage(
-                            model = track!!.art_link,
-                            contentDescription = null,
-                            Modifier.size(35.dp)
-                        )
-                    }
-
+                    asyncedImage(
+                        track,
+                        Modifier.size(35.dp)
+                    )
 
 
                     track?.let { t ->
