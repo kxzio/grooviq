@@ -98,8 +98,9 @@ class SearchViewModel : ViewModel() {
         searchJob?.cancel()
 
         searchJob = CoroutineScope(Dispatchers.IO).launch {
-            if (!hasInternetConnection(
-                    MyApplication.globalContext!!)) {
+
+            if (!hasInternetConnection(MyApplication.globalContext!!))
+            {
                 withContext(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(
                         searchResults = mutableListOf(),
@@ -113,7 +114,8 @@ class SearchViewModel : ViewModel() {
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
                     searchResults = mutableListOf(),
-                    searchInProcess = true
+                    searchInProcess = true,
+                    publicErrors = publucErrors.CLEAN
                 )
             }
 
@@ -183,7 +185,7 @@ class SearchViewModel : ViewModel() {
         //cancel job, if we have previous task active
         currentAlbumJob?.cancel()
 
-        _uiState.update { it.copy(gettersInProcess = true) }
+        _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
 
         currentAlbumJob = viewModelScope.launch {
             try {
@@ -197,6 +199,15 @@ class SearchViewModel : ViewModel() {
 
                 //parsing
                 val albumDto = parseAlbumJson(albumMetaJson)
+
+                if (albumDto.artists    .isNullOrEmpty()   ||
+                    albumDto.image_url  .isNullOrEmpty()   ||
+                    albumDto.link       .isNullOrEmpty()
+                    )
+                {
+                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
+                    return@launch
+                }
 
                 //mapping the results from parsed values
                 val tracks = albumDto.tracks.map { t ->
@@ -224,15 +235,15 @@ class SearchViewModel : ViewModel() {
                         albumDto.artists,
                         albumDto.year
                     )
+                    _uiState.update { it.copy(publicErrors = publucErrors.CLEAN) }
                 }
 
             } catch (e: CancellationException) {
 
             } catch (e: Exception) {
-
                 Log.e("getAlbum", "getter error", e)
             } finally {
-                _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
+                _uiState.update { it.copy(gettersInProcess = false) }
             }
         }
     }
@@ -324,8 +335,17 @@ class SearchViewModel : ViewModel() {
 
                 val artist = parseArtistJson(artistJson, request)
 
+                if (artist.url      .isNullOrEmpty()    ||
+                    artist.title    .isNullOrEmpty()    ||
+                    artist.imageUrl .isNullOrEmpty()
+                    )
+                {
+                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
+                    return@launch
+                }
+
                 withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(currentArtist = artist) }
+                    _uiState.update { it.copy(currentArtist = artist, publicErrors = publucErrors.CLEAN) }
                     mainViewModel.setAlbumTracks(
                         request,
                         artist.topTracks.map { track -> async { trackDtoToSongData(track) } }.awaitAll(),
@@ -683,20 +703,15 @@ class SearchViewModel : ViewModel() {
     ): String {
         if (!hasInternetConnection(context)) return ""
 
-        _uiState.update { it.copy(gettersInProcess = true) }
+        _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
 
         val sourceKey = "${request}_source-related-tracks_radio"
 
         return withContext(Dispatchers.IO) {
             try {
                 val trackMetaJson = try {
-                    if (!lastRecommendListProcessed.isNullOrEmpty()) {
-                        val gson = Gson()
-                        val json = gson.toJson(lastRecommendListProcessed)
-                        getPythonModule(context).callAttr("replaceSongs", json).toString()
-                    } else {
-                        getPythonModule(context).callAttr("getRelatedTracks", request).toString()
-                    }
+                    getPythonModule(context).callAttr("getRelatedTracks", request).toString()
+
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Python error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -705,6 +720,13 @@ class SearchViewModel : ViewModel() {
                 }
 
                 val trackDtos = trackMetaJson?.let { parseRelatedJson(it) } ?: emptyList()
+
+                if (trackDtos.isNullOrEmpty())
+                {
+                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
+                    return@withContext ""
+                }
+
                 var tracks = trackDtos.map { trackDtoToSongData(it) }
 
                 tracks = tracks.filter { it.link != request }
@@ -717,6 +739,7 @@ class SearchViewModel : ViewModel() {
                         audioSourceArtist = emptyList(),
                         audioSourceYear = ""
                     )
+                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
                 }
 
                 sourceKey
@@ -1058,7 +1081,6 @@ class SearchViewModel : ViewModel() {
             }
         }
     }
-
 
 
 }

@@ -261,7 +261,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         val song = mainUiState.allAudioData[mainUiState.playingHash]
 
                         asyncedImage(
-                            song, Modifier.size(110.dp)
+                            song, Modifier.size(95.dp)
                         )
 
                         Spacer(Modifier.height(15.dp))

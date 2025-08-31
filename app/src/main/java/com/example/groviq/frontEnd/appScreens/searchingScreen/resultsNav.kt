@@ -1,6 +1,7 @@
 package com.example.groviq.frontEnd.appScreens.searchingScreen
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
@@ -38,6 +40,7 @@ import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchType
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.asyncedImage
+import com.example.groviq.frontEnd.errorButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,6 +50,9 @@ import kotlinx.coroutines.launch
 //the request of search navigation
 val searchingRequest = mutableStateOf<String>("")
 
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewModel : SearchViewModel, mainViewModel : PlayerViewModel)
 {
@@ -110,6 +116,12 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
             if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
             {
                 Text(text = "Нет подключения к интернету")
+                errorButton() {
+                    searchViewModel.getResultsOfSearchByString(
+                        MyApplication.globalContext!!,
+                        searchingRequest.value
+                    )
+                }
             }
             else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
             {

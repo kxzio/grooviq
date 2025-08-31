@@ -48,6 +48,10 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
+import com.example.groviq.frontEnd.errorButton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
@@ -91,8 +95,26 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
             if (searchUiState.publicErrors != publucErrors.CLEAN) {
                 item {
                     when (searchUiState.publicErrors) {
-                        publucErrors.NO_INTERNET -> Text("Нет подключения к интернету")
-                        publucErrors.NO_RESULTS  -> Text("Ничего не найдено")
+                        publucErrors.NO_INTERNET -> {
+                            Text("Нет подключения к интернету")
+                            errorButton() {
+                                searchViewModel.getArtist(
+                                    context = MyApplication.globalContext!!,
+                                    request = artistUrl,
+                                    mainViewModel
+                                )
+                            }
+                        }
+                        publucErrors.NO_RESULTS  -> {
+                            Text("Ничего не найдено")
+                            errorButton() {
+                                searchViewModel.getArtist(
+                                    context = MyApplication.globalContext!!,
+                                    request = artistUrl,
+                                    mainViewModel
+                                )
+                            }
+                        }
                         else -> Unit
                     }
                 }

@@ -60,6 +60,10 @@ import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
+import com.example.groviq.frontEnd.errorButton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 @OptIn(
@@ -104,10 +108,20 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                 if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
                 {
                     Text(text = "Нет подключения к интернету")
+                    errorButton() {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
+                        }
+                    }
                 }
                 else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
                 {
-                    Text(text = "Ничего не найдено")
+                    Text(text = "Произошла ошибка")
+                    errorButton() {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
+                        }
+                    }
                 }
             }
 
@@ -159,11 +173,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 
         if (!mainUiState.audioData.containsKey(sourceKey)) {
             LaunchedEffect(albumUrl) {
-                searchViewModel.addRelatedTracksToAudioSource(
-                    context = MyApplication.globalContext!!,
-                    request = albumUrl,
-                    mainViewModel = mainViewModel
-                )
+                searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
             }
         }
 
@@ -174,10 +184,20 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                 if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
                 {
                     Text(text = "Нет подключения к интернету")
+                    errorButton() {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
+                        }
+                    }
                 }
                 else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
                 {
-                    Text(text = "Ничего не найдено")
+                    Text(text = "Произошла ошибка")
+                    errorButton() {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
+                        }
+                    }
                 }
             }
 
@@ -185,7 +205,6 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
             {
                 CircularProgressIndicator(modifier = Modifier.size(100.dp))
                 return@Column
-
             }
 
             LaunchedEffect(sourceKey)
