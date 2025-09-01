@@ -1,7 +1,9 @@
 package com.example.groviq.frontEnd.bottomBars
 
+import androidx.compose.animation.Animatable
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -54,6 +56,7 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +67,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
@@ -83,6 +88,7 @@ import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.service.nextSongHashPending
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 //the request of navigation radio for track
@@ -125,129 +131,179 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
         if (mainUiState.allAudioData[mainUiState.playingHash] == null)
             return@Box
 
+        val loadingAudio = (mainUiState.currentStatus == playerStatus.IDLE || mainUiState.currentStatus == playerStatus.BUFFERING)
+
         //mini box
         if (true) {
 
-            val baseColor = Color(30, 30, 30)
-            val blinkColor = Color(60, 40, 40)
+                val baseColor = Color(30, 30, 30)         // основной фон
+                val bottomColor = Color(30, 30, 30)       // цвет под низом
+                val highlightColor = Color(
+                    200,
+                    100,
+                    100,
+                    255
+                ) // анимированная подсветка
 
-            val infiniteTransition = rememberInfiniteTransition()
+                val gradientShift = remember {
+                    androidx.compose.animation.core.Animatable(
+                        0f
+                    )
+                }
+                val gradientAlpha = remember {
+                    androidx.compose.animation.core.Animatable(
+                        1f
+                    )
+                }
 
-            val animatedColor by infiniteTransition.animateColor(
-                initialValue = baseColor,
-                targetValue = blinkColor,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 500, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                )
-            )
-
-            val loadingAudio = (mainUiState.currentStatus == playerStatus.IDLE || mainUiState.currentStatus == playerStatus.BUFFERING)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 100.dp, start = 15.dp, end = 15.dp)
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .background(if (loadingAudio) animatedColor else baseColor)
-                    .clickable {
-                        onToogleSheet()
+            LaunchedEffect(loadingAudio) {
+                if (loadingAudio) {
+                    gradientAlpha.animateTo(1f, animationSpec = tween(500))
+                    while (isActive && loadingAudio) {
+                        gradientShift.animateTo(
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1500, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Restart
+                            )
+                        )
                     }
-            )
-            {
+                } else {
+                    gradientAlpha.animateTo(0f, animationSpec = tween(500, easing = FastOutSlowInEasing))
+                    gradientShift.snapTo(0f)
+                }
+            }
 
-                LinearProgressIndicator(
-                    progress = songProgressUi.value.progress,
+                BoxWithConstraints(
                     modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 100.dp, start = 15.dp, end = 15.dp)
                         .fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
+                        .height(80.dp)
+                        .background(bottomColor)
                 ) {
 
-                    IconButton(
-                        onClick =
-                        {
-                            AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel = searchViewModel )
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            Icons.Rounded.SkipPrevious
-                            ,
-                            contentDescription = "SkipPrev",
-                            tint = Color(255, 255, 255)
-                        )
-                    }
+                    val boxWidth = constraints.maxWidth.toFloat()
+                    val gradientWidth = boxWidth
+                    val alphaFactor = 0.3f
 
-                    if (loadingAudio)
-                    {
-                        CircularProgressIndicator()
-                    }
-                    else
-                    {
-                        IconButton(
-                            onClick =
-                            {
-                                if (mainUiState.currentStatus == playerStatus.PAUSE)
-                                    AppViewModels.player.playerManager.resume()
-                                if (mainUiState.currentStatus == playerStatus.PLAYING)
-                                    AppViewModels.player.playerManager.pause()
-                            },
-                        ) {
-                            Icon(
-                                imageVector = if (mainUiState.currentStatus == playerStatus.PAUSE)
-                                    Icons.Rounded.PlayArrow else Icons.Rounded.Pause
-                                ,
-                                contentDescription = "Pause/Play",
-                                tint = Color(255, 255, 255)
-                            )
-                        }
-                    }
-
-
-                    IconButton(
-                        onClick =
-                        {
-                            AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            Icons.Rounded.SkipNext
-                            ,
-                            contentDescription = "SkipNext",
-                            tint = Color(255, 255, 255)
-                        )
-                    }
-
-
-
-                    Column()
-                    {
-                        val song = mainUiState.allAudioData[mainUiState.playingHash]
-
-                        Text(song!!.title, color = Color(255, 255, 255))
-
-                        Row()
-                        {
-                            song.artists.forEach { artist ->
-
-                                Text(
-                                    artist.title + if (artist != song.artists.last()) ", " else "",
-                                    maxLines = 1, color = Color(255, 255, 255)
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        baseColor.copy(alpha = 1f - gradientAlpha.value * alphaFactor),
+                                        highlightColor.copy(alpha = gradientAlpha.value * alphaFactor),
+                                        baseColor.copy(alpha = 1f - gradientAlpha.value * alphaFactor)
+                                    ),
+                                    startX = gradientShift.value * (boxWidth + gradientWidth) - gradientWidth,
+                                    endX = gradientShift.value * (boxWidth + gradientWidth),
                                 )
+                            )
+                    )
 
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { onToogleSheet() }
+                    ){
+
+                        LinearProgressIndicator(
+                            progress = songProgressUi.value.progress,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            IconButton(
+                                onClick =
+                                {
+                                    AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel = searchViewModel )
+                                },
+                            ) {
+                                Icon(
+                                    imageVector =
+                                    Icons.Rounded.SkipPrevious
+                                    ,
+                                    contentDescription = "SkipPrev",
+                                    tint = Color(255, 255, 255)
+                                )
                             }
+
+                            if (loadingAudio)
+                            {
+                                CircularProgressIndicator()
+                            }
+                            else
+                            {
+                                IconButton(
+                                    onClick =
+                                    {
+                                        if (mainUiState.currentStatus == playerStatus.PAUSE)
+                                            AppViewModels.player.playerManager.resume()
+                                        if (mainUiState.currentStatus == playerStatus.PLAYING)
+                                            AppViewModels.player.playerManager.pause()
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = if (mainUiState.currentStatus == playerStatus.PAUSE)
+                                            Icons.Rounded.PlayArrow else Icons.Rounded.Pause
+                                        ,
+                                        contentDescription = "Pause/Play",
+                                        tint = Color(255, 255, 255)
+                                    )
+                                }
+                            }
+
+
+                            IconButton(
+                                onClick =
+                                {
+                                    AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
+                                },
+                            ) {
+                                Icon(
+                                    imageVector =
+                                    Icons.Rounded.SkipNext
+                                    ,
+                                    contentDescription = "SkipNext",
+                                    tint = Color(255, 255, 255)
+                                )
+                            }
+
+
+
+                            Column()
+                            {
+                                val song = mainUiState.allAudioData[mainUiState.playingHash]
+
+                                Text(song!!.title, color = Color(255, 255, 255))
+
+                                Row()
+                                {
+                                    song.artists.forEach { artist ->
+
+                                        Text(
+                                            artist.title + if (artist != song.artists.last()) ", " else "",
+                                            maxLines = 1, color = Color(255, 255, 255)
+                                        )
+
+                                    }
+                                }
+                            }
+
                         }
+
                     }
 
                 }
 
-            }
         }
 
         //scaffold
