@@ -201,8 +201,7 @@ class SearchViewModel : ViewModel() {
                 val albumDto = parseAlbumJson(albumMetaJson)
 
                 if (albumDto.artists    .isNullOrEmpty()   ||
-                    albumDto.image_url  .isNullOrEmpty()   ||
-                    albumDto.link       .isNullOrEmpty()
+                    albumDto.image_url  .isNullOrEmpty()
                     )
                 {
                     _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
@@ -735,7 +734,7 @@ class SearchViewModel : ViewModel() {
                     mainViewModel.setAlbumTracks(
                         sourceKey,
                         tracks,
-                        audioSourceName = "Похожие треки",
+                        audioSourceName = "Радио " + mainViewModel.uiState.value.allAudioData[request]?.title,
                         audioSourceArtist = emptyList(),
                         audioSourceYear = ""
                     )

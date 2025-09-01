@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -20,6 +21,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.ExoDatabaseProvider
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -69,10 +71,10 @@ class AudioPlayerManager(context: Context) {
     //main player
     val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(
-            /* minBufferMs = */ 2500,
+            /* minBufferMs = */ 2000,
             /* maxBufferMs = */ 50000,
-            /* bufferForPlaybackMs = */ 1000,
-            /* bufferForPlaybackAfterRebufferMs = */ 2000
+            /* bufferForPlaybackMs = */ 500,
+            /* bufferForPlaybackAfterRebufferMs = */ 1500
         )
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
@@ -95,7 +97,8 @@ class AudioPlayerManager(context: Context) {
         .setUpstreamDataSourceFactory(upstreamFactory)
         .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-    val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
+    val defaultDataSourceFactory = DefaultDataSource.Factory(context, cacheDataSourceFactory)
+    val mediaSourceFactory = DefaultMediaSourceFactory(defaultDataSourceFactory)
 
 
     val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(MyApplication.globalContext!!)
@@ -227,6 +230,7 @@ class AudioPlayerManager(context: Context) {
                 }
 
             }
+
             val artLink = song.art_link
             if (artLink != null) {
                 val size = getImageSizeFromUrl(artLink)
@@ -263,11 +267,9 @@ class AudioPlayerManager(context: Context) {
                         }
                     }
 
-                    val mediaUri: Uri = if (song.file != null && song.file!!.exists()) {
-                        Uri.fromFile(song.file!!)
-                    } else {
-                        Uri.parse(streamUrl)
-                    }
+                    val mediaUri: Uri = song.file?.takeIf { it.exists() }?.let {
+                        Uri.fromFile(it)
+                    } ?: Uri.parse(streamUrl)
 
                     val mediaItem = MediaItem.Builder()
                         .setUri(mediaUri)
@@ -275,8 +277,7 @@ class AudioPlayerManager(context: Context) {
                         .setMediaMetadata(mediaMetadataBuilder.build())
                         .build()
 
-                    player!!.setMediaItem(
-                        mediaItem)
+                    player!!.setMediaItem(mediaItem)
                     player!!.prepare()
                     player!!.playWhenReady = true
                     player!!.repeatMode = Player.REPEAT_MODE_OFF

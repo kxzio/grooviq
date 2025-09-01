@@ -313,6 +313,9 @@ fun fetchAudioSource(audioSource: String, mainViewModel: PlayerViewModel) {
 
 var currentFetchImageJob: Job? = null
 
+@OptIn(
+    UnstableApi::class
+)
 fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
     val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 

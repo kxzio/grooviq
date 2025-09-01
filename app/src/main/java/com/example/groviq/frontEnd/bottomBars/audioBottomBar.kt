@@ -1,5 +1,11 @@
 package com.example.groviq.frontEnd.bottomBars
 
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -121,14 +127,29 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
         //mini box
         if (true) {
+
+            val baseColor = Color(30, 30, 30)
+            val blinkColor = Color(60, 40, 40)
+
+            val infiniteTransition = rememberInfiniteTransition()
+
+            val animatedColor by infiniteTransition.animateColor(
+                initialValue = baseColor,
+                targetValue = blinkColor,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
+
+            val loadingAudio = (mainUiState.currentStatus == playerStatus.IDLE || mainUiState.currentStatus == playerStatus.BUFFERING)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 100.dp, start = 15.dp, end = 15.dp)
                     .fillMaxWidth()
                     .height(80.dp)
-                    .background(Color(35, 35, 35)
-                    )
+                    .background(if (loadingAudio) animatedColor else baseColor)
                     .clickable {
                         onToogleSheet()
                     }
@@ -162,7 +183,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         )
                     }
 
-                    if (mainUiState.currentStatus == playerStatus.IDLE || mainUiState.currentStatus == playerStatus.BUFFERING)
+                    if (loadingAudio)
                     {
                         CircularProgressIndicator()
                     }
@@ -261,7 +282,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         val song = mainUiState.allAudioData[mainUiState.playingHash]
 
                         asyncedImage(
-                            song, Modifier.size(95.dp)
+                            song, Modifier.size(275.dp)
                         )
 
                         Spacer(Modifier.height(15.dp))

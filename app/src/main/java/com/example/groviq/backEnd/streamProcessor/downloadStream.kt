@@ -51,6 +51,9 @@ import com.example.groviq.MyApplication
 import com.example.groviq.loadBitmapFromUrl
 import com.example.groviq.retryWithBackoff
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
 
@@ -95,152 +98,144 @@ suspend fun Call.awaitResponseCancellable(): Response =
     }
 
 
-@OptIn(
-    UnstableApi::class
-)
-fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
+@OptIn(UnstableApi::class)
+suspend fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
 
-    //cancel previous
-    currentDownloading?.cancel()
+    if (!hasInternetConnection(MyApplication.globalContext!!)) return
 
-    // no internet start
-    if (!hasInternetConnection(
-            MyApplication.globalContext!!)) return
-
-    //take song
     val song = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: return
-
-    //if song already in download process - exit
     if (song.progressStatus.downloadingHandled == true) return
 
-    //setup flag
-    runOnMain {
-        mainViewModel.updateStatusForSong(song.link, song.progressStatus.copy(downloadingHandled = true))
+    withContext(Dispatchers.Main) {
+        mainViewModel.updateStatusForSong(
+            song.link,
+            song.progressStatus.copy(downloadingHandled = true)
+        )
     }
 
-    //start main job
-    currentDownloading = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-        // ensure only one downloader for a given hash at a time
+    withContext(Dispatchers.IO) {
         downloadMutex.withLock {
-            try {
 
+            val safeAlbum = (song.album_original_link ?: "album")
+                .replace(Regex("[\\\\/:*?\"<>| ]"), "_")
+            val urlHash = (song.link.takeIf { it.length >= 40 }?.substring(20, 40) ?: song.link)
+                .let { md5(it) }
+                .take(8)
+            val uniqueName = "${safeAlbum}__${urlHash}.mp3"
+            val partName = "$uniqueName.part"
+
+            val finalFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), uniqueName)
+            val partFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), partName)
+
+            try {
+                // --- получаем streamUrl с ретраями ---
                 val streamUrl = retryWithBackoff(
                     retries = 3,
                     initialDelayMs = 500L
                 ) {
-                    // Await stream url (твоя функция)
-                    mainViewModel.awaitStreamUrlFor(hashToDownload)
-                        ?: throw IOException("Stream URL is null")
+
+                    if (song.progressStatus.streamHandled)
+                    {
+                        mainViewModel.awaitStreamUrlFor(hashToDownload)
+                            ?: throw IOException("Stream URL is null")
+                    }
+                    else
+                    {
+                        if (song!!.shouldGetStream()) {
+
+                            if (song.progressStatus.streamHandled.not()) {
+                                //stream not handled yet by any thread, we should get it by yourself
+
+                                //clear old stream if we had one
+                                mainViewModel.updateStreamForSong(
+                                    hashToDownload,
+                                    ""
+                                )
+                                //request to get the new one
+                                fetchAudioStream(mainViewModel, hashToDownload)
+
+                                mainViewModel.awaitStreamUrlFor(hashToDownload)
+                                    ?: throw IOException("Stream URL is null")
+                            }
+                            else
+                                mainViewModel.awaitStreamUrlFor(hashToDownload)
+                                    ?: throw IOException("Stream URL is null")
+                        }
+                        else
+                            mainViewModel.awaitStreamUrlFor(hashToDownload)
+                                ?: throw IOException("Stream URL is null")
+                    }
+
                 }
 
                 if (!isActive) return@withLock
 
-                // get head
-                val headRequest = Request.Builder()
-                    .url(streamUrl)
-                    .head()
-                    .build()
+                // --- HEAD запрос ---
+                val headRequest = Request.Builder().url(streamUrl).head().build()
+                val (totalSize, supportsRange) = downloadHttpClient.newCall(headRequest).execute()
+                    .use { headResponse ->
+                        if (!headResponse.isSuccessful) {
+                            throw IOException("HEAD failed: code ${headResponse.code}")
+                        }
+                        val contentLengthHeader = headResponse.header("Content-Length")
+                        val acceptRanges = headResponse.header("Accept-Ranges")
+                        val size = contentLengthHeader?.toLongOrNull() ?: -1L
+                        val range = acceptRanges?.equals("bytes", true) == true && size > 0
+                        size to range
+                    }
 
-                val headCall = downloadHttpClient.newCall(headRequest)
-                val headResponse = try {
-                    headCall.awaitResponseCancellable()
-                } catch (e: Exception) {
-                    throw IOException("HEAD request failed: ${e.message}", e)
-                }
 
-                if (!headResponse.isSuccessful) {
-                    headResponse.close()
-                    throw IOException("HEAD failed: code ${headResponse.code}")
-                }
-
-                val contentLengthHeader = headResponse.header("Content-Length")
-                val acceptRanges = headResponse.header("Accept-Ranges") // often "bytes" or null
-                headResponse.close()
-
-                val totalSize = contentLengthHeader?.toLongOrNull() ?: -1L
-                val supportsRange = acceptRanges?.equals("bytes", true) == true && totalSize > 0
-
-                //Prepare file names
-                val safeAlbum = (song.album_original_link ?: "album")
-                    .replace(Regex("[\\\\/:*?\"<>| ]"), "_")
-                val urlHash = (song.link.takeIf { it.length >= 40 }?.substring(20, 40) ?: song.link)
-                    .let { md5(it) }
-                    .take(8)
-                val uniqueName = "${safeAlbum}__${urlHash}.mp3"
-                val partName = "$uniqueName.part"
-                val finalFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), uniqueName)
-                val partFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), partName)
-
-                // if file already downloaded - exit
+                // --- уже скачан ---
                 if (finalFile.exists() && totalSize > 0 && finalFile.length() == totalSize) {
-                    //already have
                     runOnMain {
                         mainViewModel.updateFileForSong(song.link, finalFile)
                         mainViewModel.updateDownloadingProgressForSong(song.link, 100f)
-                        mainViewModel.updateStatusForSong(song.link, song.progressStatus.copy(downloadingHandled = false))
+                        mainViewModel.updateStatusForSong(
+                            song.link,
+                            song.progressStatus.copy(downloadingHandled = false)
+                        )
                     }
                     return@withLock
                 }
 
-               // if we have partfile - resume downloading
                 val existingBytes = partFile.length().coerceAtLeast(0L)
 
                 if (existingBytes > 0 && supportsRange && existingBytes == totalSize) {
-                    //rename old PART file, if it was already downloaded at all
-                    partFile.renameTo(finalFile)
+                    if (!partFile.renameTo(finalFile)) {
+                        partFile.copyTo(finalFile, overwrite = true)
+                        partFile.delete()
+                    }
                     runOnMain {
                         mainViewModel.updateFileForSong(song.link, finalFile)
                         mainViewModel.updateDownloadingProgressForSong(song.link, 100f)
-                        mainViewModel.updateStatusForSong(song.link, song.progressStatus.copy(downloadingHandled = false))
+                        mainViewModel.updateStatusForSong(
+                            song.link,
+                            song.progressStatus.copy(downloadingHandled = false)
+                        )
                     }
                     return@withLock
                 }
 
-                //choose strategy ( range or default )
+                // --- стратегия ---
                 if (supportsRange && totalSize > 0L) {
-                    //resume friendly downloading
-                    var downloadedSoFar = existingBytes
-                    val downloadedAtomic = AtomicLong(downloadedSoFar)
-
-                    //if we have no part file - create one
+                    // resume download
+                    val downloadedAtomic = AtomicLong(existingBytes)
                     if (!partFile.exists()) {
                         partFile.parentFile?.mkdirs()
                         partFile.createNewFile()
                     }
 
-                    //updating
-                    var lastReportedPercent = -1
-                    var lastReportTime = 0L
-                    val reportIntervalMs = 300L
-
-                    //resume downloading if we had
-                    val startPosition = downloadedSoFar
-                    val rangeHeader = "bytes=$startPosition-${totalSize - 1}"
-
-                    val rangeRequest = Request.Builder()
-                        .url(streamUrl)
-                        .addHeader("Range", rangeHeader)
-                        .build()
-
-                    val rangeCall = downloadHttpClient.newCall(rangeRequest)
-
-                    //download with retries
+                    val startPosition = existingBytes
                     retryWithBackoff(retries = 3, initialDelayMs = 400L) {
-                        if (!isActive) throw CancellationException()
+                        val rangeHeader = "bytes=$startPosition-${totalSize - 1}"
+                        val response = downloadHttpClient.newCall(
+                            Request.Builder()
+                                .url(streamUrl)
+                                .addHeader("Range", rangeHeader)
+                                .build()
+                        ).awaitResponseCancellable()
 
-                        val response = try {
-                            rangeCall.awaitResponseCancellable()
-                        } catch (e: Exception) {
-                            throw IOException("Range request failed: ${e.message}", e)
-                        }
-
-                        if (response.code == 416) {
-                            // Requested range not satisfiable
-                            response.close()
-                            return@retryWithBackoff
-                        }
-
-                        if (!response.isSuccessful) {
+                        if (!response.isSuccessful && response.code != 416) {
                             val code = response.code
                             response.close()
                             throw IOException("Range failed: code $code")
@@ -251,88 +246,62 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
                             throw IOException("Empty body for range")
                         }
 
-                        // Read stream and append to partFile at startPosition
-                        // Important: use RandomAccessFile to seek to startPosition and write bytes
                         RandomAccessFile(partFile, "rw").use { raf ->
                             raf.seek(startPosition)
                             body.byteStream().use { input ->
                                 val buffer = ByteArray(64 * 1024)
-                                var lastReportedPercent = -1
+                                var lastPercent = -1
                                 var lastReportTime = 0L
+                                val reportIntervalMs = 300L
 
                                 while (isActive) {
                                     val bytesRead = input.read(buffer)
                                     if (bytesRead == -1) break
-
                                     raf.write(buffer, 0, bytesRead)
                                     val newTotal = downloadedAtomic.addAndGet(bytesRead.toLong())
 
-                                    //updating
                                     if (totalSize > 0) {
                                         val percent = ((newTotal * 100) / totalSize).toInt()
                                         val now = System.currentTimeMillis()
-                                        if (percent != lastReportedPercent && (now - lastReportTime >= reportIntervalMs)) {
-                                            lastReportedPercent = percent
+                                        if (percent != lastPercent && now - lastReportTime >= reportIntervalMs) {
+                                            lastPercent = percent
                                             lastReportTime = now
                                             runOnMain {
-                                                mainViewModel.updateDownloadingProgressForSong(song.link, percent.toFloat())
+                                                mainViewModel.updateDownloadingProgressForSong(
+                                                    song.link,
+                                                    percent.toFloat()
+                                                )
                                             }
                                         }
                                     }
-
-                                    // check safe
-                                    if (!isActive) break
                                 }
                             }
                         }
-
-
                         response.close()
                     }
 
-                    if (!isActive) throw CancellationException()
-
-                    //check size and rename if we have part file
                     if (partFile.exists() && (totalSize < 0 || partFile.length() >= totalSize)) {
-                        partFile.renameTo(finalFile)
+                        if (!partFile.renameTo(finalFile)) {
+                            partFile.copyTo(finalFile, overwrite = true)
+                            partFile.delete()
+                        }
                     }
 
-                    mainViewModel.uiState.value.allAudioData[song.link]!!.art = loadBitmapFromUrl(song.art_link!!)
-
-                    //final updates
-                    runOnMain {
-                        val downloadedFile = if (finalFile.exists()) finalFile else partFile
-
-                        mainViewModel.updateFileForSong(song.link, downloadedFile)
-
-                        mainViewModel.updateDownloadingProgressForSong(song.link, 100f)
-
-                        mainViewModel.updateStatusForSong(song.link, song.progressStatus.copy(downloadingHandled = false))
-
-                        mainViewModel.addSongToAudioSource(song.link, "Скачанное")
-
-                        val toSave = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: song
-                        mainViewModel.saveSongToRoom(toSave)
-                        mainViewModel.saveAudioSourcesToRoom()
+                    song.art_link?.let { link ->
+                        mainViewModel.uiState.value.allAudioData[song.link]!!.art =
+                            loadBitmapFromUrl(link)
                     }
 
                 } else {
-                    // SERVER DOES NOT SUPPORT RANGE (или totalSize unknown) -> full download (overwrite .part)
+                    // full download
                     partFile.parentFile?.mkdirs()
                     if (partFile.exists()) partFile.delete()
                     partFile.createNewFile()
 
-                    val getRequest = Request.Builder().url(streamUrl).build()
-                    val getCall = downloadHttpClient.newCall(getRequest)
-
                     retryWithBackoff(retries = 3, initialDelayMs = 400L) {
-                        if (!isActive) throw CancellationException()
-
-                        val response = try {
-                            getCall.awaitResponseCancellable()
-                        } catch (e: Exception) {
-                            throw IOException("GET failed: ${e.message}", e)
-                        }
+                        val response = downloadHttpClient.newCall(
+                            Request.Builder().url(streamUrl).build()
+                        ).awaitResponseCancellable()
 
                         if (!response.isSuccessful) {
                             val code = response.code
@@ -345,7 +314,6 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
                             throw IOException("Empty body")
                         }
 
-                        // записываем прямо в .part
                         val bufferedSink = partFile.sink().buffer()
                         val source = body.source()
                         try {
@@ -354,86 +322,89 @@ fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: String) {
                                     var totalRead = 0L
                                     val bufferSize = 64L * 1024L
                                     var lastPercent = -1
-                                    var lastReportTime2 = 0L
-                                    val reportIntervalMs2 = 300L
+                                    var lastReportTime = 0L
+                                    val reportIntervalMs = 300L
 
                                     while (isActive) {
-                                        val read = try {
-                                            src.read(bs.buffer(), bufferSize)
-                                        } catch (e: IOException) {
-                                            //retry
-                                            throw e
-                                        }
-
+                                        val read = src.read(bs.buffer(), bufferSize)
                                         if (read == -1L) break
 
                                         totalRead += read
-                                        bs.emit() // flush to file
+                                        bs.emit()
 
-                                        if (totalSize > 0L) {
+                                        if (totalSize > 0) {
                                             val percent = ((totalRead * 100) / totalSize).toInt()
                                             val now = System.currentTimeMillis()
-                                            if (percent != lastPercent && (now - lastReportTime2 >= reportIntervalMs2)) {
+                                            if (percent != lastPercent && now - lastReportTime >= reportIntervalMs) {
                                                 lastPercent = percent
-                                                lastReportTime2 = now
+                                                lastReportTime = now
                                                 runOnMain {
-                                                    mainViewModel.updateDownloadingProgressForSong(song.link, percent.toFloat())
+                                                    mainViewModel.updateDownloadingProgressForSong(
+                                                        song.link,
+                                                        percent.toFloat()
+                                                    )
                                                 }
                                             }
                                         }
-
-                                        //check safe
-                                        if (!isActive) break
                                     }
                                 }
                             }
                         } finally {
-                            //close response
-                            try { response.close() } catch (_: Throwable) {}
+                            response.close()
                         }
                     }
 
-                    if (!isActive) throw CancellationException()
-
-                    //rename part file to final
-                    if (partFile.exists()) partFile.renameTo(finalFile)
-
-                    runOnMain {
-                        val downloadedFile = if (finalFile.exists()) finalFile else partFile
-
-                        mainViewModel.updateFileForSong(song.link, downloadedFile)
-
-                        mainViewModel.updateDownloadingProgressForSong(song.link, 100f)
-
-                        mainViewModel.updateStatusForSong(song.link, song.progressStatus.copy(downloadingHandled = false))
-
-                        mainViewModel.addSongToAudioSource(song.link, "Скачанное")
-
-                        val toSave = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: song
-                        mainViewModel.saveSongToRoom(toSave)
-                        mainViewModel.saveAudioSourcesToRoom()
+                    if (partFile.exists()) {
+                        if (!partFile.renameTo(finalFile)) {
+                            partFile.copyTo(finalFile, overwrite = true)
+                            partFile.delete()
+                        }
                     }
+                }
+
+                // --- финальные обновления ---
+                runOnMain {
+                    val downloadedFile = if (finalFile.exists()) finalFile else partFile
+                    mainViewModel.updateFileForSong(song.link, downloadedFile)
+                    mainViewModel.updateDownloadingProgressForSong(song.link, 100f)
+                    mainViewModel.updateStatusForSong(
+                        song.link,
+                        song.progressStatus.copy(downloadingHandled = false)
+                    )
+                    mainViewModel.addSongToAudioSource(song.link, "Скачанное")
+
+                    val toSave = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: song
+                    mainViewModel.saveSongToRoom(toSave)
+                    mainViewModel.saveAudioSourcesToRoom()
                 }
 
             } catch (e: CancellationException) {
-                //thread canceled
+                // cancelled
+                partFile.delete()
             } catch (e: Exception) {
-                //show error
+                partFile.delete()
                 runOnMain {
-                    Toast.makeText(MyApplication.globalContext, "Ошибка загрузки: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        MyApplication.globalContext,
+                        "Ошибка загрузки: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             } finally {
-                // CANCEL flag of downloading
                 withContext(NonCancellable + Dispatchers.Main) {
                     val latest = mainViewModel.uiState.value.allAudioData[hashToDownload]
                     if (latest != null && latest.progressStatus.downloadingHandled == true) {
-                        mainViewModel.updateStatusForSong(latest.link, latest.progressStatus.copy(downloadingHandled = false))
+                        mainViewModel.updateStatusForSong(
+                            latest.link,
+                            latest.progressStatus.copy(downloadingHandled = false)
+                        )
                     }
                 }
             }
-        } // end mutex
-    } // end launch
+        }
+    }
 }
+
 
 fun runOnMain(block: () -> Unit) {
     if (Looper.getMainLooper().thread == Thread.currentThread()) {
@@ -443,113 +414,6 @@ fun runOnMain(block: () -> Unit) {
     }
 }
 
-
-val downloadJobs: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
-
-@OptIn(
-    UnstableApi::class
-)
-fun deleteDownloadedAudioFile(
-    mainViewModel: PlayerViewModel,
-    hashToDownload: String,
-    cancelActiveDownload: Boolean = true
-) {
-    val song = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: return
-
-    //cancel if we already downloading
-    if (cancelActiveDownload) {
-        downloadJobs.remove(hashToDownload)?.let { job ->
-            try { job.cancel(CancellationException("User requested delete")) } catch (_: Throwable) {}
-        }
-    }
-
-    CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-        try {
-            //get final file or part file, if we had one
-            val docFile = song.file
-            val filesToTry = mutableListOf<File>()
-            if (docFile != null) {
-                filesToTry.add(docFile)
-                //part files
-                filesToTry.add(File(docFile.parentFile, "${docFile.name}.part"))
-                //additional check
-                filesToTry.add(File(docFile.parentFile, "${docFile.nameWithoutExtension}.mp3.part"))
-            }
-
-            var anyDeleted = false
-            filesToTry.forEach { f ->
-                if (f.exists()) {
-                    try {
-                       //defaut delete
-                        if (f.delete()) {
-                            anyDeleted = true
-                        } else {
-                            //try atomic delete if default delete is not availabl
-                            try {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    Files.deleteIfExists(f.toPath())
-                                    anyDeleted = true
-                                } else {
-                                    //FALBACK - rename to deleted and delete
-                                    val tmp = File(f.parentFile, "${f.name}.deleted")
-                                    if (f.renameTo(tmp)) {
-                                        tmp.delete()
-                                        anyDeleted = true
-                                    }
-                                }
-                            } catch (ex: Exception) {
-
-                            }
-                        }
-                    } catch (e: Exception) {
-
-                    }
-                }
-            }
-
-            //downloading from mediastore
-            try {
-                val ctx = MyApplication.globalContext ?: applicationContextPlaceholder()
-                docFile?.let { f ->
-                    //delete from mediastore
-                    deleteFromMediaStoreIfExists(ctx, f)
-                }
-            } catch (e: Exception) {
-            }
-
-            //delete from Db and update ui
-            withContext(NonCancellable + Dispatchers.Main) {
-                mainViewModel.updateFileForSong(song.link, null)
-
-                mainViewModel.updateStatusForSong(
-                    song.link,
-                    song.progressStatus.copy(downloadingHandled = false)
-                )
-
-                mainViewModel.removeSongFromAudioSource(song.link, "Скачанное")
-
-                mainViewModel.updateDownloadingProgressForSong(song.link, 0f)
-
-                mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashToDownload]!!)
-                mainViewModel.saveAudioSourcesToRoom()
-            }
-
-            if (!anyDeleted) {
-                //error. show it on ui
-                runOnMain {
-                    Toast.makeText(MyApplication.globalContext, "Не удалось удалить файл (возможно, он используется)", Toast.LENGTH_LONG).show()
-                }
-            }
-
-        } catch (e: CancellationException) {
-            //cancel
-        } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(MyApplication.globalContext, "Ошибка при удалении: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-}
 
 
 private fun deleteFromMediaStoreIfExists(context: Context, file: File) {
@@ -578,4 +442,209 @@ private fun deleteFromMediaStoreIfExists(context: Context, file: File) {
 
 private fun applicationContextPlaceholder(): Context {
     throw IllegalStateException("Replace applicationContextPlaceholder() with your app context provider (globalContext)")
+}
+
+
+object DownloadManager {
+
+    val downloadJobs: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val queue = Channel<Pair<PlayerViewModel, String>>(Channel.UNLIMITED)
+
+    private var currentJob: Job? = null
+
+    private val activeDownloads = mutableListOf<String>()
+    private val queuedDownloads = mutableListOf<String>()
+
+    private val _state = MutableStateFlow(DownloadState())
+    val state: StateFlow<DownloadState> = _state
+
+    data class DownloadState(
+        val active: List<String> = emptyList(),
+        val queued: List<String> = emptyList()
+    )
+
+    @OptIn(UnstableApi::class)
+    fun enqueue(mainViewModel: PlayerViewModel, hash: String) {
+        if (hash in activeDownloads || hash in queuedDownloads) return
+
+        queuedDownloads.add(hash)
+        updateState()
+
+        queue.trySend(mainViewModel to hash)
+    }
+
+    @OptIn(UnstableApi::class)
+    fun start() {
+        if (currentJob?.isActive == true) return
+
+        currentJob = scope.launch {
+            for ((vm, hash) in queue) {
+                val existingJob = downloadJobs[hash]
+                if (existingJob != null) {
+                    if (!existingJob.isActive) {
+                        downloadJobs.remove(hash)
+                    } else {
+                        continue
+                    }
+                }
+
+                queuedDownloads.remove(hash)
+                activeDownloads.add(hash)
+                updateState()
+
+                val job = launch {
+                    try {
+                        downloadAudioFile(vm, hash)
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(MyApplication.globalContext, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    } finally {
+                        activeDownloads.remove(hash)
+                        downloadJobs.remove(hash)
+                        updateState()
+                    }
+                }
+
+                downloadJobs[hash] = job
+                job.join()
+            }
+        }
+    }
+    fun stop() {
+        currentJob?.cancel()
+        currentJob = null
+        activeDownloads.clear()
+        queuedDownloads.clear()
+
+        downloadJobs.values.forEach { it.cancel() }
+        downloadJobs.clear()
+
+        updateState()
+    }
+
+    fun cancel(hash: String) {
+        if (queuedDownloads.remove(hash)) updateState()
+        downloadJobs.remove(hash)?.cancel(CancellationException("User cancelled"))
+    }
+
+    fun clearQueue() {
+        queuedDownloads.clear()
+        updateState()
+    }
+
+    private fun updateState() {
+        _state.value = DownloadState(
+            active = activeDownloads.toList(),
+            queued = queuedDownloads.toList()
+        )
+    }
+
+    @OptIn(
+        UnstableApi::class
+    )
+    fun deleteDownloadedAudioFile(
+        mainViewModel: PlayerViewModel,
+        hashToDownload: String,
+        cancelActiveDownload: Boolean = true
+    ) {
+        val song = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: return
+
+        //cancel if we already downloading
+        if (cancelActiveDownload) {
+            downloadJobs.remove(hashToDownload)?.let { job ->
+                try { job.cancel(CancellationException("User requested delete")) } catch (_: Throwable) {}
+            }
+        }
+
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            try {
+                //get final file or part file, if we had one
+                val docFile = song.file
+                val filesToTry = mutableListOf<File>()
+                if (docFile != null) {
+                    filesToTry.add(docFile)
+                    //part files
+                    filesToTry.add(File(docFile.parentFile, "${docFile.name}.part"))
+                    //additional check
+                    filesToTry.add(File(docFile.parentFile, "${docFile.nameWithoutExtension}.mp3.part"))
+                }
+
+                var anyDeleted = false
+                filesToTry.forEach { f ->
+                    if (f.exists()) {
+                        try {
+                            //defaut delete
+                            if (f.delete()) {
+                                anyDeleted = true
+                            } else {
+                                //try atomic delete if default delete is not availabl
+                                try {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        Files.deleteIfExists(f.toPath())
+                                        anyDeleted = true
+                                    } else {
+                                        //FALBACK - rename to deleted and delete
+                                        val tmp = File(f.parentFile, "${f.name}.deleted")
+                                        if (f.renameTo(tmp)) {
+                                            tmp.delete()
+                                            anyDeleted = true
+                                        }
+                                    }
+                                } catch (ex: Exception) {
+
+                                }
+                            }
+                        } catch (e: Exception) {
+
+                        }
+                    }
+                }
+
+                //downloading from mediastore
+                try {
+                    val ctx = MyApplication.globalContext ?: applicationContextPlaceholder()
+                    docFile?.let { f ->
+                        //delete from mediastore
+                        deleteFromMediaStoreIfExists(ctx, f)
+                    }
+                } catch (e: Exception) {
+                }
+
+                //delete from Db and update ui
+                withContext(NonCancellable + Dispatchers.Main) {
+                    mainViewModel.updateFileForSong(song.link, null)
+
+                    mainViewModel.updateStatusForSong(
+                        song.link,
+                        song.progressStatus.copy(downloadingHandled = false)
+                    )
+
+                    mainViewModel.removeSongFromAudioSource(song.link, "Скачанное")
+
+                    mainViewModel.updateDownloadingProgressForSong(song.link, 0f)
+
+                    mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashToDownload]!!)
+                    mainViewModel.saveAudioSourcesToRoom()
+                }
+
+                if (!anyDeleted) {
+                    //error. show it on ui
+                    runOnMain {
+                        Toast.makeText(MyApplication.globalContext, "Не удалось удалить файл (возможно, он используется)", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+            } catch (e: CancellationException) {
+                //cancel
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(MyApplication.globalContext, "Ошибка при удалении: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 }

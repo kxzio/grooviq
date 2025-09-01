@@ -7,22 +7,30 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloudQueue
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Favorite
@@ -40,6 +48,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -74,7 +83,7 @@ import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.backEnd.playEngine.moveInQueue
 import com.example.groviq.backEnd.playEngine.removeFromQueue
-import com.example.groviq.backEnd.streamProcessor.deleteDownloadedAudioFile
+import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.backEnd.streamProcessor.downloadAudioFile
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
@@ -188,7 +197,8 @@ enum class settingPages{
     MAIN_PAGE_SCREEN,
     QUEUE_SHOW_LIST_SCREEN,
     SELECT_ARTIST_TO_MOVE,
-    ADD_TO_PLAYLIST_SCREEN
+    ADD_TO_PLAYLIST_SCREEN,
+    DOWNLOAD_QUEUE_PAGE
 }
 
 @androidx.annotation.OptIn(
@@ -224,6 +234,7 @@ fun drawSettingsBottomBar(mainViewModel : PlayerViewModel, requestHash : String,
         settingPages.QUEUE_SHOW_LIST_SCREEN -> { drawQueuePage(mainViewModel, { page -> settingPage = page})}
         settingPages.ADD_TO_PLAYLIST_SCREEN -> { drawPlaylistsToAdd(mainViewModel, track, onClose, { page -> settingPage = page}) }
         settingPages.SELECT_ARTIST_TO_MOVE ->  { drawSelectArtistPage(mainViewModel, track, onClose, { page -> settingPage = page})}
+        settingPages.DOWNLOAD_QUEUE_PAGE   ->  { drawDownloadQueuePage(mainViewModel) }
     }
 
 
@@ -292,14 +303,17 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 
         if (track!!.file!!.exists()) {
             buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
-                deleteDownloadedAudioFile(mainViewModel, track.link)
+                DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
                 onClose()
             })
         }
     }
     else {
         buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {
-            downloadAudioFile(mainViewModel, track.link)
+
+            DownloadManager.enqueue(mainViewModel, track.link)
+            DownloadManager.start()
+
             onClose()
         })
     }
@@ -330,6 +344,10 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 
     buttonForSettingBar("Просмотреть очередь", Icons.Rounded.QueueMusic, {
         onScreenMove(settingPages.QUEUE_SHOW_LIST_SCREEN)
+    })
+
+    buttonForSettingBar("Очередь загрузок", Icons.Rounded.CloudQueue, {
+        onScreenMove(settingPages.DOWNLOAD_QUEUE_PAGE)
     })
 
     buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
@@ -444,79 +462,178 @@ fun drawQueuePage(
             .fillMaxSize()
     ) {
 
-        itemsIndexed(
-            items = filteredQueue,
-            key = { _, queueElement -> queueElement.id }
-        ) { indexFiltered, queueElement ->
-            val track = mainUiState.allAudioData[queueElement.hashKey]
+        if (filteredQueue.isEmpty().not())
+        {
+            itemsIndexed(
+                items = filteredQueue,
+                key = { _, queueElement -> queueElement.id }
+            ) { indexFiltered, queueElement ->
+                val track = mainUiState.allAudioData[queueElement.hashKey]
 
 
-            ReorderableItem(reorderableState, key = queueElement.id) { isDragging ->
-                val elevation   by animateDpAsState(    if (isDragging) 4.dp else 0.dp  )
-                val scale       by animateFloatAsState( if (isDragging) 1.05f else 1f   )
+                ReorderableItem(reorderableState, key = queueElement.id) { isDragging ->
+                    val elevation   by animateDpAsState(    if (isDragging) 4.dp else 0.dp  )
+                    val scale       by animateFloatAsState( if (isDragging) 1.05f else 1f   )
 
-                Row(
-                    modifier = Modifier
-                        .shadow(elevation)
-                        .scale(scale)
-                ) {
-                    //detele using original index
-                    IconButton(
-                        onClick = {
-                            val originalIndex = mainUiState.posInQueue + 1 + indexFiltered
-                            removeFromQueue(mainViewModel, originalIndex)
-                        }
+                    Row(
+                        modifier = Modifier
+                            .shadow(elevation)
+                            .scale(scale)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "delete from queue",
-                            tint = Color.White
-                        )
-                    }
-
-                    asyncedImage(
-                        track,
-                        Modifier.size(35.dp)
-                    )
-
-
-                    track?.let { t ->
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp)
+                        //detele using original index
+                        IconButton(
+                            onClick = {
+                                val originalIndex = mainUiState.posInQueue + 1 + indexFiltered
+                                removeFromQueue(mainViewModel, originalIndex)
+                            }
                         ) {
-                            Text(t.title, color = Color.White)
-                            Text(
-                                text = t.artists.joinToString { it.title },
-                                maxLines = 1,
-                                fontSize = 10.sp,
-                                color = Color.Gray
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "delete from queue",
+                                tint = Color.White
+                            )
+                        }
+
+                        asyncedImage(
+                            track,
+                            Modifier.size(35.dp)
+                        )
+
+
+                        track?.let { t ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 8.dp)
+                            ) {
+                                Text(t.title, color = Color.White)
+                                Text(
+                                    text = t.artists.joinToString { it.title },
+                                    maxLines = 1,
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            modifier = Modifier.draggableHandle(
+                                onDragStarted = {
+                                    isReordering = true
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                },
+                                onDragStopped = {
+                                    isReordering = false
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            ),
+                            onClick = {}
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DragHandle,
+                                contentDescription = "Reorder",
+                                tint = Color.White
                             )
                         }
                     }
-
-                    IconButton(
-                        modifier = Modifier.draggableHandle(
-                            onDragStarted = {
-                                isReordering = true
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            },
-                            onDragStopped = {
-                                isReordering = false
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                        ),
-                        onClick = {}
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.DragHandle,
-                            contentDescription = "Reorder",
-                            tint = Color.White
-                        )
-                    }
+                }
+            }
+        }
+        else
+        {
+            item {
+                Row()
+                {
+                    Icon(Icons.Rounded.CleaningServices, "")
+                    Text("Ой..Тут пусто")
                 }
             }
         }
     }
 }
+
+@androidx.annotation.OptIn(
+    UnstableApi::class
+)
+@Composable
+fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
+    val downloadState by DownloadManager.state.collectAsState()
+
+    val lazyListState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+
+    Text(
+        "Очередь скачивания...",
+        color = Color.White,
+        modifier = Modifier.padding(15.dp)
+    )
+
+    val queue = downloadState.queued
+    val active = downloadState.active
+
+    if (queue.isEmpty() && active.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.CleaningServices, contentDescription = null, tint = Color.Gray)
+                Spacer(Modifier.width(8.dp))
+                Text("Очередь пуста", color = Color.Gray)
+            }
+        }
+        return
+    }
+
+    LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+        val combinedQueue = active.toList() + queue
+
+        itemsIndexed(combinedQueue, key = { _, hash -> hash }) { index, hash ->
+            val track = mainViewModel.uiState.value.allAudioData[hash]
+            val progress = track?.progressStatus?.downloadingProgress ?: 0f
+            val isDownloading = hash in active
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .background(Color(0xFF1E1E1E), shape = RoundedCornerShape(6.dp))
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Кнопка отмены
+                IconButton(
+                    onClick = {
+                        DownloadManager.cancel(hash)
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (isDownloading) Icons.Rounded.Close else Icons.Rounded.Delete,
+                        contentDescription = null,
+                        tint = Color.White
+                    )
+                }
+
+                // Обложка
+                asyncedImage(track, Modifier.size(35.dp))
+
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(track?.title ?: "Unknown", color = Color.White)
+                    Text(
+                        track?.artists?.joinToString { it.title } ?: "",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        maxLines = 1
+                    )
+
+                    LinearProgressIndicator(
+                        progress = if (isDownloading) progress / 100f else 0f,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .padding(top = 4.dp),
+                        color = if (isDownloading) Color.Green else Color.Gray
+                    )
+                }
+            }
+        }
+    }
+}
+

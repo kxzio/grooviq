@@ -56,6 +56,7 @@ import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
 import com.example.groviq.frontEnd.appScreens.openArtist
@@ -239,83 +240,118 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
         ?.mapNotNull { mainUiState.allAudioData[it] }
         ?: emptyList()
 
+
+
     val isPlaylist = mainViewModel.isPlaylist(audioSourcePath)
 
     Column {
 
-        Column()
-        {
-            asyncedImage(
-                songs.firstOrNull(),
-                Modifier.size(85.dp),
-                onEmptyImageCallback = {
-                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(85.dp))
-                }
-            )
-
-            if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
-            {
-                Text(audioSourcePath)
-            }
-            else
-            {
-                Text(audioSource!!.nameOfAudioSource)
-            }
-
-            if (audioSource!!.artistsOfAudioSource.isNullOrEmpty().not())
-            {
-                Column {
-
-                    audioSource!!.artistsOfAudioSource.forEach { artist ->
-
-                        Row()
-                        {
-                            Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
-                                shape = CircleShape, color = Color(255, 255, 255) ) )
-                            Text(artist.title, Modifier.clickable {
-                                openArtist(artist.url)
-                            })
-                        }
-
-
-                    }
-
-
-                }
-
-            }
-
-
-            if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
-            {
-                Text(audioSource!!.yearOfAudioSource)
-            }
-
-            if (isPlaylist.not())
-            {
-                Button(onClick = {
-                    mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
-                    mainViewModel.saveAudioSourcesToRoom()
-                    mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
-                })
-                {
-                    if (mainUiState.audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
-                    {
-                        Text("Удалить")
-                    }
-                    else
-                    {
-                        Text("Сохранить")
-                    }
-                }
-            }
-
-        }
 
         if (songs.isEmpty())
             return@Column
 
         LazyColumn {
+
+            item {
+                Column()
+                {
+                    asyncedImage(
+                        songs.firstOrNull(),
+                        Modifier.size(85.dp),
+                        onEmptyImageCallback = {
+                            Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(85.dp))
+                        }
+                    )
+
+                    if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
+                    {
+                        Text(audioSourcePath)
+                    }
+                    else
+                    {
+                        Text(audioSource!!.nameOfAudioSource)
+                    }
+
+                    if (audioSource!!.artistsOfAudioSource.isNullOrEmpty().not())
+                    {
+                        Column {
+
+                            audioSource!!.artistsOfAudioSource.forEach { artist ->
+
+                                Row()
+                                {
+                                    Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
+                                        shape = CircleShape, color = Color(255, 255, 255) ) )
+                                    Text(artist.title, Modifier.clickable {
+                                        openArtist(artist.url)
+                                    })
+                                }
+
+
+                            }
+
+
+                        }
+
+                    }
+
+
+                    if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
+                    {
+                        Text(audioSource!!.yearOfAudioSource)
+                    }
+
+                    if (isPlaylist.not())
+                    {
+                        Button(onClick = {
+                            mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
+                            mainViewModel.saveAudioSourcesToRoom()
+                            mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
+                        })
+                        {
+                            if (mainUiState.audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
+                            {
+                                Text("Удалить")
+                            }
+                            else
+                            {
+                                Text("Сохранить")
+                            }
+                        }
+                    }
+
+                    if (songs.isNullOrEmpty().not())
+                    {
+                        Button(onClick = {
+
+                            if (songs.all {it.file != null && it.file!!.exists()})
+                            {
+                                songs.forEach { track ->
+                                    DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                                }
+                            }
+                            else
+                            {
+                                songs.forEach { track ->
+                                    DownloadManager.enqueue(mainViewModel, track.link)
+                                }
+                                DownloadManager.start()
+                            }
+
+                        })
+                        {
+                            if (songs.all {it.file != null && it.file!!.exists()})
+                            {
+                                Text("Удалить с устройства")
+                            }
+                            else
+                                Text("Скачать на устройство")
+                        }
+                    }
+
+
+                }
+            }
             items(
                 songs
             ) { song ->
