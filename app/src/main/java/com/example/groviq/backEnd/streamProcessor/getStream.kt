@@ -1,8 +1,10 @@
 package com.example.groviq.backEnd.streamProcessor
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -143,9 +145,11 @@ fun cancelFetchForSong(songKey: String, mainViewModel: PlayerViewModel) {
 
 var currentFetchQueueJob: Job? = null
 
+@OptIn(
+    UnstableApi::class
+)
 fun fetchQueueStream(mainViewModel: PlayerViewModel) {
-    val preloader = Preloader(
-        AppViewModels.player.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
+    val preloader = Preloader(AppViewModels.player.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
 
     CoroutineScope(Dispatchers.Main).launch {
         currentFetchQueueJob?.cancelAndJoin()
@@ -162,6 +166,12 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
             .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
             .subList(fromIndex, toIndex)
             .filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
+            .filterIndexed { idx, _ -> (fromIndex + idx) != currentPos }
+
+        val aroundSongsForPreload = currentQueue
+            .mapNotNull { it.hashKey }
+            .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
+            .subList(fromIndex, toIndex)
             .filterIndexed { idx, _ -> (fromIndex + idx) != currentPos }
 
         currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
@@ -201,7 +211,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
                     }.awaitAll()
 
                     supervisorScope {
-                        aroundSongs.mapNotNull { song ->
+                        aroundSongsForPreload.mapNotNull { song ->
                             val audioUrl = song.stream.streamUrl
                             if (audioUrl != null) {
                                 async {
