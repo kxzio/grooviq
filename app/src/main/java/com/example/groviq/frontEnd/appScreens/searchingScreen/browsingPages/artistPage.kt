@@ -126,104 +126,108 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                     }
                 }
             }
+            else
+            {
+                if (searchUiState.gettersInProcess == true) {
+                    item {
+                        CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                    }
+                    return@LazyColumn
+                }
 
-            if (searchUiState.gettersInProcess == true) {
                 item {
-                    CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                    asyncedImage(
+                        searchUiState.currentArtist.imageUrl,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                    )
                 }
-                return@LazyColumn
-            }
 
-            item {
-                asyncedImage(
-                    searchUiState.currentArtist.imageUrl,
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                )
-            }
+                item {
+                    Text(searchUiState.currentArtist.title)
+                }
 
-            item {
-                Text(searchUiState.currentArtist.title)
-            }
+                val topSongs = mainUiState.audioData[artistUrl]?.songIds
+                    ?.mapNotNull { mainUiState.allAudioData[it] }
+                    ?: emptyList()
 
-            val topSongs = mainUiState.audioData[artistUrl]?.songIds
-                ?.mapNotNull { mainUiState.allAudioData[it] }
-                ?: emptyList()
-
-            items(topSongs) { song ->
-                SwipeToQueueItem(
-                    audioSource = artistUrl,
-                    song = song,
-                    mainViewModel = mainViewModel,
-                    modifier = Modifier.clickable {
-                        mainViewModel.setPlayingAudioSourceHash(artistUrl)
-                        updatePosInQueue(mainViewModel, song.link)
-                        mainViewModel.deleteUserAdds()
-                        AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel, true)
-                    }
-                )
-            }
+                items(topSongs) { song ->
+                    SwipeToQueueItem(
+                        audioSource = artistUrl,
+                        song = song,
+                        mainViewModel = mainViewModel,
+                        modifier = Modifier.clickable {
+                            mainViewModel.setPlayingAudioSourceHash(artistUrl)
+                            updatePosInQueue(mainViewModel, song.link)
+                            mainViewModel.deleteUserAdds()
+                            AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel, true)
+                        }
+                    )
+                }
 
 
-            item {
-                Text("Альбомы : ")
-            }
+                item {
+                    Text("Альбомы : ")
+                }
 
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(searchUiState.currentArtist.albums) { album ->
-                        Column(
-                            Modifier.clickable {
-                                val link = album.link
-                                val encoded = Uri.encode(link)
-                                searchingScreenNav.navigate("${Screen.Searching.route}/album/$encoded")
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(searchUiState.currentArtist.albums) { album ->
+                            Column(
+                                Modifier.clickable {
+                                    val link = album.link
+                                    val encoded = Uri.encode(link)
+                                    searchingScreenNav.navigate("${Screen.Searching.route}/album/$encoded")
+                                }
+                            ) {
+                                asyncedImage(
+                                    album.image_url,
+                                    modifier = Modifier
+                                        .size(110.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                )
+                                Text(album.album, Modifier.padding(top = 5.dp))
+                                Text(album.year ?: "", Modifier.padding(top = 5.dp))
                             }
-                        ) {
-                            asyncedImage(
-                                album.image_url,
-                                modifier = Modifier
-                                    .size(110.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                            )
-                            Text(album.album, Modifier.padding(top = 5.dp))
-                            Text(album.year ?: "", Modifier.padding(top = 5.dp))
                         }
+                    }
+                }
+
+                item {
+                    Text("Похожие артисты : ")
+                }
+
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(searchUiState.currentArtist.relatedArtists) { item ->
+                            Column(Modifier.clickable { openArtist(item.url) }) {
+                                asyncedImage(
+                                    item.imageUrl,
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clip(CircleShape)
+                                )
+                                Text(text = item.title, color = Color.White)
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    if (mainUiState.allAudioData[mainUiState.playingHash] != null) {
+                        Spacer(Modifier.height(80.dp))
                     }
                 }
             }
 
-            item {
-                Text("Похожие артисты : ")
-            }
 
-            item {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(searchUiState.currentArtist.relatedArtists) { item ->
-                        Column(Modifier.clickable { openArtist(item.url) }) {
-                            asyncedImage(
-                                item.imageUrl,
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .clip(CircleShape)
-                            )
-                            Text(text = item.title, color = Color.White)
-                        }
-                    }
-                }
-            }
-
-            item {
-                if (mainUiState.allAudioData[mainUiState.playingHash] != null) {
-                    Spacer(Modifier.height(80.dp))
-                }
-            }
         }
     }
 

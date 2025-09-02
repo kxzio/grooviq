@@ -277,7 +277,8 @@ fun SwipeToQueueItem(
                         Modifier.size(35.dp)
                     )
 
-                    SquareProgressBox(song.progressStatus.downloadingProgress.toInt(), size = 36.dp)
+                    if (song.file?.exists()?.not() ?: true)
+                        SquareProgressBox(song.progressStatus.downloadingProgress.toInt(), size = 36.dp)
 
                 }
 

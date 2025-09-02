@@ -3,20 +3,33 @@ package com.example.groviq.frontEnd
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.content.MediaType.Companion.Text
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -27,6 +40,7 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.groviq.backEnd.dataStructures.songData
+import kotlinx.coroutines.delay
 
 @Composable
 fun asyncedImage(
@@ -170,5 +184,59 @@ fun errorButton( onClick: () -> Unit,)
     Button( { onClick() } )
     {
         Text("Повторить еще раз..")
+    }
+}
+
+@Composable
+fun UndoPopup(
+    message: String,
+    durationMs: Long = 5000L,
+    onUndo: () -> Unit,
+    visible: Boolean,
+    onDismiss: () -> Unit
+) {
+    if (!visible) return
+
+    var remainingTime by remember { mutableStateOf(durationMs) }
+
+    LaunchedEffect(Unit) {
+        val interval = 100L
+        while (remainingTime > 0) {
+            delay(interval)
+            remainingTime -= interval
+        }
+        onDismiss()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .shadow(8.dp, RoundedCornerShape(12.dp)),
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("$message (${(remainingTime / 1000L) + 1})")
+                Button(
+                    onClick = {
+                        onUndo()
+                        onDismiss()
+                    }
+                ) {
+                    Text("Отменить")
+                }
+            }
+        }
     }
 }
