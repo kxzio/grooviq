@@ -393,12 +393,10 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     suspend fun awaitStreamUrlFor(hash: String): String? {
         val song = uiState.value.allAudioData[hash] ?: return null
 
-        song.file?.takeIf { it.exists() }?.let { return it.absolutePath }
-
         return uiState
-            .map { state -> state.allAudioData[hash]?.stream?.streamUrl?.takeIf { it.isNotEmpty() } }
+            .map { state -> state.allAudioData[hash]?.stream?.takeIf { it.streamUrl.isNotEmpty() && song.shouldGetStream().not() } }
             .filterNotNull()
-            .firstOrNull()
+            .firstOrNull()?.streamUrl
     }
 
     fun clearUnusedAudioSourcedAndSongs(searchViewModel: SearchViewModel)

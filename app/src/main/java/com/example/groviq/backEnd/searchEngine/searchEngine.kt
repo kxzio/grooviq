@@ -385,7 +385,7 @@ class SearchViewModel : ViewModel() {
             var success = false
 
             _uiState.update { it.copy(gettersInProcess = true, publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
-                this[ navigationSaver] = publucErrors.CLEAN
+                this[ navigationSaver ] = publucErrors.CLEAN
             }) }
 
             repeat(maxRetries) { attempt ->

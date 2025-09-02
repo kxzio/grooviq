@@ -99,9 +99,9 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (searchUiState.publicErrors[artistUrl] != publucErrors.CLEAN) {
+            if (searchUiState.publicErrors[navigationSaver] != publucErrors.CLEAN) {
                 item {
-                    when (searchUiState.publicErrors[ navigationSaver]) {
+                    when (searchUiState.publicErrors[ navigationSaver ]) {
                         publucErrors.NO_INTERNET -> {
                             Text("Нет подключения к интернету")
                             errorButton() {
@@ -165,7 +165,6 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                         }
                     )
                 }
-
 
                 item {
                     Text("Альбомы : ")

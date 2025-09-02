@@ -119,8 +119,6 @@ class AudioPlayerManager(context: Context) {
 
     var player = CustomPlayer(notOverridedPlayer)
 
-
-
     //thread controllers
     private var currentPlaybackJob: Job? = null
     private val playbackDispatcher = Executors.newSingleThreadExecutor { r ->
