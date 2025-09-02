@@ -41,8 +41,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import org.json.JSONArray
 import org.json.JSONObject
@@ -90,26 +92,14 @@ class SearchViewModel : ViewModel() {
     //results getter
     private var searchJob: Job? = null
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     fun getResultsOfSearchByString(context: Context, request: String) {
         val appContext = context.applicationContext
         searchJob?.cancel()
 
         searchJob = CoroutineScope(Dispatchers.IO).launch {
-
-            if (!hasInternetConnection(MyApplication.globalContext!!))
-            {
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(
-                        searchResults = mutableListOf(),
-                        searchInProcess = false,
-                        publicErrors = publucErrors.NO_INTERNET
-                    )
-                }
-                return@launch
-            }
+            var attempt = 0
+            val maxRetries = 5
 
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
@@ -119,32 +109,59 @@ class SearchViewModel : ViewModel() {
                 )
             }
 
-            try {
-                val jsonString = getPythonModule(appContext)
-                    .callAttr("searchOnServer", request)
-                    .toString()
+            while (isActive && attempt < maxRetries) {
+                if (!hasInternetConnection(appContext)) {
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = _uiState.value.copy(
+                            publicErrors = publucErrors.NO_INTERNET
+                        )
+                    }
 
-                val jsonObject = JSONObject(jsonString)
-                if (jsonObject.has("error")) return@launch
-
-                val results = parseUnifiedJsonArray(jsonObject.getJSONArray("results"))
-
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(
-                        searchResults = results.toMutableList(),
-                        searchInProcess = false,
-                        publicErrors = if (results.isEmpty()) publucErrors.NO_RESULTS else publucErrors.CLEAN
-                    )
+                    delay(2000L)
+                    attempt++
+                    continue
                 }
 
-            } catch (e: Exception) {
-                Log.e("SearchError", "SearchingEngineError", e)
-                withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(
-                        searchInProcess = false,
-                        publicErrors = publucErrors.UNKNOWN_ERROR
-                    )
+                try {
+                    val jsonString = getPythonModule(appContext)
+                        .callAttr("searchOnServer", request)
+                        .toString()
+
+                    val jsonObject = JSONObject(jsonString)
+                    if (jsonObject.has("error")) {
+                        withContext(Dispatchers.Main) {
+                            _uiState.value = _uiState.value.copy(
+                                searchInProcess = false,
+                                publicErrors = publucErrors.UNKNOWN_ERROR
+                            )
+                        }
+                        return@launch
+                    }
+
+                    val results = parseUnifiedJsonArray(jsonObject.getJSONArray("results"))
+
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = _uiState.value.copy(
+                            searchResults = results.toMutableList(),
+                            searchInProcess = false,
+                            publicErrors = if (results.isEmpty()) publucErrors.NO_RESULTS else publucErrors.CLEAN
+                        )
+                    }
+                    return@launch
+
+                } catch (e: Exception) {
+                    Log.e("SearchError", "SearchingEngineError", e)
+                    attempt++
+                    delay(2000L * attempt)
                 }
+            }
+
+            // Если все попытки исчерпаны
+            withContext(Dispatchers.Main) {
+                _uiState.value = _uiState.value.copy(
+                    searchInProcess = false,
+                    publicErrors = publucErrors.UNKNOWN_ERROR
+                )
             }
         }
     }
@@ -169,79 +186,92 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     fun getAlbum(
         context: Context,
         request: String,
         mainViewModel: PlayerViewModel
     ) {
-        if (!hasInternetConnection(context)) {
-            _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
-            return
-        }
-
-        //cancel job, if we have previous task active
         currentAlbumJob?.cancel()
 
-        _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
-
         currentAlbumJob = viewModelScope.launch {
-            try {
+            val maxRetries = 3
+            val timeoutPerTry = 10000L
+            var success = false
 
-                //request to server
-                val albumMetaJson = withContext(Dispatchers.IO) {
-                    getPythonModule(context)
-                        .callAttr("getAlbum", request)
-                        .toString()
+            _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
+
+            repeat(maxRetries) { attempt ->
+                if (!hasInternetConnection(context)) {
+                    delay(2000L * (attempt + 1))
+                    return@repeat
                 }
 
-                //parsing
-                val albumDto = parseAlbumJson(albumMetaJson)
+                try {
+                    val albumMetaJson = withTimeoutOrNull(timeoutPerTry) {
+                        withContext(Dispatchers.IO) {
+                            getPythonModule(context)
+                                .callAttr("getAlbum", request)
+                                .toString()
+                        }
+                    } ?: run {
+                        return@repeat
+                    }
 
-                if (albumDto.artists    .isNullOrEmpty()   ||
-                    albumDto.image_url  .isNullOrEmpty()
-                    )
-                {
-                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
+                    val albumDto = parseAlbumJson(albumMetaJson)
+
+                    if (albumDto.artists.isNullOrEmpty() || albumDto.image_url.isNullOrEmpty()) {
+                        return@repeat
+                    }
+
+                    val tracks = albumDto.tracks.map { t ->
+                        songData(
+                            link = t.url,
+                            title = t.title,
+                            artists = t.artists,
+                            stream = streamInfo(),
+                            duration = t.duration_ms,
+                            number = t.track_num,
+                            progressStatus = songProgressStatus(),
+                            playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
+                            art = null,
+                            art_link = albumDto.image_url,
+                            album_original_link = request
+                        )
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.setAlbumTracks(
+                            request,
+                            tracks,
+                            albumDto.album,
+                            albumDto.artists,
+                            albumDto.year
+                        )
+                        _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
+                    }
+
+                    success = true
                     return@launch
-                }
 
-                //mapping the results from parsed values
-                val tracks = albumDto.tracks.map { t ->
-                    songData(
-                        link = t.url,
-                        title = t.title,
-                        artists = t.artists,
-                        stream = streamInfo(),
-                        duration = t.duration_ms,
-                        number = t.track_num,
-                        progressStatus = songProgressStatus(),
-                        playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-                        art = null,
-                        art_link = albumDto.image_url,
-                        album_original_link = request
+                } catch (e: CancellationException) {
+                    return@launch
+                } catch (e: Exception) {
+                    Log.e("getAlbum", "getter error (try $attempt)", e)
+                    delay(1500L * (attempt + 1))
+                }
+            }
+
+            if (!success) {
+                _uiState.update {
+                    it.copy(
+                        gettersInProcess = false,
+                        publicErrors =
+                        if (!hasInternetConnection(context)) publucErrors.NO_INTERNET
+                        else publucErrors.NO_RESULTS
                     )
                 }
-
-                //update UI value
-                withContext(Dispatchers.Main) {
-                    mainViewModel.setAlbumTracks(
-                        request,
-                        tracks,
-                        albumDto.album,
-                        albumDto.artists,
-                        albumDto.year
-                    )
-                    _uiState.update { it.copy(publicErrors = publucErrors.CLEAN) }
-                }
-
-            } catch (e: CancellationException) {
-
-            } catch (e: Exception) {
-                Log.e("getAlbum", "getter error", e)
-            } finally {
+            } else {
                 _uiState.update { it.copy(gettersInProcess = false) }
             }
         }
@@ -307,62 +337,89 @@ class SearchViewModel : ViewModel() {
         )
     }
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     fun getArtist(
         context: Context,
-        request: String, mainViewModel: PlayerViewModel
+        request: String,
+        mainViewModel: PlayerViewModel
     ) {
-        if (!hasInternetConnection(context)) {
-            _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
-            return
-        }
-
-        //cancel previous job
         currentArtistJob?.cancel()
 
-        _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
-
         currentArtistJob = viewModelScope.launch {
-            try {
-                val artistJson = withContext(Dispatchers.IO) {
-                    getPythonModule(context)
-                        .callAttr("getArtist", request)
-                        .toString()
+            val maxRetries = 3
+            val timeoutPerTry = 8000L
+            var success = false
+
+            _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
+
+            repeat(maxRetries) { attempt ->
+                if (!hasInternetConnection(context)) {
+                    delay(2000L * (attempt + 1))
+                    return@repeat
                 }
 
-                val artist = parseArtistJson(artistJson, request)
+                try {
+                    val artistJson = withTimeoutOrNull(timeoutPerTry) {
+                        withContext(Dispatchers.IO) {
+                            getPythonModule(context)
+                                .callAttr("getArtist", request)
+                                .toString()
+                        }
+                    } ?: run {
+                        return@repeat
+                    }
 
-                if (artist.url      .isNullOrEmpty()    ||
-                    artist.title    .isNullOrEmpty()    ||
-                    artist.imageUrl .isNullOrEmpty()
-                    )
-                {
-                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
+                    val artist = parseArtistJson(artistJson, request)
+
+                    if (artist.url.isNullOrEmpty() ||
+                        artist.title.isNullOrEmpty() ||
+                        artist.imageUrl.isNullOrEmpty()
+                    ) {
+                        return@repeat
+                    }
+
+                    val topTracks = artist.topTracks.map { track ->
+                        async { trackDtoToSongData(track) }
+                    }.awaitAll()
+
+                    withContext(Dispatchers.Main) {
+                        _uiState.update {
+                            it.copy(
+                                currentArtist = artist,
+                                publicErrors = publucErrors.CLEAN,
+                                gettersInProcess = false
+                            )
+                        }
+                        mainViewModel.setAlbumTracks(
+                            request,
+                            topTracks,
+                            "Popular tracks",
+                            audioSourceArtist = emptyList(),
+                            audioSourceYear = "",
+                        )
+                    }
+
+                    success = true
                     return@launch
-                }
 
-                withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(currentArtist = artist, publicErrors = publucErrors.CLEAN) }
-                    mainViewModel.setAlbumTracks(
-                        request,
-                        artist.topTracks.map { track -> async { trackDtoToSongData(track) } }.awaitAll(),
-                        "Popular tracks",
-                        audioSourceArtist = emptyList(),
-                        audioSourceYear = "",
+                } catch (e: CancellationException) {
+                    return@launch
+                } catch (e: Exception) {
+                    Log.e("getArtist", "Artist load error (try $attempt)", e)
+                    delay(1500L * (attempt + 1))
+                }
+            }
+
+            if (!success) {
+                _uiState.update {
+                    it.copy(
+                        gettersInProcess = false,
+                        publicErrors =
+                        if (!hasInternetConnection(context)) publucErrors.NO_INTERNET
+                        else publucErrors.NO_RESULTS
                     )
-
                 }
-
-            } catch (e: CancellationException) {
-                //cancel
-            } catch (e: Exception) {
-                Log.e("getArtist", "Artist load error", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            } finally {
+            } else {
                 _uiState.update { it.copy(gettersInProcess = false) }
             }
         }
@@ -489,57 +546,79 @@ class SearchViewModel : ViewModel() {
             )
     }
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     fun getTrack(
         context: Context,
         request: String,
         mainViewModel: PlayerViewModel
     ) {
-        if (!hasInternetConnection(context)) {
-            _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_INTERNET) }
-            return
-        }
-
         currentTrackJob?.cancel()
 
-        _uiState.update { it.copy(gettersInProcess = true) }
-
         currentTrackJob = viewModelScope.launch {
-            try {
-                val trackMetaJson = withContext(Dispatchers.IO) {
-                    getPythonModule(context)
-                        .callAttr("getTrack", request)
-                        .toString()
+            val maxRetries = 3
+            val timeoutPerTry = 8000L
+            var success = false
+
+            repeat(maxRetries) { attempt ->
+                if (!hasInternetConnection(context)) {
+                    delay(2000L * (attempt + 1))
+                    return@repeat
                 }
 
-                val trackDto = parseTrackJson(trackMetaJson)
+                try {
+                    val trackMetaJson = withTimeoutOrNull(timeoutPerTry) {
+                        withContext(Dispatchers.IO) {
+                            getPythonModule(context)
+                                .callAttr("getTrack", request)
+                                .toString()
+                        }
+                    } ?: run {
+                        return@repeat
+                    }
 
-                val trackData = songData(
-                    link = trackDto.url,
-                    title = trackDto.title,
-                    artists = trackDto.artists,
-                    stream = streamInfo(),
-                    duration = trackDto.duration_ms,
-                    number = 1,
-                    progressStatus = songProgressStatus(),
-                    playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
-                    art = null,
-                    art_link = trackDto.imageUrl!!,
-                    album_original_link = trackDto.albumUrl
-                )
+                    val trackDto = parseTrackJson(trackMetaJson)
 
-                withContext(Dispatchers.Main) {
-                    mainViewModel.setTrack(request, trackData)
+                    if (trackDto.url.isNullOrEmpty() ||
+                        trackDto.title.isNullOrEmpty() ||
+                        trackDto.artists.isEmpty() ||
+                        trackDto.imageUrl.isNullOrEmpty()
+                    ) {
+                        return@repeat
+                    }
+
+                    val trackData = songData(
+                        link = trackDto.url,
+                        title = trackDto.title,
+                        artists = trackDto.artists,
+                        stream = streamInfo(),
+                        duration = trackDto.duration_ms,
+                        number = 1,
+                        progressStatus = songProgressStatus(),
+                        playingEnterPoint = audioEnterPoint.NOT_PLAYABLE,
+                        art = null,
+                        art_link = trackDto.imageUrl,
+                        album_original_link = trackDto.albumUrl
+                    )
+
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.setTrack(request, trackData)
+                    }
+
+                    success = true
+                    return@launch
+
+                } catch (e: CancellationException) {
+                    return@launch
+                } catch (e: Exception) {
+                    Log.e("getTrack", "getter error (try $attempt)", e)
+                    delay(1500L * (attempt + 1))
                 }
+            }
 
-            } catch (e: CancellationException) {
+            if (!success) {
 
-            } catch (e: Exception) {
-                Log.e("getTrack", "getter error", e)
-            } finally {
-                _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
+            } else {
+
             }
         }
     }
@@ -559,9 +638,7 @@ class SearchViewModel : ViewModel() {
         )
     }
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     suspend fun addRelatedTracksToCurrentQueue(
         context: Context,
         request: String,
@@ -692,9 +769,7 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     suspend fun addRelatedTracksToAudioSource(
         context: Context,
         request: String,
@@ -750,9 +825,7 @@ class SearchViewModel : ViewModel() {
         }
     }
 
-    @OptIn(
-        UnstableApi::class
-    )
+    @OptIn(UnstableApi::class)
     suspend fun prepareRelatedTracks(
         context: Context,
         request: String,
@@ -938,7 +1011,9 @@ class SearchViewModel : ViewModel() {
                     result
                 }
 
-                val finalLimited = allTracks.distinctBy { it.link }.take(25)
+                var finalLimited = allTracks.distinctBy { it.link }.take(25)
+
+                finalLimited = finalLimited.shuffled()
 
                 // check if we actually got enough tracks
                 if (finalLimited.isEmpty()) return@launch
@@ -1058,7 +1133,7 @@ class SearchViewModel : ViewModel() {
                         if (tracks.isNotEmpty()) {
                             mainViewModel.setAlbumTracks(
                                 "MOOD_PLAYLIST_AUTOGENERATED_${index + 1}",
-                                tracks.distinctBy { it.link }.take(20),
+                                tracks.distinctBy { it.link }.take(20).shuffled(),
                                 audioSourceName = playlistName,
                                 audioSourceArtist = emptyList(),
                                 audioSourceYear = "",

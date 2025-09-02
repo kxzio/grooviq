@@ -185,7 +185,7 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                     val boxWidth = constraints.maxWidth.toFloat()
                     val gradientWidth = boxWidth
-                    val alphaFactor = 0.3f
+                    val alphaFactor = 0.5f
 
                     Box(
                         modifier = Modifier

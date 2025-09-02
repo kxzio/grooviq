@@ -41,42 +41,45 @@ import kotlin.coroutines.cancellation.CancellationException
 private val fetchJobs: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
 private val fetchScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+@OptIn(
+    UnstableApi::class
+)
 fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
-
-    //if we already have this job - cancel
+    // if we already have this job - cancel
     if (fetchJobs.containsKey(songKey)) return
 
     val songSnapshot = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 
-    //if already in process - exit
+    // if already in process - exit
     if (songSnapshot.progressStatus.streamHandled) return
 
-    //flag song, that we already processing song
+    // flag song, that we already processing song
     runOnMain {
-        mainViewModel.updateStatusForSong(songKey, songSnapshot.progressStatus.copy(streamHandled = true))
+        mainViewModel.updateStatusForSong(
+            songKey,
+            songSnapshot.progressStatus.copy(streamHandled = true)
+        )
     }
 
-    //create a job and map it to delete it
+    // create a job and map it to delete it
     val job = fetchScope.launch {
         try {
-            // if we have to internet, wait 60s and then retry
+            // if we have no internet, wait 60s and then retry
             if (!hasInternetConnection(MyApplication.globalContext!!)) {
-                //dont fall, wait 60s
                 try {
                     waitForInternet(maxWaitMs = 60_000L, checkIntervalMs = 1_000L)
                 } catch (e: IOException) {
-                    //cancel - go to finaly and cancel flag
+                    // cancel - go to finally and cancel flag
                     throw e
                 }
             }
 
-            //get best stream url with 3 retries if we have no internet
+            // get best stream url with 3 retries
             val audioUrl = retryWithBackoff(retries = 3, initialDelayMs = 500L) {
-
-                //safe check : if courinte was canceled - exit
+                // safe check: if coroutine was canceled - exit
                 if (!isActive) throw CancellationException()
 
-               //add timeout 30s to fetch song - maximum time
+                // add timeout 30s to fetch song - maximum time
                 withContext(Dispatchers.IO) {
                     val result = withTimeoutOrNull(30_000L) {
                         getBestAudioStreamUrl(songSnapshot.link)
@@ -88,44 +91,49 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
             if (!isActive) return@launch
 
             if (audioUrl != null) {
-                //before writing, making sure songs exists
+                // before writing, making sure song exists
                 withContext(Dispatchers.Main) {
                     val latestSong = mainViewModel.uiState.value.allAudioData[songKey] ?: return@withContext
-                    //additional check - if other thread already set stream
+
+                    // additional check - if other thread already set stream
                     if (latestSong.shouldGetStream().not() && latestSong.stream.streamUrl != null) {
-                        // nah, we dont need it
                         return@withContext
                     }
+
                     mainViewModel.updateStreamForSong(songKey, audioUrl)
                 }
             } else {
-                //not found
+                // not found
                 println("No audioUrl for $songKey")
             }
 
         } catch (ce: CancellationException) {
-            //error - go to final and cancel flag
+            // error - go to final and cancel flag
             throw ce
         } catch (e: Exception) {
-            //extractor errors
+            // extractor errors
             e.printStackTrace()
             runOnMain {
-
+                // no-op
             }
         } finally {
             // always delete flag in NonCancellable + Main
             withContext(NonCancellable + Dispatchers.Main) {
                 val latestSong = mainViewModel.uiState.value.allAudioData[songKey]
                 if (latestSong != null && latestSong.progressStatus.streamHandled) {
-                    mainViewModel.updateStatusForSong(songKey, latestSong.progressStatus.copy(streamHandled = false))
+                    mainViewModel.updateStatusForSong(
+                        songKey,
+                        latestSong.progressStatus.copy(streamHandled = false)
+                    )
                 }
             }
-            //delete job from map
+
+            // delete job from map
             fetchJobs.remove(songKey)
         }
     }
 
-    //move job to map
+    // move job to map
     fetchJobs[songKey] = job
 }
 

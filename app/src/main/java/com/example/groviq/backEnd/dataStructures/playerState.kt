@@ -500,6 +500,11 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         if (AppViewModels.player.playerManager.player != null)
             AppViewModels.player.playerManager.player!!.stop()
 
+        _uiState.value = _uiState.value.copy(
+            playingHash = "",
+            playingAudioSourceHash = ""
+        )
+
         viewModelScope.launch {
 
             //wait
