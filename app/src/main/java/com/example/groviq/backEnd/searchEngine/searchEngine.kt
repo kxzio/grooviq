@@ -26,6 +26,7 @@ import com.example.groviq.backEnd.dataStructures.streamInfo
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.saveSystem.DataRepository
+import com.example.groviq.frontEnd.Screen
 import com.example.groviq.getPythonModule
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
@@ -105,7 +106,9 @@ class SearchViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     searchResults = mutableListOf(),
                     searchInProcess = true,
-                    publicErrors = publucErrors.CLEAN
+                    publicErrors = _uiState.value.publicErrors.toMutableMap().apply {
+                        this["search"] = publucErrors.CLEAN
+                    }
                 )
             }
 
@@ -113,7 +116,9 @@ class SearchViewModel : ViewModel() {
                 if (!hasInternetConnection(appContext)) {
                     withContext(Dispatchers.Main) {
                         _uiState.value = _uiState.value.copy(
-                            publicErrors = publucErrors.NO_INTERNET
+                            publicErrors = _uiState.value.publicErrors.toMutableMap().apply {
+                                this["search"] = publucErrors.NO_INTERNET
+                            }
                         )
                     }
 
@@ -132,7 +137,9 @@ class SearchViewModel : ViewModel() {
                         withContext(Dispatchers.Main) {
                             _uiState.value = _uiState.value.copy(
                                 searchInProcess = false,
-                                publicErrors = publucErrors.UNKNOWN_ERROR
+                                publicErrors = _uiState.value.publicErrors.toMutableMap().apply {
+                                    this["search"] = publucErrors.UNKNOWN_ERROR
+                                }
                             )
                         }
                         return@launch
@@ -144,7 +151,18 @@ class SearchViewModel : ViewModel() {
                         _uiState.value = _uiState.value.copy(
                             searchResults = results.toMutableList(),
                             searchInProcess = false,
-                            publicErrors = if (results.isEmpty()) publucErrors.NO_RESULTS else publucErrors.CLEAN
+                            publicErrors = if (results.isEmpty())
+
+                                _uiState.value.publicErrors.toMutableMap().apply {
+                                    this["search"] = publucErrors.NO_RESULTS
+                                }
+
+                                else
+
+                                uiState.value.publicErrors.toMutableMap().apply {
+                                    this["search"] = publucErrors.CLEAN
+                                }
+
                         )
                     }
                     return@launch
@@ -160,7 +178,9 @@ class SearchViewModel : ViewModel() {
             withContext(Dispatchers.Main) {
                 _uiState.value = _uiState.value.copy(
                     searchInProcess = false,
-                    publicErrors = publucErrors.UNKNOWN_ERROR
+                    publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                        this["search"] = publucErrors.UNKNOWN_ERROR
+                    }
                 )
             }
         }
@@ -192,6 +212,9 @@ class SearchViewModel : ViewModel() {
         request: String,
         mainViewModel: PlayerViewModel
     ) {
+
+        val navigationSaver = Screen.Searching.route + "/album/" + request
+
         currentAlbumJob?.cancel()
 
         currentAlbumJob = viewModelScope.launch {
@@ -199,7 +222,10 @@ class SearchViewModel : ViewModel() {
             val timeoutPerTry = 10000L
             var success = false
 
-            _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
+            _uiState.update { it.copy(gettersInProcess = true,
+                publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                this[navigationSaver] = publucErrors.CLEAN
+            }) }
 
             repeat(maxRetries) { attempt ->
                 if (!hasInternetConnection(context)) {
@@ -248,7 +274,10 @@ class SearchViewModel : ViewModel() {
                             albumDto.artists,
                             albumDto.year
                         )
-                        _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
+                        _uiState.update { it.copy(gettersInProcess = false,
+                            publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                            this[navigationSaver] = publucErrors.CLEAN
+                        }) }
                     }
 
                     success = true
@@ -266,9 +295,11 @@ class SearchViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         gettersInProcess = false,
-                        publicErrors =
-                        if (!hasInternetConnection(context)) publucErrors.NO_INTERNET
-                        else publucErrors.NO_RESULTS
+                        publicErrors =  if (!hasInternetConnection(context)) uiState.value.publicErrors.toMutableMap().apply {
+                            this[navigationSaver] = publucErrors.NO_INTERNET
+                        } else uiState.value.publicErrors.toMutableMap().apply {
+                            this[navigationSaver] = publucErrors.NO_RESULTS
+                        }
                     )
                 }
             } else {
@@ -343,6 +374,9 @@ class SearchViewModel : ViewModel() {
         request: String,
         mainViewModel: PlayerViewModel
     ) {
+
+        val navigationSaver = Screen.Searching.route + "/artist/" + request
+
         currentArtistJob?.cancel()
 
         currentArtistJob = viewModelScope.launch {
@@ -350,7 +384,9 @@ class SearchViewModel : ViewModel() {
             val timeoutPerTry = 8000L
             var success = false
 
-            _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
+            _uiState.update { it.copy(gettersInProcess = true, publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                this[ navigationSaver] = publucErrors.CLEAN
+            }) }
 
             repeat(maxRetries) { attempt ->
                 if (!hasInternetConnection(context)) {
@@ -386,7 +422,9 @@ class SearchViewModel : ViewModel() {
                         _uiState.update {
                             it.copy(
                                 currentArtist = artist,
-                                publicErrors = publucErrors.CLEAN,
+                                publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                                    this[ navigationSaver] = publucErrors.CLEAN
+                                },
                                 gettersInProcess = false
                             )
                         }
@@ -414,9 +452,11 @@ class SearchViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         gettersInProcess = false,
-                        publicErrors =
-                        if (!hasInternetConnection(context)) publucErrors.NO_INTERNET
-                        else publucErrors.NO_RESULTS
+                        publicErrors = if (!hasInternetConnection(context)) uiState.value.publicErrors.toMutableMap().apply {
+                            this[ navigationSaver] = publucErrors.NO_INTERNET
+                        } else uiState.value.publicErrors.toMutableMap().apply {
+                            this[ navigationSaver] = publucErrors.NO_RESULTS
+                        }
                     )
                 }
             } else {
@@ -777,9 +817,13 @@ class SearchViewModel : ViewModel() {
     ): String {
         if (!hasInternetConnection(context)) return ""
 
-        _uiState.update { it.copy(gettersInProcess = true, publicErrors = publucErrors.CLEAN) }
-
         val sourceKey = "${request}_source-related-tracks_radio"
+
+        val navigationSaver = Screen.Searching.route + "/radio/" + request
+
+        _uiState.update { it.copy(gettersInProcess = true, publicErrors = uiState.value.publicErrors.toMutableMap().apply {
+            this[navigationSaver] = publucErrors.CLEAN
+        }) }
 
         return withContext(Dispatchers.IO) {
             try {
@@ -797,7 +841,9 @@ class SearchViewModel : ViewModel() {
 
                 if (trackDtos.isNullOrEmpty())
                 {
-                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.NO_RESULTS) }
+                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = uiState.value.publicErrors.toMutableMap().apply {
+                        this[navigationSaver] = publucErrors.NO_RESULTS
+                    }) }
                     return@withContext ""
                 }
 
@@ -813,7 +859,9 @@ class SearchViewModel : ViewModel() {
                         audioSourceArtist = emptyList(),
                         audioSourceYear = ""
                     )
-                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = publucErrors.CLEAN) }
+                    _uiState.update { it.copy(gettersInProcess = false, publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                        this[navigationSaver] = publucErrors.CLEAN
+                    }) }
                 }
 
                 sourceKey

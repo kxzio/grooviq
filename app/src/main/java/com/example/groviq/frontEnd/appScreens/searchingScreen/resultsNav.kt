@@ -111,9 +111,9 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
             modifier = Modifier.fillMaxWidth()
         )
 
-        if (searchUiState.publicErrors != publucErrors.CLEAN)
+        if (searchUiState.publicErrors["search"] != publucErrors.CLEAN)
         {
-            if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
+            if (searchUiState.publicErrors["search"] == publucErrors.NO_INTERNET)
             {
                 Text(text = "Нет подключения к интернету")
                 errorButton() {
@@ -123,7 +123,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                     )
                 }
             }
-            else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
+            else if (searchUiState.publicErrors["search"] == publucErrors.NO_RESULTS)
             {
                 Text(text = "Ничего не найдено")
             }

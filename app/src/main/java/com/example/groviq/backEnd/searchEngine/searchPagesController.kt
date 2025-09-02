@@ -1,5 +1,8 @@
 package com.example.groviq.backEnd.searchEngine
 
+import androidx.navigation.NavController
+import com.example.groviq.backEnd.dataStructures.audioSource
+import com.example.groviq.canNavigate
 import com.example.groviq.frontEnd.Screen
 import kotlinx.serialization.Serializable
 
@@ -70,6 +73,19 @@ data class searchState(
     //indicators
     var searchInProcess  : Boolean = false,
     var gettersInProcess : Boolean = false,
-    var publicErrors     : publucErrors = publucErrors.CLEAN
+
+    var publicErrors     :  MutableMap<String, publucErrors> = mutableMapOf(),
 
 )
+
+fun MutableMap<String, publucErrors>.removeIfRouteEmpty(navController: NavController) {
+
+    val keysToRemove = this.keys.filter { route ->
+
+        if (route == "search") false
+
+        canNavigate(navController, route).not()
+    }
+
+    keysToRemove.forEach { key -> this.remove(key) }
+}

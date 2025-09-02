@@ -1,6 +1,7 @@
 package com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -53,6 +55,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                        searchViewModel : SearchViewModel, //search view
@@ -75,6 +80,8 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
 
     if (MyApplication.globalContext != null) {
 
+        val navigationSaver = Screen.Searching.route + "/artist/" + artistUrl
+
         if (artistUrl != searchUiState.currentArtist.url)
         {
             LaunchedEffect(artistUrl) {
@@ -92,9 +99,9 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (searchUiState.publicErrors != publucErrors.CLEAN) {
+            if (searchUiState.publicErrors[artistUrl] != publucErrors.CLEAN) {
                 item {
-                    when (searchUiState.publicErrors) {
+                    when (searchUiState.publicErrors[ navigationSaver]) {
                         publucErrors.NO_INTERNET -> {
                             Text("Нет подключения к интернету")
                             errorButton() {
@@ -136,12 +143,10 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 )
             }
 
-            // Название артиста
             item {
                 Text(searchUiState.currentArtist.title)
             }
 
-            // Топ треки
             val topSongs = mainUiState.audioData[artistUrl]?.songIds
                 ?.mapNotNull { mainUiState.allAudioData[it] }
                 ?: emptyList()
@@ -161,12 +166,10 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
             }
 
 
-            // Альбомы заголовок
             item {
                 Text("Альбомы : ")
             }
 
-            // Альбомы - LazyRow
             item {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -192,12 +195,10 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 }
             }
 
-            // Похожие артисты заголовок
             item {
                 Text("Похожие артисты : ")
             }
 
-            // Похожие артисты - LazyRow
             item {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),

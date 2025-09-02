@@ -1,5 +1,6 @@
 package com.example.groviq
 
+import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.Context
 import android.content.ContextWrapper
@@ -7,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -21,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.NavDeepLinkRequest
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
@@ -193,4 +197,13 @@ suspend fun getImageSizeFromUrl(url: String): Pair<Int, Int>? = withContext(Disp
         e.printStackTrace()
         null
     }
+}
+
+@SuppressLint(
+    "RestrictedApi"
+)
+fun canNavigate(navController: NavController, route: String): Boolean {
+    val uri = Uri.parse("android-app://androidx.navigation/$route")
+    val request = NavDeepLinkRequest.Builder.fromUri(uri).build()
+    return navController.graph.matchDeepLink(request) != null
 }

@@ -18,6 +18,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +46,9 @@ import androidx.navigation.navigation
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.backEnd.searchEngine.removeIfRouteEmpty
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.canNavigate
 import com.example.groviq.frontEnd.appScreens.albumPendingNavigation
 import com.example.groviq.frontEnd.appScreens.albumsScreen.albumLists
 import com.example.groviq.frontEnd.appScreens.artistPendingNavigation
@@ -113,6 +116,8 @@ fun connectScreens(
 
     val saveableStateHolder = rememberSaveableStateHolder()
 
+    val searchUiState by searchViewModel.uiState.collectAsState()
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -126,6 +131,7 @@ fun connectScreens(
                         label = { /* optional label */ },
                         selected = currentTab == screen,
                         onClick = {
+                            searchUiState.publicErrors.removeIfRouteEmpty(controller)
                             val isInsideThisTab = currentTab == screen
                             if (!isInsideThisTab) {
                                 currentTab = screen
@@ -229,6 +235,7 @@ fun connectScreens(
                     ) {
                         when (screen) {
                             Screen.Searching -> {
+
                                 composable(Screen.Searching.route) {
                                     searchResultsNavigation(controller, searchViewModel, mainViewModel)
                                 }

@@ -59,6 +59,7 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
+import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.errorButton
@@ -89,6 +90,8 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
     val albumUrl = Uri.decode(rawEncoded).takeIf { it.isNotBlank() }
         ?: return
 
+    val navigationSaver = Screen.Searching.route + "/album/" + albumUrl
+
     if (MyApplication.globalContext != null) {
 
         if (mainUiState.audioData.containsKey(albumUrl).not())
@@ -104,9 +107,9 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
         Column()
         {
-            if (searchUiState.publicErrors != publucErrors.CLEAN)
+            if (searchUiState.publicErrors[navigationSaver] != publucErrors.CLEAN)
             {
-                if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
+                if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
                 {
                     Text(text = "Нет подключения к интернету")
                     errorButton() {
@@ -115,7 +118,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                         }
                     }
                 }
-                else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
+                else if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
                 {
                     Text(text = "Произошла ошибка")
                     errorButton() {
@@ -178,11 +181,13 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
             }
         }
 
+        val navigationSaver = Screen.Searching.route + "/radio/" + albumUrl
+
         Column()
         {
-            if (searchUiState.publicErrors != publucErrors.CLEAN)
+            if (searchUiState.publicErrors[navigationSaver] != publucErrors.CLEAN)
             {
-                if (searchUiState.publicErrors == publucErrors.NO_INTERNET)
+                if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
                 {
                     Text(text = "Нет подключения к интернету")
                     errorButton() {
@@ -191,7 +196,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                         }
                     }
                 }
-                else if (searchUiState.publicErrors == publucErrors.NO_RESULTS)
+                else if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
                 {
                     Text(text = "Произошла ошибка")
                     errorButton() {
