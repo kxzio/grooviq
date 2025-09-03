@@ -5,12 +5,15 @@ import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +28,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerSnapDistance
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -64,13 +71,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
@@ -90,6 +103,7 @@ import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.service.nextSongHashPending
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 //the request of navigation radio for track
 val showSheet = mutableStateOf<Boolean>(false)
@@ -335,11 +349,89 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         }
 
 
-                        val song = mainUiState.allAudioData[mainUiState.playingHash]
-
-                        asyncedImage(
-                            song, Modifier.size(275.dp)
+                        val songsInQueue = mainUiState.currentQueue
+                        val pagerState = rememberPagerState(
+                            initialPage = mainUiState.posInQueue,
+                            pageCount = { songsInQueue.size }
                         )
+
+                        val nestedScrollConnection = remember {
+                            object :
+                                NestedScrollConnection {}
+                        }
+
+                        HorizontalPager(
+                            state = pagerState,
+                            flingBehavior = PagerDefaults.flingBehavior(
+                                state = pagerState,
+                                snapPositionalThreshold = 0.2f,
+                                snapAnimationSpec = tween(
+                                    durationMillis = 300,
+                                    easing = FastOutSlowInEasing
+                                ),
+                            ),
+                            modifier = Modifier.fillMaxWidth().nestedScroll(nestedScrollConnection).pointerInput(Unit) {
+                                detectHorizontalDragGestures { change, dragAmount ->
+                                    change.consume()
+                                }
+                            }
+                        ) { page ->
+
+                            val song = mainUiState.allAudioData[songsInQueue[page].hashKey]
+
+                            val pageOffset = (
+                                    (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                                    ).toFloat()
+
+                            val scale = 1f - 0.2f * abs(pageOffset)
+                            val alpha = 1f - 0.5f * abs(pageOffset)
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                asyncedImage(
+                                    song,
+                                    Modifier
+                                        .size(275.dp)
+                                        .scale(scale.coerceAtLeast(0.8f))
+                                        .alpha(alpha.coerceAtLeast(0.5f))
+                                )
+                            }
+                        }
+
+                        LaunchedEffect(pagerState) {
+                            snapshotFlow { pagerState.settledPage }
+                                .collect { page ->
+                                    val targetSong = songsInQueue[page].hashKey
+                                    if (targetSong != mainUiState.playingHash) {
+                                        if (page > mainUiState.posInQueue) {
+                                            AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
+                                        } else if (page < mainUiState.posInQueue) {
+                                            AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel)
+                                        }
+                                    }
+                                }
+                        }
+
+                        val coroutineScope = rememberCoroutineScope()
+                        LaunchedEffect(mainUiState.posInQueue) {
+                            val newIndex = mainUiState.posInQueue
+                            if (newIndex != -1 && newIndex != pagerState.settledPage) {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(
+                                        newIndex,
+                                        animationSpec = tween(
+                                            durationMillis = 500,
+                                            easing = FastOutSlowInEasing
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        val song = mainUiState.allAudioData[mainUiState.playingHash]
 
                         Spacer(Modifier.height(15.dp))
 

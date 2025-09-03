@@ -225,6 +225,8 @@ class AudioPlayerManager(context: Context) {
                     )
                     //request to get the new one
                     fetchAudioStream(mainViewModel, hashkey)
+
+
                 }
 
             }
@@ -356,6 +358,7 @@ class AudioPlayerManager(context: Context) {
     }
 
     fun nextSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel) {
+
 
         val view = mainViewModel.uiState.value
 

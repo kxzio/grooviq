@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 enum class playerStatus {
@@ -390,14 +391,17 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
-    suspend fun awaitStreamUrlFor(hash: String): String? {
-        val song = uiState.value.allAudioData[hash] ?: return null
-
-        return uiState
-            .map { state -> state.allAudioData[hash]?.stream?.takeIf { it.streamUrl.isNotEmpty() && song.shouldGetStream().not() } }
-            .filterNotNull()
-            .firstOrNull()?.streamUrl
-    }
+    suspend fun awaitStreamUrlFor(hash: String, timeoutMs: Long = 60_000L): String? =
+        withTimeoutOrNull(timeoutMs) {
+            uiState
+                .map { state -> state.allAudioData[hash] }
+                .filterNotNull()
+                .firstOrNull { song ->
+                    song.stream.streamUrl.isNotEmpty() && !song.shouldGetStream()
+                }
+                ?.stream
+                ?.streamUrl
+        }
 
     fun clearUnusedAudioSourcedAndSongs(searchViewModel: SearchViewModel)
     {
