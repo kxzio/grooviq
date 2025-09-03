@@ -1,11 +1,14 @@
 package com.example.groviq.frontEnd.bottomBars
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.Animatable
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -77,6 +80,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
@@ -125,6 +129,9 @@ fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchVie
     mainSheetDraw(sheetState, showSheet.value, {showSheet.value = !showSheet.value}, mainViewModel,searchViewModel, content)
 }
 
+@SuppressLint(
+    "UnusedCrossfadeTargetStateParameter"
+)
 @androidx.annotation.OptIn(
     UnstableApi::class
 )
@@ -190,11 +197,21 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                 BoxWithConstraints(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 100.dp, start = 15.dp, end = 15.dp)
+                        .align(
+                            Alignment.BottomCenter
+                        )
+                        .padding(
+                            bottom = 100.dp,
+                            start = 15.dp,
+                            end = 15.dp
+                        )
                         .fillMaxWidth()
-                        .height(80.dp)
-                        .background(bottomColor)
+                        .height(
+                            80.dp
+                        )
+                        .background(
+                            bottomColor
+                        )
                 ) {
 
                     val boxWidth = constraints.maxWidth.toFloat()
@@ -207,9 +224,15 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             .background(
                                 Brush.horizontalGradient(
                                     colors = listOf(
-                                        baseColor.copy(alpha = 1f - gradientAlpha.value * alphaFactor),
-                                        highlightColor.copy(alpha = gradientAlpha.value * alphaFactor),
-                                        baseColor.copy(alpha = 1f - gradientAlpha.value * alphaFactor)
+                                        baseColor.copy(
+                                            alpha = 1f - gradientAlpha.value * alphaFactor
+                                        ),
+                                        highlightColor.copy(
+                                            alpha = gradientAlpha.value * alphaFactor
+                                        ),
+                                        baseColor.copy(
+                                            alpha = 1f - gradientAlpha.value * alphaFactor
+                                        )
                                     ),
                                     startX = gradientShift.value * (boxWidth + gradientWidth) - gradientWidth,
                                     endX = gradientShift.value * (boxWidth + gradientWidth),
@@ -329,11 +352,32 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                 dragHandle = null,
                 windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
+
+                val song = mainUiState.allAudioData[mainUiState.playingHash]
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                 )
                 {
+                    Crossfade(targetState = song?.art_link ,     animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing), label = "song-image-crossfade") {
+                        asyncedImage(
+                            song,
+                            Modifier
+                                .fillMaxSize()
+                                .alpha(
+                                    0.3f
+                                ),
+                            {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black)
+                                )
+                            },
+                            100f
+                        )
+                    }
 
                     Column(modifier = Modifier
                         .fillMaxSize(),
@@ -370,14 +414,21 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                     easing = FastOutSlowInEasing
                                 ),
                             ),
-                            modifier = Modifier.fillMaxWidth().nestedScroll(nestedScrollConnection).pointerInput(Unit) {
-                                detectHorizontalDragGestures { change, dragAmount ->
-                                    change.consume()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .nestedScroll(
+                                    nestedScrollConnection
+                                )
+                                .pointerInput(
+                                    Unit
+                                ) {
+                                    detectHorizontalDragGestures { change, dragAmount ->
+                                        change.consume()
+                                    }
                                 }
-                            }
                         ) { page ->
 
-                            val song = mainUiState.allAudioData[songsInQueue[page].hashKey]
+                            val songInQueue = mainUiState.allAudioData[songsInQueue[page].hashKey]
 
                             val pageOffset = (
                                     (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
@@ -392,11 +443,22 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 asyncedImage(
-                                    song,
+                                    songInQueue,
                                     Modifier
-                                        .size(275.dp)
-                                        .scale(scale.coerceAtLeast(0.8f))
-                                        .alpha(alpha.coerceAtLeast(0.5f))
+                                        .size(
+                                            275.dp
+                                        )
+                                        .scale(
+                                            scale.coerceAtLeast(
+                                                0.8f
+                                            )
+                                        )
+                                        .alpha(
+                                            alpha.coerceAtLeast(
+                                                0.5f
+                                            )
+                                        ),
+                                    null,
                                 )
                             }
                         }
@@ -431,8 +493,6 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                             }
                         }
 
-                        val song = mainUiState.allAudioData[mainUiState.playingHash]
-
                         Spacer(Modifier.height(15.dp))
 
                         Text(song?.title ?: "", Modifier.clickable {
@@ -464,7 +524,11 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         {
                             LinearProgressIndicator(
                                 progress = AppViewModels.player.playerManager.player.bufferedPercentage / 100f,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = 10.dp
+                                    ),
                                 color = Color(
                                     239,
                                     128,
@@ -651,7 +715,6 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
 
                     }
                 }
-
 
             }
         }

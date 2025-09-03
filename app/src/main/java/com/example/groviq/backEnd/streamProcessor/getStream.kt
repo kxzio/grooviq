@@ -166,21 +166,22 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
         if (currentQueue.isEmpty()) return@launch
 
         val currentPos = mainViewModel.uiState.value.posInQueue
-        val fromIndex = (currentPos - 3).coerceAtLeast(0)
-        val toIndex = (currentPos + 3).coerceAtMost(currentQueue.size)
+
+        val safeFromIndex = (currentPos - 3).coerceAtLeast(0)
+        val safeToIndex = (currentPos + 3).coerceAtMost(currentQueue.size)
 
         val aroundSongs = currentQueue
+            .subList(safeFromIndex, safeToIndex)
             .mapNotNull { it.hashKey }
             .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
-            .subList(fromIndex, toIndex)
             .filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
-            .filterIndexed { idx, _ -> (fromIndex + idx) != currentPos }
+            .filterIndexed { idx, _ -> (safeFromIndex + idx) != currentPos }
 
         val aroundSongsForPreload = currentQueue
+            .subList(safeFromIndex, safeToIndex)
             .mapNotNull { it.hashKey }
             .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
-            .subList(fromIndex, toIndex)
-            .filterIndexed { idx, _ -> (fromIndex + idx) != currentPos }
+            .filterIndexed { idx, _ -> (safeFromIndex + idx) != currentPos }
 
         currentFetchQueueJob = CoroutineScope(Dispatchers.IO).launch {
             try {

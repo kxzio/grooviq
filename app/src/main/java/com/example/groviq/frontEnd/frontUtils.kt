@@ -1,5 +1,7 @@
 package com.example.groviq.frontEnd
 
+import android.graphics.Bitmap
+import android.graphics.RenderEffect.createBlurEffect
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.content.MediaType.Companion.Text
@@ -31,7 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -41,12 +45,24 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.groviq.backEnd.dataStructures.songData
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import android.graphics.Shader
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.rememberCoroutineScope
+import android.graphics.RenderEffect as AndroidRenderEffect
+import coil.transform.*
+import com.example.groviq.loadBitmapFromUrl
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun asyncedImage(
     songData: songData?,
     modifier: Modifier = Modifier,
-    onEmptyImageCallback: (@Composable () -> Unit)? = null
+    onEmptyImageCallback: (@Composable () -> Unit)? = null,
+    blurRadius: Float = 0f,
 ) {
     if (songData == null) return
 
@@ -56,56 +72,111 @@ fun asyncedImage(
     when {
 
         songData.art != null -> {
+            val imageModifier = if (blurRadius > 0f) {
+                contentModifier.graphicsLayer {
+                    renderEffect = AndroidRenderEffect.createBlurEffect(
+                        blurRadius,
+                        blurRadius,
+                        Shader.TileMode.CLAMP
+                    ).asComposeRenderEffect()
+                }
+            } else {
+                contentModifier
+            }
+
             Image(
                 bitmap = songData.art!!.asImageBitmap(),
                 contentDescription = null,
-                modifier = contentModifier,
+                modifier = imageModifier,
                 contentScale = ContentScale.Crop
             )
         }
 
         songData.art_link.isNullOrEmpty().not() -> {
 
-            val painter = rememberAsyncImagePainter(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(songData.art_link)
-                    .crossfade(true)
-                    .build()
-            )
+            if (blurRadius > 0)
+            {
+                val artState = remember { mutableStateOf<Bitmap?>(null) }
 
-            Box(
-                modifier = contentModifier,
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painter,
-                    contentDescription = null,
-                    modifier = Modifier.matchParentSize(),
-                    contentScale = ContentScale.Crop
+                LaunchedEffect(songData.art_link ?: "") {
+                    songData.art_link?.let { url ->
+                        artState.value = loadBitmapFromUrl(url)
+                    }
+                }
+
+                val imageModifier = if (blurRadius > 0f) {
+                    contentModifier.graphicsLayer {
+                        renderEffect = AndroidRenderEffect.createBlurEffect(
+                            blurRadius,
+                            blurRadius,
+                            Shader.TileMode.CLAMP
+                        ).asComposeRenderEffect()
+                    }
+                } else {
+                    contentModifier
+                }
+
+                artState.value?.let { bmp ->
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = imageModifier,
+                        contentScale = ContentScale.Crop
+                    )
+                } ?: Box(
+                    modifier = contentModifier,
+                    contentAlignment = Alignment.Center
+                ) {
+                    onEmptyImageCallback?.invoke() ?: Icon(
+                        Icons.Rounded.Image,
+                        contentDescription = "Loading",
+                        modifier = Modifier.fillMaxSize(0.7f)
+                    )
+                }
+
+            } else
+            {
+                val painter = rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(songData.art_link)
+                        .crossfade(true)
+                        .build()
                 )
 
-                when (painter.state) {
-                    is AsyncImagePainter.State.Loading -> {
-                        Icon(
-                            Icons.Rounded.Image,
-                            contentDescription = "Loading",
-                            modifier = Modifier.fillMaxSize(0.7f)
-                        )
-                    }
+                Box(
+                    modifier = contentModifier,
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painter,
+                        contentDescription = null,
+                        modifier = Modifier.matchParentSize(),
+                        contentScale = ContentScale.Crop
+                    )
 
-                    is AsyncImagePainter.State.Error -> {
-                        Icon(
-                            Icons.Rounded.ImageNotSupported,
-                            contentDescription = "Error",
-                            modifier = Modifier.fillMaxSize(0.7f)
-                        )
+                    when (painter.state) {
+                        is AsyncImagePainter.State.Loading -> {
+                            onEmptyImageCallback?.invoke() ?:Icon(
+                                Icons.Rounded.Image,
+                                contentDescription = "Loading",
+                                modifier = Modifier.fillMaxSize(0.7f)
+                            )
+                        }
+                        is AsyncImagePainter.State.Error -> {
+                            onEmptyImageCallback?.invoke() ?:Icon(
+                                Icons.Rounded.ImageNotSupported,
+                                contentDescription = "Error",
+                                modifier = Modifier.fillMaxSize(0.7f)
+                            )
+                        }
+                        else -> Unit
                     }
-
-                    else -> Unit
                 }
             }
+
         }
 
+        // 🔹 Нет изображения
         else -> {
             Box(contentModifier, contentAlignment = Alignment.Center) {
                 onEmptyImageCallback?.invoke() ?: Icon(
@@ -186,6 +257,9 @@ fun errorButton( onClick: () -> Unit,)
         Text("Повторить еще раз..")
     }
 }
+
+
+
 
 @Composable
 fun UndoPopup(
