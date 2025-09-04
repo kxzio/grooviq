@@ -46,9 +46,7 @@ import androidx.navigation.navigation
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
-import com.example.groviq.backEnd.searchEngine.removeIfRouteEmpty
 import com.example.groviq.backEnd.searchEngine.searchState
-import com.example.groviq.canNavigate
 import com.example.groviq.frontEnd.appScreens.albumPendingNavigation
 import com.example.groviq.frontEnd.appScreens.albumsScreen.albumLists
 import com.example.groviq.frontEnd.appScreens.artistPendingNavigation
@@ -131,7 +129,6 @@ fun connectScreens(
                         label = { /* optional label */ },
                         selected = currentTab == screen,
                         onClick = {
-                            searchUiState.publicErrors.removeIfRouteEmpty(controller)
                             val isInsideThisTab = currentTab == screen
                             if (!isInsideThisTab) {
                                 currentTab = screen

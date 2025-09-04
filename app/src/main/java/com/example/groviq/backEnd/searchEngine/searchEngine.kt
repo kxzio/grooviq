@@ -423,7 +423,7 @@ class SearchViewModel : ViewModel() {
                             it.copy(
                                 currentArtist = artist,
                                 publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
-                                    this[ navigationSaver] = publucErrors.CLEAN
+                                    this[ navigationSaver ] = publucErrors.CLEAN
                                 },
                                 gettersInProcess = false
                             )

@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -83,11 +85,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
@@ -109,9 +113,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+import com.example.groviq.backEnd.dataStructures.songData
+
 //the request of navigation radio for track
 val showSheet = mutableStateOf<Boolean>(false)
-
 
 @androidx.annotation.OptIn(
     UnstableApi::class
@@ -350,7 +355,8 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                 sheetState = sheetState,
                 modifier = Modifier.fillMaxSize(),
                 dragHandle = null,
-                windowInsets = WindowInsets(0, 0, 0, 0)
+                shape = RectangleShape
+                //windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
 
                 val song = mainUiState.allAudioData[mainUiState.playingHash]
@@ -360,28 +366,12 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                         .fillMaxSize()
                 )
                 {
-                    Crossfade(targetState = song?.art_link ,     animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing), label = "song-image-crossfade") {
-                        asyncedImage(
-                            song,
-                            Modifier
-                                .fillMaxSize()
-                                .alpha(
-                                    0.3f
-                                ),
-                            {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black)
-                                )
-                            },
-                            100f
-                        )
+                    if (song != null) {
+                        background(song)
                     }
 
                     Column(modifier = Modifier
                         .fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     )
                     {
@@ -442,24 +432,23 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                 verticalArrangement = Arrangement.Center,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                asyncedImage(
-                                    songInQueue,
-                                    Modifier
-                                        .size(
-                                            275.dp
-                                        )
-                                        .scale(
-                                            scale.coerceAtLeast(
-                                                0.8f
-                                            )
-                                        )
-                                        .alpha(
-                                            alpha.coerceAtLeast(
-                                                0.5f
-                                            )
-                                        ),
-                                    null,
-                                )
+                                val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(screenHeight * 0.5f),
+                                    contentAlignment = Alignment.TopCenter
+                                ) {
+                                    asyncedImage(
+                                        songInQueue,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(1f),
+                                        blurRadius = 0f
+
+                                    )
+                                }
+
                             }
                         }
 
@@ -719,4 +708,24 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
             }
         }
     }
+}
+
+@SuppressLint(
+    "UnusedCrossfadeTargetStateParameter"
+)
+@Composable
+fun background(song: songData) {
+
+    val imageUrl: String? = song.art_link
+
+    asyncedImage(
+        song,
+        modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.3f),
+        onEmptyImageCallback = {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) },
+        blurRadius = 25f
+    )
+
 }

@@ -1,6 +1,10 @@
 package com.example.groviq.frontEnd
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.RenderEffect.createBlurEffect
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -47,165 +51,118 @@ import com.example.groviq.backEnd.dataStructures.songData
 import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import android.graphics.Shader
+import android.os.Build
+import android.renderscript.Allocation
+import android.renderscript.Element
+import android.renderscript.RenderScript
+import android.renderscript.ScriptIntrinsicBlur
+import android.util.LruCache
+import android.util.Size
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.ImageBitmap
+import coil.request.CachePolicy
 import android.graphics.RenderEffect as AndroidRenderEffect
 import coil.transform.*
+import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+
+object ImageCache {
+    private val cache = mutableMapOf<String, ImageBitmap>()
+    fun get(url: String) = cache[url]
+    fun put(url: String, bmp: Bitmap) {
+        cache[url] = bmp.asImageBitmap()
+    }
+}
+
+@SuppressLint("UnusedCrossfadeTargetStateParameter")
 @Composable
 fun asyncedImage(
     songData: songData?,
     modifier: Modifier = Modifier,
     onEmptyImageCallback: (@Composable () -> Unit)? = null,
     blurRadius: Float = 0f,
+    turnOffPlaceholders : Boolean = false
 ) {
     if (songData == null) return
 
-    val contentModifier = modifier
-        .background(Color.LightGray.copy(alpha = 0.2f))
+    val context = LocalContext.current
+    val imageKey = songData.art ?: songData.art_link
 
-    when {
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(imageKey)
+            .crossfade(500)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .build()
+    )
 
-        songData.art != null -> {
-            val imageModifier = if (blurRadius > 0f) {
-                contentModifier.graphicsLayer {
-                    renderEffect = AndroidRenderEffect.createBlurEffect(
-                        blurRadius,
-                        blurRadius,
-                        Shader.TileMode.CLAMP
-                    ).asComposeRenderEffect()
-                }
-            } else {
-                contentModifier
-            }
+    Box(
+        modifier = modifier.background(Color.LightGray.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center
+    ) {
 
-            Image(
-                bitmap = songData.art!!.asImageBitmap(),
-                contentDescription = null,
-                modifier = imageModifier,
-                contentScale = ContentScale.Crop
-            )
-        }
+        Image(
+            painter = painter,
+            contentDescription = null,
+            modifier = modifier
+                .fillMaxSize()
+                .blur(blurRadius.dp),
+            contentScale = ContentScale.Crop
+        )
 
-        songData.art_link.isNullOrEmpty().not() -> {
-
-            if (blurRadius > 0)
-            {
-                val artState = remember { mutableStateOf<Bitmap?>(null) }
-
-                LaunchedEffect(songData.art_link ?: "") {
-                    songData.art_link?.let { url ->
-                        artState.value = loadBitmapFromUrl(url)
-                    }
-                }
-
-                val imageModifier = if (blurRadius > 0f) {
-                    contentModifier.graphicsLayer {
-                        renderEffect = AndroidRenderEffect.createBlurEffect(
-                            blurRadius,
-                            blurRadius,
-                            Shader.TileMode.CLAMP
-                        ).asComposeRenderEffect()
-                    }
-                } else {
-                    contentModifier
-                }
-
-                artState.value?.let { bmp ->
-                    Image(
-                        bitmap = bmp.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = imageModifier,
-                        contentScale = ContentScale.Crop
-                    )
-                } ?: Box(
-                    modifier = contentModifier,
-                    contentAlignment = Alignment.Center
-                ) {
-                    onEmptyImageCallback?.invoke() ?: Icon(
+        if (blurRadius == 0f && turnOffPlaceholders == false)
+        {
+            when (painter.state) {
+                is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
+                    ?: Icon(
                         Icons.Rounded.Image,
                         contentDescription = "Loading",
                         modifier = Modifier.fillMaxSize(0.7f)
                     )
-                }
-
-            } else
-            {
-                val painter = rememberAsyncImagePainter(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(songData.art_link)
-                        .crossfade(true)
-                        .build()
-                )
-
-                Box(
-                    modifier = contentModifier,
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painter,
-                        contentDescription = null,
-                        modifier = Modifier.matchParentSize(),
-                        contentScale = ContentScale.Crop
+                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke()
+                    ?: Icon(
+                        Icons.Rounded.ImageNotSupported,
+                        contentDescription = "Error",
+                        modifier = Modifier.fillMaxSize(0.7f)
                     )
-
-                    when (painter.state) {
-                        is AsyncImagePainter.State.Loading -> {
-                            onEmptyImageCallback?.invoke() ?:Icon(
-                                Icons.Rounded.Image,
-                                contentDescription = "Loading",
-                                modifier = Modifier.fillMaxSize(0.7f)
-                            )
-                        }
-                        is AsyncImagePainter.State.Error -> {
-                            onEmptyImageCallback?.invoke() ?:Icon(
-                                Icons.Rounded.ImageNotSupported,
-                                contentDescription = "Error",
-                                modifier = Modifier.fillMaxSize(0.7f)
-                            )
-                        }
-                        else -> Unit
-                    }
-                }
-            }
-
-        }
-
-        // 🔹 Нет изображения
-        else -> {
-            Box(contentModifier, contentAlignment = Alignment.Center) {
-                onEmptyImageCallback?.invoke() ?: Icon(
-                    Icons.Rounded.ImageNotSupported,
-                    contentDescription = "Image not supported",
-                    modifier = Modifier.fillMaxSize(0.7f)
-                )
+                else -> Unit
             }
         }
     }
 }
 
-
 @Composable
 fun asyncedImage(
     link: String?,
     modifier: Modifier = Modifier,
-    onEmptyImageCallback: (@Composable () -> Unit)? = null
+    onEmptyImageCallback: (@Composable () -> Unit)? = null,
+    blurRadius: Float = 0f
 ) {
-    if (!link.isNullOrEmpty()) {
+    if (link != null)
+    {
+        val context = LocalContext.current
+
         val painter = rememberAsyncImagePainter(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(link)
+            model = ImageRequest.Builder(context)
+                .data( link)
                 .crossfade(true)
+                .apply {
+                }
                 .build()
         )
 
         Box(
-            modifier = modifier,
+            modifier = modifier.background(Color.LightGray.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Image(
@@ -216,37 +173,15 @@ fun asyncedImage(
             )
 
             when (painter.state) {
-                is AsyncImagePainter.State.Loading -> {
-                    Icon(
-                        Icons.Rounded.Image,
-                        contentDescription = "Loading",
-                        modifier = Modifier.fillMaxSize(0.7f)
-                    )
-                }
-
-                is AsyncImagePainter.State.Error -> {
-                    Icon(
-                        Icons.Rounded.ImageNotSupported,
-                        contentDescription = "Error",
-                        modifier = Modifier.fillMaxSize(0.7f)
-                    )
-                }
-
+                is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
+                    ?: Icon(Icons.Rounded.Image, contentDescription = "Loading", modifier = Modifier.fillMaxSize(0.7f))
+                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke()
+                    ?: Icon(Icons.Rounded.ImageNotSupported, contentDescription = "Error", modifier = Modifier.fillMaxSize(0.7f))
                 else -> Unit
             }
         }
-    } else {
-        Box(
-            modifier,
-            contentAlignment = Alignment.Center
-        ) {
-            onEmptyImageCallback?.invoke() ?: Icon(
-                Icons.Rounded.ImageNotSupported,
-                contentDescription = "Image not supported",
-                modifier = Modifier.fillMaxSize(0.7f)
-            )
-        }
     }
+
 }
 
 @Composable

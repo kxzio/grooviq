@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -66,8 +67,10 @@ fun hasInternetConnection(context: Context): Boolean {
     }
 }
 
-suspend fun loadBitmapFromUrl(imageUrl: String): Bitmap? = withContext(
-    Dispatchers.IO) {
+suspend fun loadBitmapFromUrl(
+    imageUrl: String,
+    downsample: Int = 1
+): Bitmap? = withContext(Dispatchers.IO) {
     var connection: HttpURLConnection? = null
     var input: BufferedInputStream? = null
 
@@ -83,7 +86,13 @@ suspend fun loadBitmapFromUrl(imageUrl: String): Bitmap? = withContext(
         if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
 
         input = BufferedInputStream(connection.inputStream)
-        return@withContext BitmapFactory.decodeStream(input)
+
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = downsample
+            inPreferredConfig = Bitmap.Config.RGB_565 // меньше памяти, цвет может быть немного хуже
+        }
+
+        return@withContext BitmapFactory.decodeStream(input, null, options)
 
     } catch (e: IOException) {
         e.printStackTrace()
@@ -95,6 +104,7 @@ suspend fun loadBitmapFromUrl(imageUrl: String): Bitmap? = withContext(
         connection?.disconnect()
     }
 }
+
 
 @Composable
 fun LocalActivity(): ComponentActivity {
@@ -199,11 +209,3 @@ suspend fun getImageSizeFromUrl(url: String): Pair<Int, Int>? = withContext(Disp
     }
 }
 
-@SuppressLint(
-    "RestrictedApi"
-)
-fun canNavigate(navController: NavController, route: String): Boolean {
-    val uri = Uri.parse("android-app://androidx.navigation/$route")
-    val request = NavDeepLinkRequest.Builder.fromUri(uri).build()
-    return navController.graph.matchDeepLink(request) != null
-}

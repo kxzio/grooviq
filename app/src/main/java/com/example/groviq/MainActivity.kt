@@ -45,6 +45,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
+import android.view.View
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
