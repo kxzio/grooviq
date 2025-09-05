@@ -64,6 +64,9 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import coil.request.CachePolicy
 import android.graphics.RenderEffect as AndroidRenderEffect
@@ -90,7 +93,9 @@ fun asyncedImage(
     modifier: Modifier = Modifier,
     onEmptyImageCallback: (@Composable () -> Unit)? = null,
     blurRadius: Float = 0f,
-    turnOffPlaceholders : Boolean = false
+    turnOffPlaceholders : Boolean = false,
+    blendGrad : Boolean = false,
+    turnOffBackground : Boolean = false
 ) {
     if (songData == null) return
 
@@ -107,16 +112,40 @@ fun asyncedImage(
     )
 
     Box(
-        modifier = modifier.background(Color.LightGray.copy(alpha = 0.2f)),
+        modifier = modifier.background(if (blendGrad || turnOffBackground) Color.Transparent else Color.LightGray.copy(alpha = 0.2f)),
         contentAlignment = Alignment.Center
     ) {
+
+        val mod = if (blendGrad)
+        {
+            modifier
+                .fillMaxSize()
+                .blur(blurRadius.dp)
+                .graphicsLayer { alpha = 0.99f }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0.3f to Color.Black,
+                            0.62f to Color.Transparent,
+                            startY = 0f,
+                            endY = size.height * 1.5f
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                }
+        }
+        else
+        {
+            modifier
+                .fillMaxSize()
+                .blur(blurRadius.dp)
+        }
 
         Image(
             painter = painter,
             contentDescription = null,
-            modifier = modifier
-                .fillMaxSize()
-                .blur(blurRadius.dp),
+            modifier = mod,
             contentScale = ContentScale.Crop
         )
 

@@ -355,6 +355,8 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                 sheetState = sheetState,
                 modifier = Modifier.fillMaxSize(),
                 dragHandle = null,
+                containerColor = Color.Black,
+                contentColor = Color.White,
                 shape = RectangleShape
                 //windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
@@ -444,7 +446,9 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .aspectRatio(1f),
-                                        blurRadius = 0f
+                                        blurRadius = 0f,
+                                        blendGrad = true,
+                                        turnOffPlaceholders = true
 
                                     )
                                 }
@@ -722,10 +726,11 @@ fun background(song: songData) {
         song,
         modifier = Modifier
                 .fillMaxSize()
-                .alpha(0.3f),
+                .alpha(0.7f),
         onEmptyImageCallback = {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black)) },
-        blurRadius = 25f
+        blurRadius = 25f,
+        turnOffBackground = true
     )
 
 }
