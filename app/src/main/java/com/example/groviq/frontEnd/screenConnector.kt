@@ -112,10 +112,6 @@ fun connectScreens(
         }
     }
 
-    val saveableStateHolder = rememberSaveableStateHolder()
-
-    val searchUiState by searchViewModel.uiState.collectAsState()
-
     Scaffold(
         bottomBar = {
             NavigationBar {

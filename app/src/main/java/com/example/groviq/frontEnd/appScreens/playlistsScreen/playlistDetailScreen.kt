@@ -9,11 +9,12 @@ import androidx.navigation.NavHostController
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showDefaultAudioSource
+import com.example.groviq.frontEnd.subscribeMe
 
 @Composable
 fun playlistDetailList(backStackEntry: NavBackStackEntry, searchViewModel: SearchViewModel, mainViewModel : PlayerViewModel) {
 
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    val audioData           by mainViewModel.uiState.subscribeMe { it.audioData }
 
     val rawEncoded = backStackEntry.arguments
         ?.getString("playlist_name")
@@ -23,7 +24,7 @@ fun playlistDetailList(backStackEntry: NavBackStackEntry, searchViewModel: Searc
     val playlistName = Uri.decode(rawEncoded).takeIf { it.isNotBlank() }
         ?: return
 
-    val audioSource = mainUiState.audioData[playlistName]
+    val audioSource = audioData[playlistName]
 
     if (audioSource == null)
         return

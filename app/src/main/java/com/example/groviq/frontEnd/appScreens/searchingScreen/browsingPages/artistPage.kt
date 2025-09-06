@@ -51,6 +51,7 @@ import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.errorButton
+import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,8 +68,14 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
 )
 {
 
-    val searchUiState   by searchViewModel.uiState.collectAsState()
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    val currentArtist       by searchViewModel.uiState.subscribeMe    { it.currentArtist }
+    val gettersInProcess    by searchViewModel.uiState.subscribeMe    { it.gettersInProcess }
+    val publicErrors_       by searchViewModel.uiState.subscribeMe    { it.publicErrors }
+
+    val audioData           by mainViewModel.uiState.subscribeMe { it.audioData }
+    val allAudioData        by mainViewModel.uiState.subscribeMe { it.allAudioData }
+    val playingHash         by mainViewModel.uiState.subscribeMe { it.playingHash }
+
 
     val rawEncoded = backStackEntry.arguments
         ?.getString("artist_url")
@@ -82,7 +89,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
 
         val navigationSaver = Screen.Searching.route + "/artist/" + artistUrl
 
-        if (artistUrl != searchUiState.currentArtist.url)
+        if (artistUrl != currentArtist.url)
         {
             LaunchedEffect(artistUrl) {
                 searchViewModel.getArtist(
@@ -99,9 +106,9 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (searchUiState.publicErrors[navigationSaver] != publucErrors.CLEAN) {
+            if (publicErrors_[navigationSaver] != publucErrors.CLEAN) {
                 item {
-                    when (searchUiState.publicErrors[ navigationSaver ]) {
+                    when (publicErrors_[ navigationSaver ]) {
                         publucErrors.NO_INTERNET -> {
                             Text("Нет подключения к интернету")
                             errorButton() {
@@ -128,7 +135,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
             }
             else
             {
-                if (searchUiState.gettersInProcess == true) {
+                if (gettersInProcess == true) {
                     item {
                         CircularProgressIndicator(modifier = Modifier.size(100.dp))
                     }
@@ -137,7 +144,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
 
                 item {
                     asyncedImage(
-                        searchUiState.currentArtist.imageUrl,
+                        currentArtist.imageUrl,
                         modifier = Modifier
                             .size(120.dp)
                             .clip(RoundedCornerShape(4.dp)),
@@ -145,11 +152,11 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 }
 
                 item {
-                    Text(searchUiState.currentArtist.title)
+                    Text(currentArtist.title)
                 }
 
-                val topSongs = mainUiState.audioData[artistUrl]?.songIds
-                    ?.mapNotNull { mainUiState.allAudioData[it] }
+                val topSongs = audioData[artistUrl]?.songIds
+                    ?.mapNotNull { allAudioData[it] }
                     ?: emptyList()
 
                 items(topSongs) { song ->
@@ -174,7 +181,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(searchUiState.currentArtist.albums) { album ->
+                        items(currentArtist.albums) { album ->
                             Column(
                                 Modifier.clickable {
                                     val link = album.link
@@ -205,7 +212,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(searchUiState.currentArtist.relatedArtists) { item ->
+                        items(currentArtist.relatedArtists) { item ->
                             Column(Modifier.clickable { openArtist(item.url) }) {
                                 asyncedImage(
                                     item.imageUrl,
@@ -220,7 +227,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                 }
 
                 item {
-                    if (mainUiState.allAudioData[mainUiState.playingHash] != null) {
+                    if (allAudioData[playingHash] != null) {
                         Spacer(Modifier.height(80.dp))
                     }
                 }

@@ -41,6 +41,7 @@ import com.example.groviq.backEnd.searchEngine.searchType
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.errorButton
+import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -63,7 +64,11 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
     //search job to update results the second after user entered his request
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    val searchUiState by searchViewModel.uiState.collectAsState()
+    //reactibe subscribes
+    val publicErrors        by searchViewModel.uiState.subscribeMe { it.publicErrors    }
+    val searchInProgress    by searchViewModel.uiState.subscribeMe { it.searchInProcess }
+    val searchResults       by searchViewModel.uiState.subscribeMe { it.searchResults   }
+
 
     Column()
     {
@@ -72,10 +77,8 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
             onValueChange = { newValue ->
                 searchingRequest.value = newValue
 
-                // Отменяем предыдущую задачу поиска
                 searchJob?.cancel()
 
-                // Запускаем новую через 1 секунду
                 searchJob = CoroutineScope(Dispatchers.Main).launch {
                     delay(350L)
                     if (MyApplication.globalContext != null) {
@@ -111,9 +114,9 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
             modifier = Modifier.fillMaxWidth()
         )
 
-        if (searchUiState.publicErrors["search"] != publucErrors.CLEAN)
+        if (publicErrors["search"] != publucErrors.CLEAN)
         {
-            if (searchUiState.publicErrors["search"] == publucErrors.NO_INTERNET)
+            if (publicErrors["search"] == publucErrors.NO_INTERNET)
             {
                 Text(text = "Нет подключения к интернету")
                 errorButton() {
@@ -123,7 +126,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                     )
                 }
             }
-            else if (searchUiState.publicErrors["search"] == publucErrors.NO_RESULTS)
+            else if (publicErrors["search"] == publucErrors.NO_RESULTS)
             {
                 Text(text = "Ничего не найдено")
             }
@@ -133,7 +136,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
 
         Column()
         {
-            if (searchUiState.searchInProcess == true)
+            if (searchInProgress == true)
             {
                 CircularProgressIndicator(modifier = Modifier.size(100.dp))
                 return@Column
@@ -143,9 +146,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                 state = listState,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(
-                    searchUiState.searchResults
-                ) { result ->
+                items(searchResults) { result ->
 
                     Row(Modifier.clickable
                     {
@@ -164,11 +165,6 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                             )
                         }
                         else if (result.type == searchType.SONG) {
-                            //val link = "${result.album_url}"
-                            //val encoded = Uri.encode(link)
-                            //searchingScreenNav.navigate(
-                            //    "${Screen.Searching.route}/album/$encoded"
-                            //)
 
                             val trackLink = "https://music.youtube.com/watch?v=${result.link_id}"
 
@@ -184,14 +180,8 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                         asyncedImage(
                             result.image_url,
                             modifier = Modifier
-                                .size(
-                                    65.dp
-                                )
-                                .clip(
-                                    RoundedCornerShape(
-                                        4.dp
-                                    )
-                                )
+                                .size(65.dp)
+                                .clip(RoundedCornerShape(4.dp))
                         )
                         Column()
                         {

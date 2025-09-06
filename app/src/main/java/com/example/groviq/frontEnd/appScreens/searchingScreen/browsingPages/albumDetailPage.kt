@@ -63,6 +63,7 @@ import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.errorButton
+import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -79,8 +80,9 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                             )
 {
 
-    val searchUiState   by searchViewModel.uiState.collectAsState()
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    val audioData                   by mainViewModel.uiState.subscribeMe    { it.audioData }
+    val publicErrors                by searchViewModel.uiState.subscribeMe  { it.publicErrors }
+    val gettersInProcess            by searchViewModel.uiState.subscribeMe  { it.gettersInProcess }
 
     val rawEncoded = backStackEntry.arguments
         ?.getString("album_url")
@@ -94,7 +96,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
     if (MyApplication.globalContext != null) {
 
-        if (mainUiState.audioData.containsKey(albumUrl).not())
+        if (audioData.containsKey(albumUrl).not())
         {
             LaunchedEffect(albumUrl) {
                 searchViewModel.getAlbum(
@@ -107,9 +109,9 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
         Column()
         {
-            if (searchUiState.publicErrors[navigationSaver] != publucErrors.CLEAN)
+            if (publicErrors[navigationSaver] != publucErrors.CLEAN)
             {
-                if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
+                if (publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
                 {
                     Text(text = "Нет подключения к интернету")
                     errorButton() {
@@ -118,7 +120,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                         }
                     }
                 }
-                else if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
+                else if (publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
                 {
                     Text(text = "Произошла ошибка")
                     errorButton() {
@@ -129,7 +131,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                 }
             }
 
-            if (searchUiState.gettersInProcess == true)
+            if (gettersInProcess == true)
             {
                 CircularProgressIndicator(modifier = Modifier.size(100.dp))
                 return@Column
@@ -160,8 +162,9 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 )
 {
 
-    val searchUiState   by searchViewModel.uiState.collectAsState()
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    val audioData                   by mainViewModel.uiState.subscribeMe    { it.audioData }
+    val publicErrors                by searchViewModel.uiState.subscribeMe  { it.publicErrors }
+    val gettersInProcess            by searchViewModel.uiState.subscribeMe  { it.gettersInProcess }
 
     val rawEncoded = backStackEntry.arguments
         ?.getString("track_url")
@@ -175,7 +178,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 
     if (MyApplication.globalContext != null) {
 
-        if (!mainUiState.audioData.containsKey(sourceKey)) {
+        if (!audioData.containsKey(sourceKey)) {
             LaunchedEffect(albumUrl) {
                 searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
             }
@@ -185,9 +188,9 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 
         Column()
         {
-            if (searchUiState.publicErrors[navigationSaver] != publucErrors.CLEAN)
+            if (publicErrors[navigationSaver] != publucErrors.CLEAN)
             {
-                if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
+                if (publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
                 {
                     Text(text = "Нет подключения к интернету")
                     errorButton() {
@@ -196,7 +199,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                         }
                     }
                 }
-                else if (searchUiState.publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
+                else if (publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
                 {
                     Text(text = "Произошла ошибка")
                     errorButton() {
@@ -207,7 +210,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                 }
             }
 
-            if (searchUiState.gettersInProcess == true)
+            if (gettersInProcess == true)
             {
                 CircularProgressIndicator(modifier = Modifier.size(100.dp))
                 return@Column
@@ -234,17 +237,19 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel )
 {
 
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    val audioData                       by mainViewModel.uiState.subscribeMe    { it.audioData }
+    val allAudioData                    by mainViewModel.uiState.subscribeMe    { it.allAudioData }
+    val playingHash                     by mainViewModel.uiState.subscribeMe    { it.playingHash }
 
-    val audioSource = mainUiState.audioData[audioSourcePath]
+
+    val audioSource = audioData[audioSourcePath]
 
     if (audioSource == null)
         return
 
-    val songs = mainUiState.audioData[audioSourcePath]?.songIds
-        ?.mapNotNull { mainUiState.allAudioData[it] }
+    val songs = audioData[audioSourcePath]?.songIds
+        ?.mapNotNull { allAudioData[it] }
         ?: emptyList()
-
 
 
     val isPlaylist = mainViewModel.isPlaylist(audioSourcePath)
@@ -314,7 +319,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                             mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
                         })
                         {
-                            if (mainUiState.audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
+                            if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
                             {
                                 Text("Удалить")
                             }
@@ -373,7 +378,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
             }
 
             item {
-                if (mainUiState.allAudioData[mainUiState.playingHash] != null) {
+                if (allAudioData[playingHash] != null) {
                     Spacer(Modifier.height(80.dp))
                 }
             }

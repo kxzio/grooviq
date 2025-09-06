@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -53,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
+import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -184,6 +186,9 @@ fun SquareProgressBox(
     }
 }
 
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun SwipeToQueueItem(
     audioSource : String,

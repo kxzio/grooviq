@@ -3,7 +3,6 @@ package com.example.groviq.frontEnd.bottomBars
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,14 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudQueue
@@ -43,13 +40,11 @@ import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Radio
-import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -60,36 +55,31 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
-import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.backEnd.playEngine.moveInQueue
 import com.example.groviq.backEnd.playEngine.removeFromQueue
 import com.example.groviq.backEnd.streamProcessor.DownloadManager
-import com.example.groviq.backEnd.streamProcessor.downloadAudioFile
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.appScreens.openRadio
 import com.example.groviq.frontEnd.asyncedImage
-import com.example.groviq.frontEnd.screenConnectorNavigation
+import com.example.groviq.frontEnd.bottomBars.audioBottomBar.showSheet
+import com.example.groviq.frontEnd.subscribeMe
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -210,14 +200,15 @@ enum class settingPages{
 @Composable
 fun drawSettingsBottomBar(mainViewModel : PlayerViewModel, requestHash : String, onClose : () -> Unit)
 {
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    // current reactive variables for subscribe //
+    val allAudioData        by mainViewModel.uiState.subscribeMe { it.allAudioData   }
 
-    if (mainUiState.allAudioData[requestHash] == null) {
+    if (allAudioData[requestHash] == null) {
         onClose()
         return
     }
 
-    val track = mainUiState.allAudioData[requestHash]
+    val track = allAudioData[requestHash]
 
     var settingPage by remember { mutableStateOf(settingPages.MAIN_PAGE_SCREEN) }
 
@@ -417,25 +408,26 @@ fun drawQueuePage(
     onScreenMove: (settingPages) -> Unit
 ) {
 
-
-    val mainUiState by mainViewModel.uiState.collectAsState()
+    val currentQueue       by mainViewModel.uiState.subscribeMe  { it.currentQueue  }
+    val posInQueue         by mainViewModel.uiState.subscribeMe  { it.posInQueue    }
+    val allAudioData       by mainViewModel.uiState.subscribeMe  { it.allAudioData   }
 
     val lazyListState = rememberLazyListState()
     var isReordering by remember { mutableStateOf(false) }
 
-    val filteredQueue = remember(mainUiState.currentQueue, mainUiState.posInQueue) {
-        val start = (mainUiState.posInQueue + 1).coerceAtMost(mainUiState.currentQueue.size)
-        val endExclusive = minOf(mainUiState.currentQueue.size, start + 40)
-        if (start < endExclusive) mainUiState.currentQueue.subList(start, endExclusive).toList()
+    val filteredQueue = remember(currentQueue, posInQueue) {
+        val start = (posInQueue + 1).coerceAtMost(currentQueue.size)
+        val endExclusive = minOf(currentQueue.size, start + 40)
+        if (start < endExclusive) currentQueue.subList(start, endExclusive).toList()
         else emptyList()
     }
 
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        val queue = mainUiState.currentQueue
+        val queue = currentQueue
         if (queue.isEmpty()) return@rememberReorderableLazyListState
 
         // согласуем start и endExclusive с filteredQueue
-        val start = (mainUiState.posInQueue + 1).coerceAtMost(queue.size)
+        val start = (posInQueue + 1).coerceAtMost(queue.size)
         val endExclusive = minOf(queue.size, start + 40)
         val localFilteredSize = endExclusive - start
 
@@ -468,7 +460,7 @@ fun drawQueuePage(
                 items = filteredQueue,
                 key = { _, queueElement -> queueElement.id }
             ) { indexFiltered, queueElement ->
-                val track = mainUiState.allAudioData[queueElement.hashKey]
+                val track = allAudioData[queueElement.hashKey]
 
 
                 ReorderableItem(reorderableState, key = queueElement.id) { isDragging ->
@@ -483,7 +475,7 @@ fun drawQueuePage(
                         //detele using original index
                         IconButton(
                             onClick = {
-                                val originalIndex = mainUiState.posInQueue + 1 + indexFiltered
+                                val originalIndex = posInQueue + 1 + indexFiltered
                                 removeFromQueue(mainViewModel, originalIndex)
                             }
                         ) {
@@ -557,6 +549,7 @@ fun drawQueuePage(
 )
 @Composable
 fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
+
     val downloadState by DownloadManager.state.collectAsState()
 
     val lazyListState = rememberLazyListState()

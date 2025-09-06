@@ -32,6 +32,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
+import com.example.groviq.frontEnd.subscribeMe
 
 @Composable
 @OptIn(
@@ -42,11 +43,14 @@ fun albumLists(searchingScreenNav: NavHostController,
                mainViewModel: PlayerViewModel
 )
 {
-    val mainUiState     by mainViewModel.uiState.collectAsState()
+    // current reactive variables for subscribe //
+    val audioData           by mainViewModel.uiState.subscribeMe { it.audioData      }
+    val allAudioData        by mainViewModel.uiState.subscribeMe { it.allAudioData   }
 
-    val audioSources = mainUiState.audioData.entries
 
-    val albums    = audioSources.filter { it.key.contains("http") && mainUiState.audioData[it.key]?.shouldBeSavedStrictly ?: false }
+    val audioSources = audioData.entries
+
+    val albums = audioSources.filter { it.key.contains("http") && audioData[it.key]?.shouldBeSavedStrictly ?: false }
 
     Column()
     {
@@ -63,25 +67,16 @@ fun albumLists(searchingScreenNav: NavHostController,
                 state = listState,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(
-                    albums
-                ) { result ->
-
+                items(albums) { result ->
                     Row(
                         Modifier.clickable
                         {
-                            val encoded =
-                                Uri.encode(
-                                    result.key
-                                )
-                            searchingScreenNav.navigate(
-                                "${Screen.Albums.route}/album/" + encoded
-                            )
-
+                            val encoded = Uri.encode(result.key)
+                            searchingScreenNav.navigate("${Screen.Albums.route}/album/" + encoded)
                         })
                     {
-                        val songs = mainUiState.audioData[result.key]?.songIds
-                            ?.mapNotNull { mainUiState.allAudioData[it] }
+                        val songs = audioData[result.key]?.songIds
+                            ?.mapNotNull { allAudioData[it] }
                             ?: emptyList()
 
                         asyncedImage(
@@ -94,10 +89,10 @@ fun albumLists(searchingScreenNav: NavHostController,
 
                         Column{
                             Text(
-                                mainUiState.audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"
+                                audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"
                             )
                             Text(
-                                mainUiState.audioData[result.key]?.artistsOfAudioSource?.joinToString { it.title } ?: "Неизвестный исполнитель"
+                                audioData[result.key]?.artistsOfAudioSource?.joinToString { it.title } ?: "Неизвестный исполнитель"
                             )
                         }
 
