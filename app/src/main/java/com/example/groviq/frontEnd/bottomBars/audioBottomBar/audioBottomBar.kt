@@ -142,7 +142,7 @@ fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchVie
 )
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
+fun mainSheetDraw(sheetState: SheetState, showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
 
     val mainUiState     by mainViewModel.uiState.collectAsState()
     val songProgressUi            = songProgressState.collectAsState()
@@ -714,23 +714,8 @@ fun mainSheetDraw(sheetState: SheetState,  showSheet: Boolean, onToogleSheet: ()
     }
 }
 
-@SuppressLint(
-    "UnusedCrossfadeTargetStateParameter"
-)
-@Composable
-fun background(song: songData) {
 
-    val imageUrl: String? = song.art_link
-
-    asyncedImage(
-        song,
-        modifier = Modifier
-                .fillMaxSize()
-                .alpha(0.7f),
-        onEmptyImageCallback = {
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) },
-        blurRadius = 25f,
-        turnOffBackground = true
-    )
-
+fun scaffoldContent()
+{
+    
 }
