@@ -135,6 +135,22 @@ class AudioPlayerManager(context: Context) {
         UnstableApi::class
     )
 
+    fun playAtIndex(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, targetIndex: Int) {
+        val view = mainViewModel.uiState.value
+
+        val currentQueue = view.currentQueue
+        if (currentQueue.isNullOrEmpty()) return
+
+        val idx = targetIndex.coerceIn(0, currentQueue.size - 1)
+
+        currentRelatedTracksJob?.cancel()
+
+        mainViewModel.setPosInQueue(idx)
+
+        AppViewModels.player.playerManager.play(currentQueue[idx].hashKey, mainViewModel, searchViewModel)
+    }
+
+
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
         //check bounding box
@@ -358,7 +374,6 @@ class AudioPlayerManager(context: Context) {
     }
 
     fun nextSong(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel) {
-
 
         val view = mainViewModel.uiState.value
 

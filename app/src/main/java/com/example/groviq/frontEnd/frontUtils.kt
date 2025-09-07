@@ -319,26 +319,53 @@ fun background(song: songData) {
 
     val imageKey = song?.art ?: song?.art_link
 
-    Crossfade(
-        targetState = imageKey,
-        animationSpec = tween(600)
-    ) { currentImage ->
-        asyncedImage(
-            song,
-            modifier = Modifier
+    Box(Modifier.fillMaxSize())
+    {
+
+        Crossfade(
+            targetState = imageKey,
+            animationSpec = tween(600)
+        ) { currentImage ->
+
+            Box(Modifier.fillMaxSize())
+            {
+                asyncedImage(
+                    song,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0.9f)
+                        .graphicsLayer {
+                            scaleX = 2.5f
+                            scaleY = 2.5f
+                            transformOrigin = TransformOrigin(0.5f, 1f)
+                        },
+                    onEmptyImageCallback = {
+                        Box(Modifier.fillMaxSize().background(Color.Black))
+                    },
+                    blurRadius = 30f,
+                    turnOffBackground = true
+                )
+
+            }
+        }
+
+        Box(
+            Modifier
                 .fillMaxSize()
-                .alpha(0.9f)
-                .graphicsLayer {
-                    scaleX = 2.5f
-                    scaleY = 2.5f
-                    transformOrigin = TransformOrigin(0.5f, 1f)
-                },
-            onEmptyImageCallback = {
-                Box(Modifier.fillMaxSize().background(Color.Black))
-            },
-            blurRadius = 30f,
-            turnOffBackground = true
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            1f to Color(0, 0, 0, 180),
+                            startY = 0f,
+                            endY = size.height * 1.8f
+                        )
+                    )
+                }
+                .blur(15.dp)
         )
     }
+
 
 }

@@ -2,7 +2,9 @@ package com.example.groviq.frontEnd.bottomBars.audioBottomBar
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +81,7 @@ import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.background
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.frontEnd.subscribeMe
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -175,10 +178,6 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                     val songInQueue = allAudioData[songsInQueue[page].hashKey]
 
-                    val pageOffset = (
-                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                            ).toFloat()
-
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.Center,
@@ -208,14 +207,18 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                 LaunchedEffect(pagerState) {
                     snapshotFlow { pagerState.settledPage }
+                        .distinctUntilChanged()
                         .collect { page ->
-                            val targetSong = songsInQueue[page].hashKey
-                            if (targetSong != playingHash) {
-                                if (page > posInQueue) {
-                                    AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
-                                } else if (page < posInQueue) {
-                                    AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel)
-                                }
+                            if (page < 0 || page >= songsInQueue.size) return@collect
+
+                            if (page == mainViewModel.uiState.value.posInQueue) return@collect
+
+                            mainViewModel.setPosInQueue(page)
+
+                            try {
+                                AppViewModels.player.playerManager.playAtIndex(mainViewModel, searchViewModel, page)
+                            } catch (e: Throwable) {
+
                             }
                         }
                 }
@@ -238,14 +241,20 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                 Column(Modifier.offset(y = -16.dp).fillMaxSize())
                 {
-                    Box(Modifier.fillMaxWidth().padding(start = 25.dp))
+                    Box(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
                     {
                         Column()
                         {
-                            Text(text = song?.title ?: "", fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clickable {
+                            Text(text = song?.title ?: "", fontSize = 18.sp, maxLines = 1, modifier = Modifier.clickable {
                                 openAlbum(song?.album_original_link ?: "")
                                 onToogleSheet()
-                            })
+                            }.basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                animationMode = MarqueeAnimationMode.Immediately,
+                                repeatDelayMillis = 2000,
+                                velocity = 40.dp
+                            )
+                            )
 
 
                             Spacer(
@@ -257,7 +266,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                                     Text(
                                         artist.title + if (artist != song.artists.last()) ", " else "",
-                                        maxLines = 1, color = Color(255, 255, 255, 60), modifier = Modifier.clickable {
+                                        maxLines = 1, color = Color(255, 255, 255, 90), modifier = Modifier.clickable {
                                             openArtist(artist.url)
                                             onToogleSheet()
                                         }
@@ -271,44 +280,51 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                     Spacer(Modifier.height(8.dp))
 
-                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 25.dp))
+                    Column(modifier = Modifier.fillMaxWidth())
                     {
-                        Box(modifier = Modifier.fillMaxWidth())
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp))
                         {
-                            Slider(
-                                value = songProgressUi.value.progress,
-                                onValueChange = { newProgress ->
+                            Box(modifier = Modifier.fillMaxWidth())
+                            {
+                                Slider(
+                                    value = songProgressUi.value.progress,
+                                    onValueChange = { newProgress ->
 
-                                    val duration = AppViewModels.player.playerManager.player!!.duration
-                                    val newPosition = (duration * newProgress).toLong()
+                                        val duration = AppViewModels.player.playerManager.player!!.duration
+                                        val newPosition = (duration * newProgress).toLong()
 
-                                    setSongProgress(newProgress, newPosition)
-                                    AppViewModels.player.playerManager.player!!.seekTo(newPosition)
+                                        setSongProgress(newProgress, newPosition)
+                                        AppViewModels.player.playerManager.player!!.seekTo(newPosition)
 
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                steps = 0,
-                                valueRange = 0f..1f,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Color.White,
-                                    activeTrackColor = Color(
-                                        255,
-                                        255,
-                                        255,
-                                        255
-                                    ),
-                                    inactiveTrackColor = Color(255, 255, 255, 30)
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    steps = 0,
+                                    valueRange = 0f..1f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color.White,
+                                        activeTrackColor = Color(
+                                            255,
+                                            255,
+                                            255,
+                                            255
+                                        ),
+                                        inactiveTrackColor = Color(255, 255, 255, 30)
+                                    )
                                 )
-                            )
+                            }
                         }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = formatTime(songProgressUi.value.position), color = Color(255, 255, 255, 150))
-                            Text(text = formatTime(song?.duration ?: 0L), color = Color(255, 255, 255, 150))
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
+                        {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = formatTime(songProgressUi.value.position), color = Color(255, 255, 255, 150))
+                                Text(text = formatTime(song?.duration ?: 0L), color = Color(255, 255, 255, 150))
+                            }
                         }
+
 
                     }
 
