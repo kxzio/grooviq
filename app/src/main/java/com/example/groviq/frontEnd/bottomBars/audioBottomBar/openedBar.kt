@@ -2,6 +2,7 @@ package com.example.groviq.frontEnd.bottomBars.audioBottomBar
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -13,11 +14,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -55,7 +60,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
@@ -172,9 +179,6 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                             (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                             ).toFloat()
 
-                    val scale = 1f - 0.2f * abs(pageOffset)
-                    val alpha = 1f - 0.5f * abs(pageOffset)
-
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.Center,
@@ -232,228 +236,239 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                     }
                 }
 
-                Spacer(
-                    Modifier.height(15.dp))
-
-                Text(song?.title ?: "", Modifier.clickable {
-                    openAlbum(song?.album_original_link ?: "")
-                    onToogleSheet()
-                })
-
-
-                Spacer(
-                    Modifier.height(15.dp))
-
-                Row()
+                Column(Modifier.offset(y = -16.dp).fillMaxSize())
                 {
-                    song?.artists?.forEach { artist ->
-
-                        Text(
-                            artist.title + if (artist != song.artists.last()) ", " else "",
-                            maxLines = 1, color = Color(255, 255, 255), modifier = Modifier.clickable {
-                                openArtist(artist.url)
+                    Box(Modifier.fillMaxWidth().padding(start = 25.dp))
+                    {
+                        Column()
+                        {
+                            Text(text = song?.title ?: "", fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clickable {
+                                openAlbum(song?.album_original_link ?: "")
                                 onToogleSheet()
-                            }
-                        )
-
-                    }
-                }
-
-                Spacer(
-                    Modifier.height(30.dp))
-
-                Box(contentAlignment = Alignment.Center)
-                {
-                    LinearProgressIndicator(
-                        progress = AppViewModels.player.playerManager.player.bufferedPercentage / 100f,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal = 10.dp
-                            ),
-                        color = Color(
-                            239,
-                            128,
-                            132,
-                            90
-                        ),
-                        trackColor = Color(
-                            239,
-                            128,
-                            132,
-                            50
-                        )
-                    )
-
-                    Slider(
-                        value = songProgressUi.value.progress,
-                        onValueChange = { newProgress ->
-
-                            val duration = AppViewModels.player.playerManager.player!!.duration
-                            val newPosition = (duration * newProgress).toLong()
-
-                            setSongProgress(newProgress, newPosition)
-                            AppViewModels.player.playerManager.player!!.seekTo(newPosition)
-
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        steps = 0,
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color(
-                                239,
-                                128,
-                                132,
-                                255
-                            ),
-                            inactiveTrackColor = Color.Transparent
-                        )
-                    )
-
-                }
+                            })
 
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = formatTime(songProgressUi.value.position))
-                    Text(text = formatTime(song?.duration ?: 0L))
-                }
+                            Spacer(
+                                Modifier.height(8.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    IconButton(
-                        onClick =
-                        {
-                            AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel)
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            Icons.Rounded.SkipPrevious
-                            ,
-                            contentDescription = "SkipPrev",
-                            tint = Color(255, 255, 255)
-                        )
-                    }
-
-                    IconButton(
-                        onClick =
-                        {
-                            if (currentStatus == playerStatus.PAUSE)
-                                AppViewModels.player.playerManager.resume()
-                            if (currentStatus == playerStatus.PLAYING)
-                                AppViewModels.player.playerManager.pause()
-                        },
-                    ) {
-                        Icon(
-                            imageVector = if (currentStatus == playerStatus.PAUSE)
-                                Icons.Rounded.PlayArrow else Icons.Rounded.Pause
-                            ,
-                            contentDescription = "Pause/Play",
-                            tint = Color(255, 255, 255)
-                        )
-                    }
-
-                    IconButton(
-                        onClick =
-                        {
-                            AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            Icons.Rounded.SkipNext
-                            ,
-                            contentDescription = "SkipNext",
-                            tint = Color(255, 255, 255)
-                        )
-                    }
-
-
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick =
-                        {
-                            mainViewModel.toogleShuffleMode()
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            Icons.Rounded.Shuffle,
-                            contentDescription = "SkipPrev",
-                            tint = Color(255, 255, 255, if (isShuffle) 255 else 100)
-                        )
-                    }
-
-                    IconButton(
-                        onClick =
-                        {
-                            mainViewModel.toogleRepeatMode()
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            if (repeatMode == repeatMods.REPEAT_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                            contentDescription = "SkipPrev",
-                            tint = Color(255, 255, 255,
-                                if (repeatMode == repeatMods.NO_REPEAT)       100
-                                else if (repeatMode == repeatMods.REPEAT_ALL) 255
-                                else 255)
-                        )
-                    }
-
-                    val liked by mainViewModel.isAudioSourceContainsSong(song!!.link, "Favourite")
-                        .collectAsState(initial = false)
-
-                    IconButton(
-                        onClick =
-                        {
-                            if (liked)
+                            Row()
                             {
-                                mainViewModel.removeSongFromAudioSource(song!!.link, "Favourite")
-                                mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[song!!.link]!!)
-                                mainViewModel.saveAudioSourcesToRoom()
+                                song?.artists?.forEach { artist ->
+
+                                    Text(
+                                        artist.title + if (artist != song.artists.last()) ", " else "",
+                                        maxLines = 1, color = Color(255, 255, 255, 60), modifier = Modifier.clickable {
+                                            openArtist(artist.url)
+                                            onToogleSheet()
+                                        }
+                                    )
+
+                                }
                             }
-                            else
-                            {
-                                mainViewModel.addSongToAudioSource(song!!.link, "Favourite")
-                                mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[song!!.link]!!)
-                                mainViewModel.saveAudioSourcesToRoom()
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector =
-                            if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder
-                            ,
-                            contentDescription = "like",
-                            tint = Color(255, 255, 255)
-                        )
+                        }
+
                     }
 
-                    IconButton(
-                        onClick =
+                    Spacer(Modifier.height(8.dp))
+
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 25.dp))
+                    {
+                        Box(modifier = Modifier.fillMaxWidth())
                         {
-                            openTrackSettingsBottomBar(song?.link ?: "")
-                        },
+                            Slider(
+                                value = songProgressUi.value.progress,
+                                onValueChange = { newProgress ->
+
+                                    val duration = AppViewModels.player.playerManager.player!!.duration
+                                    val newPosition = (duration * newProgress).toLong()
+
+                                    setSongProgress(newProgress, newPosition)
+                                    AppViewModels.player.playerManager.player!!.seekTo(newPosition)
+
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                steps = 0,
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color(
+                                        255,
+                                        255,
+                                        255,
+                                        255
+                                    ),
+                                    inactiveTrackColor = Color(255, 255, 255, 30)
+                                )
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = formatTime(songProgressUi.value.position), color = Color(255, 255, 255, 150))
+                            Text(text = formatTime(song?.duration ?: 0L), color = Color(255, 255, 255, 150))
+                        }
+
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.MoreVert
-                            ,
-                            contentDescription = "more",
-                            tint = Color(255, 255, 255)
-                        )
+
+                        IconButton(
+                            onClick =
+                            {
+                                AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel)
+                            },
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(color = Color(255, 255, 255, 30), shape = CircleShape)
+                        ) {
+                            Icon(
+                                imageVector =
+                                Icons.Rounded.SkipPrevious
+                                ,
+                                contentDescription = "SkipPrev",
+                                modifier = Modifier.size(32.dp),
+                                tint = Color(255, 255, 255)
+                            )
+                        }
+
+                        Spacer(Modifier.width(16.dp))
+
+
+                        IconButton(
+                            onClick =
+                            {
+                                if (currentStatus == playerStatus.PAUSE)
+                                    AppViewModels.player.playerManager.resume()
+                                if (currentStatus == playerStatus.PLAYING)
+                                    AppViewModels.player.playerManager.pause()
+                            },
+                            modifier = Modifier
+                                .size(125.dp)
+                                .background(color = Color(255, 255, 255, 30), shape = CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (currentStatus == playerStatus.PAUSE)
+                                    Icons.Rounded.PlayArrow else Icons.Rounded.Pause
+                                ,
+                                contentDescription = "Pause/Play",
+                                modifier = Modifier.size(60.dp),
+                                tint = Color(255, 255, 255)
+                            )
+                        }
+
+                        Spacer(Modifier.width(16.dp))
+
+                        IconButton(
+                            onClick =
+                            {
+                                AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
+                            },
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(color = Color(255, 255, 255, 30), shape = CircleShape)
+
+                        ) {
+                            Icon(
+                                imageVector =
+                                Icons.Rounded.SkipNext
+                                ,
+                                contentDescription = "SkipNext",
+                                modifier = Modifier.size(32.dp),
+                                tint = Color(255, 255, 255)
+                            )
+                        }
+
+
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Row( Modifier.fillMaxWidth().padding(horizontal = 25.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(
+                            onClick =
+                            {
+                                mainViewModel.toogleShuffleMode()
+                            },
+                        ) {
+                            Icon(
+                                imageVector =
+                                Icons.Rounded.Shuffle,
+                                contentDescription = "SkipPrev",
+                                tint = Color(255, 255, 255, if (isShuffle) 255 else 100)
+                            )
+                        }
+
+                        IconButton(
+                            onClick =
+                            {
+                                mainViewModel.toogleRepeatMode()
+                            },
+                        ) {
+                            Icon(
+                                imageVector =
+                                if (repeatMode == repeatMods.REPEAT_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                                contentDescription = "SkipPrev",
+                                tint = Color(255, 255, 255,
+                                    if (repeatMode == repeatMods.NO_REPEAT)       100
+                                    else if (repeatMode == repeatMods.REPEAT_ALL) 255
+                                    else 255)
+                            )
+                        }
+
+                        val liked by mainViewModel.isAudioSourceContainsSong(song!!.link, "Favourite")
+                            .collectAsState(initial = false)
+
+                        IconButton(
+                            onClick =
+                            {
+                                if (liked)
+                                {
+                                    mainViewModel.removeSongFromAudioSource(song!!.link, "Favourite")
+                                    mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[song!!.link]!!)
+                                    mainViewModel.saveAudioSourcesToRoom()
+                                }
+                                else
+                                {
+                                    mainViewModel.addSongToAudioSource(song!!.link, "Favourite")
+                                    mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[song!!.link]!!)
+                                    mainViewModel.saveAudioSourcesToRoom()
+                                }
+                            },
+                        ) {
+                            Icon(
+                                imageVector =
+                                if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder
+                                ,
+                                contentDescription = "like",
+                                tint = Color(255, 255, 255)
+                            )
+                        }
+
+                        IconButton(
+                            onClick =
+                            {
+                                openTrackSettingsBottomBar(song?.link ?: "")
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert
+                                ,
+                                contentDescription = "more",
+                                tint = Color(255, 255, 255)
+                            )
+                        }
                     }
                 }
+
 
             }
         }

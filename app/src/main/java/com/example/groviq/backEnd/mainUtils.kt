@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -26,6 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDeepLinkRequest
+import coil.ImageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
@@ -67,41 +72,38 @@ fun hasInternetConnection(context: Context): Boolean {
     }
 }
 
+suspend fun Context.loadBitmapFromCacheOrNetwork(
+    imageKey: String,
+    downsample: Int = 1
+): Bitmap? = withContext(Dispatchers.IO) {
+    try {
+        val loader = ImageLoader(this@loadBitmapFromCacheOrNetwork)
+        val request = ImageRequest.Builder(this@loadBitmapFromCacheOrNetwork)
+            .data(imageKey)
+            .allowHardware(false)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .size(500 / downsample)
+            .build()
+
+        val result = loader.execute(request)
+        val drawable = (result as? SuccessResult)?.drawable
+        (drawable as? BitmapDrawable)?.bitmap
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 suspend fun loadBitmapFromUrl(
     imageUrl: String,
     downsample: Int = 1
 ): Bitmap? = withContext(Dispatchers.IO) {
-    var connection: HttpURLConnection? = null
-    var input: BufferedInputStream? = null
-
     try {
-        val url = URL(imageUrl)
-        connection = url.openConnection() as HttpURLConnection
-        connection.connectTimeout = 5000
-        connection.readTimeout = 5000
-        connection.instanceFollowRedirects = true
-        connection.doInput = true
-        connection.connect()
-
-        if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
-
-        input = BufferedInputStream(connection.inputStream)
-
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = downsample
-            inPreferredConfig = Bitmap.Config.RGB_565 // меньше памяти, цвет может быть немного хуже
-        }
-
-        return@withContext BitmapFactory.decodeStream(input, null, options)
-
-    } catch (e: IOException) {
+        MyApplication.globalContext!!.loadBitmapFromCacheOrNetwork(imageUrl, downsample)
+    } catch (e: Exception) {
         e.printStackTrace()
-        return@withContext null
-    } finally {
-        try {
-            input?.close()
-        } catch (_: IOException) { }
-        connection?.disconnect()
+        null
     }
 }
 

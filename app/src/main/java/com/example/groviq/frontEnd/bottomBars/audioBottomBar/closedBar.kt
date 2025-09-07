@@ -83,7 +83,7 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
         }
     }
 
-    Box()
+    Box(modifier = Modifier.fillMaxSize())
     {
         BoxWithConstraints(
             modifier = Modifier.align(Alignment.BottomCenter)

@@ -51,6 +51,7 @@ import com.example.groviq.backEnd.dataStructures.songData
 import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import android.graphics.Shader
+import android.graphics.drawable.BitmapDrawable
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
@@ -65,6 +66,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -76,6 +78,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.clipRect
+import coil.imageLoader
 import coil.request.CachePolicy
 import android.graphics.RenderEffect as AndroidRenderEffect
 import coil.transform.*
@@ -87,6 +92,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import android.graphics.Color as AndroidColor
 
 @Composable
 fun <T, R> StateFlow<T>.subscribeMe(
@@ -105,53 +111,34 @@ fun asyncedImage(
     modifier: Modifier = Modifier,
     onEmptyImageCallback: (@Composable () -> Unit)? = null,
     blurRadius: Float = 0f,
-    turnOffPlaceholders : Boolean = false,
-    blendGrad : Boolean = false,
-    turnOffBackground : Boolean = false
-) {
+    turnOffPlaceholders: Boolean = false,
+    blendGrad: Boolean = false,
+    turnOffBackground: Boolean = false,
+
+)  {
     if (songData == null) return
 
     val context = LocalContext.current
 
-    val connectivityManager = remember {
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    }
-
-    val retryTrigger = remember { mutableIntStateOf(0) }
-
-    DisposableEffect(Unit) {
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                retryTrigger.intValue++
-            }
-        }
-        val request = NetworkRequest.Builder().build()
-        connectivityManager.registerNetworkCallback(request, callback)
-
-        onDispose {
-            connectivityManager.unregisterNetworkCallback(callback)
-        }
-    }
-
     val imageKey = songData.art ?: songData.art_link
 
-    val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data("$imageKey?retry=${retryTrigger.intValue}")
-            .crossfade(500)
-            .setParameter("coil#disk_cache_key", imageKey)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .build()
-    )
+
+    val req = ImageRequest.Builder(context)
+        .data(imageKey)
+        .crossfade(500)
+        .setParameter("coil#disk_cache_key", imageKey)
+        .diskCachePolicy(CachePolicy.ENABLED)
+        .memoryCachePolicy(CachePolicy.ENABLED)
+        .build()
+
+    val painter = rememberAsyncImagePainter(model = req)
 
     Box(
-        modifier = modifier.background(if (blendGrad || turnOffBackground) Color.Transparent else Color.LightGray.copy(alpha = 0.2f)),
+        modifier = modifier
+            .background(if (blendGrad || turnOffBackground) Color.Transparent else Color.LightGray.copy(alpha = 0.2f)),
         contentAlignment = Alignment.Center
     ) {
-
-        val mod = if (blendGrad)
-        {
+        val mod = if (blendGrad) {
             modifier
                 .fillMaxSize()
                 .blur(blurRadius.dp)
@@ -160,17 +147,15 @@ fun asyncedImage(
                     drawContent()
                     drawRect(
                         brush = Brush.verticalGradient(
-                            0.3f to Color.Black,
-                            0.62f to Color.Transparent,
+                            0.7f to Color.Black,
+                            1.0f to Color.Transparent,
                             startY = 0f,
-                            endY = size.height * 1.5f
+                            endY = size.height
                         ),
                         blendMode = BlendMode.DstIn,
                     )
                 }
-        }
-        else
-        {
+        } else {
             modifier
                 .fillMaxSize()
                 .blur(blurRadius.dp)
@@ -183,8 +168,8 @@ fun asyncedImage(
             contentScale = ContentScale.Crop
         )
 
-        if (blurRadius == 0f && turnOffPlaceholders == false)
-        {
+
+        if (blurRadius == 0f && !turnOffPlaceholders) {
             when (painter.state) {
                 is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
                     ?: Icon(
@@ -215,29 +200,11 @@ fun asyncedImage(
     if (link == null) return
 
     val context = LocalContext.current
-    val connectivityManager = remember {
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    }
 
-    val retryTrigger = remember { mutableIntStateOf(0) }
-
-    DisposableEffect(Unit) {
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                retryTrigger.intValue++
-            }
-        }
-        val request = NetworkRequest.Builder().build()
-        connectivityManager.registerNetworkCallback(request, callback)
-
-        onDispose {
-            connectivityManager.unregisterNetworkCallback(callback)
-        }
-    }
 
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
-            .data("$link?retry=${retryTrigger.intValue}")
+            .data(link)
             .crossfade(true)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -350,17 +317,28 @@ fun UndoPopup(
 @Composable
 fun background(song: songData) {
 
-    val imageUrl: String? = song.art_link
+    val imageKey = song?.art ?: song?.art_link
 
-    asyncedImage(
-        song,
-        modifier = Modifier
-            .fillMaxSize()
-            .alpha(0.7f),
-        onEmptyImageCallback = {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) },
-        blurRadius = 40f,
-        turnOffBackground = true
-    )
+    Crossfade(
+        targetState = imageKey,
+        animationSpec = tween(600)
+    ) { currentImage ->
+        asyncedImage(
+            song,
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.9f)
+                .graphicsLayer {
+                    scaleX = 2.5f
+                    scaleY = 2.5f
+                    transformOrigin = TransformOrigin(0.5f, 1f)
+                },
+            onEmptyImageCallback = {
+                Box(Modifier.fillMaxSize().background(Color.Black))
+            },
+            blurRadius = 30f,
+            turnOffBackground = true
+        )
+    }
 
 }
