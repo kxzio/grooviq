@@ -3,7 +3,9 @@ package com.example.groviq.frontEnd.bottomBars
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,14 +16,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.CleaningServices
@@ -41,11 +46,13 @@ import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -59,12 +66,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
@@ -118,6 +128,7 @@ fun trackSettingsBottomBar(mainViewModel : PlayerViewModel)
         }
     }
 
+
     ModalBottomSheet(
         onDismissRequest = {
             isTrackSettingsOpened.value             = false
@@ -129,13 +140,19 @@ fun trackSettingsBottomBar(mainViewModel : PlayerViewModel)
             0xFF171717
         ),
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            drawSettingsBottomBar(mainViewModel, requestHash, {
-                isTrackSettingsOpened.value             = false
-                currentTrackHashForSettings.value       = null
-                currentSettingsOpenedAudioSource.value  = null
-            } )
+
+        Box {
+
+            Column(modifier = Modifier.padding(10.dp)) {
+                drawSettingsBottomBar(mainViewModel, requestHash, {
+                    isTrackSettingsOpened.value             = false
+                    currentTrackHashForSettings.value       = null
+                    currentSettingsOpenedAudioSource.value  = null
+                } )
+            }
+
         }
+
     }
 
 }
@@ -148,6 +165,12 @@ fun buttonForSettingBar(title : String, imageVector: ImageVector, onClick : () -
         onClick = {
             onClick()
         },
+        colors = ButtonColors(
+            containerColor = Color(0, 0, 0, 0),
+            contentColor = Color(255, 255, 255, 255),
+            disabledContainerColor = Color(0, 0, 0, 0),
+            disabledContentColor = Color(255, 255, 255, 255),
+        ),
         modifier = Modifier.padding(
             bottom = 10.dp
         ).fillMaxWidth(),
@@ -238,24 +261,31 @@ fun drawSettingsBottomBar(mainViewModel : PlayerViewModel, requestHash : String,
 fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
 {
 
-    Row()
+    Row(Modifier.padding(start = 8.dp))
     {
         asyncedImage(
             track,
-            Modifier.size(35.dp)
+            Modifier.size(50.dp).clip(RoundedCornerShape(8.dp)),
         )
 
-        Column()
+        Column(Modifier.padding(horizontal = 20.dp))
         {
-            Text(track?.title ?: "", color = Color.White)
+            Text(track?.title ?: "", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.basicMarquee(
+                iterations = Int.MAX_VALUE,
+                animationMode = MarqueeAnimationMode.Immediately,
+                repeatDelayMillis = 2000,
+                velocity = 40.dp
+            ))
             Text(
-                track?.artists?.joinToString { it.title } ?: "",
+                text = track?.artists?.joinToString { it.title } ?: "",
+                fontSize = 17.sp,
                 maxLines = 1,
-                fontSize = 10.sp,
                 color = Color.Gray
             )
         }
     }
+
+    Spacer(Modifier.height(16.dp))
 
     if (!liked) {
         buttonForSettingBar("Добавить в любимое", Icons.Rounded.FavoriteBorder, {
@@ -354,20 +384,26 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 @Composable
 fun drawSelectArtistPage(mainViewModel : PlayerViewModel, track: songData?, onClose : () -> Unit, onScreenMove : (settingPages) -> Unit)
 {
+    Column(modifier = Modifier.padding(20.dp))
+    {
+        track!!.artists.forEach { artist ->
+            Row( verticalAlignment = Alignment.CenterVertically)
+            {
+                Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
+                    shape = CircleShape, color = Color(255, 255, 255) ).size(60.dp) )
 
+                Spacer(Modifier.width(15.dp))
 
-    track!!.artists.forEach { artist ->
-        Row()
-        {
-            Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
-                shape = CircleShape, color = Color(255, 255, 255) ).size(60.dp) )
-            Text(text = artist.title, color = Color(255, 255, 255), fontSize = 21.sp, modifier = Modifier.clickable {
-                openArtist(artist.url)
-                onClose()
-                showSheet.value = false
-            })
+                Text(text = artist.title, color = Color(255, 255, 255), fontSize = 21.sp, modifier = Modifier.clickable {
+                    openArtist(artist.url)
+                    onClose()
+                    showSheet.value = false
+                })
+            }
+            Spacer(Modifier.height(15.dp))
         }
     }
+
 
 
 }
@@ -470,7 +506,8 @@ fun drawQueuePage(
                     Row(
                         modifier = Modifier
                             .shadow(elevation)
-                            .scale(scale)
+                            .scale(scale),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         //detele using original index
                         IconButton(
@@ -482,7 +519,7 @@ fun drawQueuePage(
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "delete from queue",
-                                tint = Color.White
+                                tint = Color(255, 255, 255, 100)
                             )
                         }
 
@@ -496,9 +533,17 @@ fun drawQueuePage(
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(start = 8.dp)
+                                    .padding(start = 8.dp),
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                Text(t.title, color = Color.White)
+                                Text(t.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1,
+                                    modifier = Modifier.basicMarquee(
+                                        iterations = Int.MAX_VALUE,
+                                        animationMode = MarqueeAnimationMode.Immediately,
+                                        repeatDelayMillis = 2000,
+                                        velocity = 40.dp
+                                    )
+                                )
                                 Text(
                                     text = t.artists.joinToString { it.title },
                                     maxLines = 1,
@@ -524,7 +569,7 @@ fun drawQueuePage(
                             Icon(
                                 imageVector = Icons.Rounded.DragHandle,
                                 contentDescription = "Reorder",
-                                tint = Color.White
+                                tint = Color(255, 255, 255, 100)
                             )
                         }
                     }
