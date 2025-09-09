@@ -136,6 +136,7 @@ class AudioPlayerManager(context: Context) {
     )
 
     fun playAtIndex(mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, targetIndex: Int) {
+        
         val view = mainViewModel.uiState.value
 
         val currentQueue = view.currentQueue

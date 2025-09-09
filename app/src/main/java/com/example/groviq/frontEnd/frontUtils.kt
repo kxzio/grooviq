@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.platform.LocalConfiguration
 import coil.imageLoader
 import coil.request.CachePolicy
 import android.graphics.RenderEffect as AndroidRenderEffect
@@ -122,7 +123,6 @@ fun asyncedImage(
 
     val imageKey = songData.art ?: songData.art_link
 
-
     val req = ImageRequest.Builder(context)
         .data(imageKey)
         .crossfade(500)
@@ -150,7 +150,7 @@ fun asyncedImage(
                             0.7f to Color.Black,
                             1.0f to Color.Transparent,
                             startY = 0f,
-                            endY = size.height
+                            endY = size.height * 1.0f
                         ),
                         blendMode = BlendMode.DstIn,
                     )
@@ -333,18 +333,19 @@ fun background(song: songData) {
                     song,
                     modifier = Modifier
                         .fillMaxSize()
-                        .alpha(0.9f)
+                        .alpha(0.88f)
                         .graphicsLayer {
-                            scaleX = 2.5f
-                            scaleY = 2.5f
+                            scaleX = 1.5f
+                            scaleY = 1.5f
                             transformOrigin = TransformOrigin(0.5f, 1f)
                         },
                     onEmptyImageCallback = {
                         Box(Modifier.fillMaxSize().background(Color.Black))
                     },
-                    blurRadius = 30f,
+                    blurRadius = 40f,
                     turnOffBackground = true
                 )
+
 
             }
         }
@@ -359,7 +360,7 @@ fun background(song: songData) {
                             0f to Color.Transparent,
                             1f to Color(0, 0, 0, 180),
                             startY = 0f,
-                            endY = size.height * 1.8f
+                            endY = size.height * 1.0f
                         )
                     )
                 }

@@ -26,6 +26,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreVert
@@ -56,15 +57,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
@@ -164,12 +169,8 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .nestedScroll(
-                            nestedScrollConnection
-                        )
-                        .pointerInput(
-                            Unit
-                        ) {
+                        .nestedScroll(nestedScrollConnection)
+                        .pointerInput(Unit) {
                             detectHorizontalDragGestures { change, dragAmount ->
                                 change.consume()
                             }
@@ -178,30 +179,45 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                     val songInQueue = allAudioData[songsInQueue[page].hashKey]
 
+                    val pageOffset = (
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                            ).coerceIn(-1f, 1f)
+
+                    val alpha = 1f - abs(pageOffset) * 0.5f
+
+                    val rotationY = pageOffset * 30f
+
+                    val scale = 1f - abs(pageOffset) * 0.1f
+
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(25.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        val screenHeight = LocalConfiguration.current.screenHeightDp.dp
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(screenHeight * 0.5f),
+                                .graphicsLayer {
+                                    this.alpha = alpha
+                                    this.rotationY = rotationY
+                                    this.scaleX = scale
+                                    this.scaleY = scale
+                                    this.cameraDistance = 12 * density
+                                },
                             contentAlignment = Alignment.TopCenter
                         ) {
                             asyncedImage(
                                 songInQueue,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(1f),
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(8.dp)),
                                 blurRadius = 0f,
-                                blendGrad = true,
                                 turnOffPlaceholders = true
-
                             )
                         }
-
                     }
                 }
 
@@ -239,13 +255,15 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                     }
                 }
 
+                Spacer(Modifier.height(16.dp))
+
                 Column(Modifier.offset(y = -16.dp).fillMaxSize())
                 {
                     Box(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
                     {
                         Column()
                         {
-                            Text(text = song?.title ?: "", fontSize = 18.sp, maxLines = 1, modifier = Modifier.clickable {
+                            Text(text = song?.title ?: "", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.clickable {
                                 openAlbum(song?.album_original_link ?: "")
                                 onToogleSheet()
                             }.basicMarquee(
@@ -258,7 +276,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
 
                             Spacer(
-                                Modifier.height(8.dp))
+                                Modifier.height(10.dp))
 
                             Row()
                             {
@@ -266,7 +284,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                                     Text(
                                         artist.title + if (artist != song.artists.last()) ", " else "",
-                                        maxLines = 1, color = Color(255, 255, 255, 90), modifier = Modifier.clickable {
+                                        maxLines = 1, fontSize = 17.sp, color = Color(255, 255, 255, 150), modifier = Modifier.clickable {
                                             openArtist(artist.url)
                                             onToogleSheet()
                                         }
@@ -278,7 +296,8 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                     }
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(
+                        Modifier.height(16.dp))
 
                     Column(modifier = Modifier.fillMaxWidth())
                     {
@@ -286,33 +305,35 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                         {
                             Box(modifier = Modifier.fillMaxWidth())
                             {
+
                                 Slider(
+                                    enabled = AppViewModels.player.playerManager.player.duration != C.TIME_UNSET,
                                     value = songProgressUi.value.progress,
                                     onValueChange = { newProgress ->
-
                                         val duration = AppViewModels.player.playerManager.player!!.duration
                                         val newPosition = (duration * newProgress).toLong()
-
                                         setSongProgress(newProgress, newPosition)
                                         AppViewModels.player.playerManager.player!!.seekTo(newPosition)
-
                                     },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    steps = 0,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(28.dp),
                                     valueRange = 0f..1f,
                                     colors = SliderDefaults.colors(
-                                        thumbColor = Color.White,
-                                        activeTrackColor = Color(
-                                            255,
-                                            255,
-                                            255,
-                                            255
-                                        ),
-                                        inactiveTrackColor = Color(255, 255, 255, 30)
-                                    )
+                                        thumbColor = Color.Transparent,
+                                        activeTrackColor = Color.White,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                                        activeTickColor = Color.Transparent,
+                                        inactiveTickColor = Color.Transparent
+                                    ),
+                                    thumb = {}
                                 )
+
                             }
                         }
+
+                        Spacer(
+                            Modifier.height(16.dp))
 
                         Column(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
                         {
@@ -341,7 +362,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                             },
                             modifier = Modifier
                                 .size(64.dp)
-                                .background(color = Color(255, 255, 255, 30), shape = CircleShape)
+                                .background(color = Color(255, 255, 255, 0), shape = CircleShape)
                         ) {
                             Icon(
                                 imageVector =
@@ -366,7 +387,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                             },
                             modifier = Modifier
                                 .size(125.dp)
-                                .background(color = Color(255, 255, 255, 30), shape = CircleShape)
+                                .background(color = Color(255, 255, 255, 0), shape = CircleShape)
                         ) {
                             Icon(
                                 imageVector = if (currentStatus == playerStatus.PAUSE)
@@ -387,7 +408,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                             },
                             modifier = Modifier
                                 .size(64.dp)
-                                .background(color = Color(255, 255, 255, 30), shape = CircleShape)
+                                .background(color = Color(255, 255, 255, 0), shape = CircleShape)
 
                         ) {
                             Icon(
