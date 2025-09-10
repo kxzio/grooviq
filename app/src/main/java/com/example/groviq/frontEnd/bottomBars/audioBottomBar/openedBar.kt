@@ -125,7 +125,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
         sheetState = sheetState,
         modifier = Modifier.fillMaxSize(),
         dragHandle = null,
-        containerColor = Color(0, 0, 0, 150),
+        containerColor = Color(0, 0, 0, 255),
         contentColor = Color.White,
         shape = RectangleShape
         //windowInsets = WindowInsets(0, 0, 0, 0)
@@ -168,6 +168,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                 HorizontalPager(
                     state = pagerState,
+                    beyondViewportPageCount = 1,
                     flingBehavior = PagerDefaults.flingBehavior(
                         state = pagerState,
                         snapPositionalThreshold = 0.2f,

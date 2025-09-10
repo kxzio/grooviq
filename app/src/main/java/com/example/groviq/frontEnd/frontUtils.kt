@@ -133,18 +133,21 @@ fun asyncedImage(
             .memoryCachePolicy(CachePolicy.ENABLED)
             .dispatcher(Dispatchers.IO)
             .crossfade(500)
-            if (blurRadius > 0f) {
-                builder.allowHardware(false)
-                    .bitmapConfig(Bitmap.Config.ARGB_8888)
-            } else {
-                builder.allowHardware(true)
-                    .bitmapConfig(Bitmap.Config.RGB_565)
-                    .allowRgb565(true)
-                    .precision(Precision.INEXACT)
-            }
+
+        if (blurRadius > 0f) {
+            builder.allowHardware(false)
+                .bitmapConfig(Bitmap.Config.ARGB_8888)
+        } else {
+            builder.allowHardware(true)
+                .bitmapConfig(Bitmap.Config.RGB_565)
+                .allowRgb565(true)
+                .precision(Precision.INEXACT)
+        }
+
         builder.build()
     }
 
+    val painter = rememberAsyncImagePainter(req)
 
     val mod = if (blendGrad) {
         modifier
@@ -180,30 +183,30 @@ fun asyncedImage(
         ),
         contentAlignment = Alignment.Center
     ) {
-        SubcomposeAsyncImage(
-            model = req,
+        Image(
+            painter = painter,
             contentDescription = null,
             modifier = mod,
-            contentScale = ContentScale.Crop,
-            loading = {
-                if (!turnOffPlaceholders) {
-                    onEmptyImageCallback?.invoke() ?: Icon(
+            contentScale = ContentScale.Crop
+        )
+
+        if (blurRadius == 0f && !turnOffPlaceholders) {
+            when (painter.state) {
+                is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
+                    ?: Icon(
                         Icons.Rounded.Image,
                         contentDescription = "Loading",
                         modifier = Modifier.fillMaxSize(0.7f)
                     )
-                }
-            },
-            error = {
-                if (!turnOffPlaceholders) {
-                    onEmptyImageCallback?.invoke() ?: Icon(
+                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke()
+                    ?: Icon(
                         Icons.Rounded.ImageNotSupported,
                         contentDescription = "Error",
                         modifier = Modifier.fillMaxSize(0.7f)
                     )
-                }
+                else -> Unit
             }
-        )
+        }
     }
 }
 

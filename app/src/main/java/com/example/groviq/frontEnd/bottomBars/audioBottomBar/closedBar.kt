@@ -70,8 +70,8 @@ import kotlinx.coroutines.isActive
 @Composable
 fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, searchViewModel: SearchViewModel, songProgressUi: State<CurrentSongTimeProgress>, hazeState: HazeState)
 {
-    val baseColor   = Color(30, 30, 30, 100)
-    val bottomColor = Color(30, 30, 30, 100)
+    val baseColor   = Color(40, 40, 40, 100)
+    val bottomColor = Color(40, 40, 40, 100)
 
     val highlightColor = MaterialTheme.colorScheme.primary
 
@@ -144,7 +144,7 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                 LinearProgressIndicator(
                     progress = songProgressUi.value.progress,
                     modifier = Modifier
-                        .fillMaxWidth().height(1.dp)
+                        .fillMaxWidth().height(2.dp)
                 )
             }
 
