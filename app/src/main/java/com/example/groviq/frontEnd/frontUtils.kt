@@ -81,8 +81,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalConfiguration
+import coil.compose.SubcomposeAsyncImage
 import coil.imageLoader
 import coil.request.CachePolicy
+import coil.size.Precision
 import android.graphics.RenderEffect as AndroidRenderEffect
 import coil.transform.*
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
@@ -115,98 +117,96 @@ fun asyncedImage(
     turnOffPlaceholders: Boolean = false,
     blendGrad: Boolean = false,
     turnOffBackground: Boolean = false,
-    customLoadSizeX : Int = 0,
-    customLoadSizeY : Int = 0,
-)  {
+    customLoadSizeX: Int = 0,
+    customLoadSizeY: Int = 0,
+) {
     if (songData == null) return
 
     val context = LocalContext.current
-
     val imageKey = songData.art ?: songData.art_link
 
-    val req = if (customLoadSizeY == 0) ImageRequest.Builder(context)
-        .data(imageKey)
-        .crossfade(500)
-        .setParameter("coil#disk_cache_key", imageKey)
-        .diskCachePolicy(CachePolicy.ENABLED)
-        .memoryCachePolicy(CachePolicy.ENABLED)
-        .build()
-    else
-        ImageRequest.Builder(context)
+    val req = remember(imageKey) {
+        val builder = ImageRequest.Builder(context)
             .data(imageKey)
-            .size(customLoadSizeX, customLoadSizeY)
-            .crossfade(500)
             .setParameter("coil#disk_cache_key", imageKey)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
-            .build()
+            .dispatcher(Dispatchers.IO)
+            .crossfade(500)
+            if (blurRadius > 0f) {
+                builder.allowHardware(false)
+                    .bitmapConfig(Bitmap.Config.ARGB_8888)
+            } else {
+                builder.allowHardware(true)
+                    .bitmapConfig(Bitmap.Config.RGB_565)
+                    .allowRgb565(true)
+                    .precision(Precision.INEXACT)
+            }
+        builder.build()
+    }
 
 
-    val painter = rememberAsyncImagePainter(model = req)
-
-    Box(
-        modifier = modifier
-            .background(if (blendGrad || turnOffBackground) Color.Transparent else Color.LightGray.copy(alpha = 0.2f)),
-        contentAlignment = Alignment.Center
-    ) {
-        val mod = if (blendGrad) {
-            modifier
-                .fillMaxSize()
-                .blur(blurRadius.dp)
-                .graphicsLayer { alpha = 0.99f }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            0.7f to Color.Black,
-                            1.0f to Color.Transparent,
-                            startY = 0f,
-                            endY = size.height * 1.0f
-                        ),
-                        blendMode = BlendMode.DstIn,
-                    )
-                }
+    val mod = if (blendGrad) {
+        modifier
+            .fillMaxSize()
+            .blur(blurRadius.dp)
+            .graphicsLayer { alpha = 0.99f }
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0.7f to Color.Black,
+                        1.0f to Color.Transparent,
+                        startY = 0f,
+                        endY = size.height
+                    ),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+    } else {
+        if (blurRadius == 0f) {
+            modifier.fillMaxSize()
         } else {
-
-            if (blurRadius == 0f)
-
-                modifier
-                    .fillMaxSize()
-
-                else
-
             modifier
                 .fillMaxSize()
                 .blur(blurRadius.dp)
         }
+    }
 
-        Image(
-            painter = painter,
+    Box(
+        modifier = modifier.background(
+            if (blendGrad || turnOffBackground) Color.Transparent
+            else Color.LightGray.copy(alpha = 0.2f)
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        SubcomposeAsyncImage(
+            model = req,
             contentDescription = null,
             modifier = mod,
-            contentScale = ContentScale.Crop
-        )
-
-
-        if (blurRadius == 0f && !turnOffPlaceholders) {
-            when (painter.state) {
-                is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
-                    ?: Icon(
+            contentScale = ContentScale.Crop,
+            loading = {
+                if (!turnOffPlaceholders) {
+                    onEmptyImageCallback?.invoke() ?: Icon(
                         Icons.Rounded.Image,
                         contentDescription = "Loading",
                         modifier = Modifier.fillMaxSize(0.7f)
                     )
-                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke()
-                    ?: Icon(
+                }
+            },
+            error = {
+                if (!turnOffPlaceholders) {
+                    onEmptyImageCallback?.invoke() ?: Icon(
                         Icons.Rounded.ImageNotSupported,
                         contentDescription = "Error",
                         modifier = Modifier.fillMaxSize(0.7f)
                     )
-                else -> Unit
+                }
             }
-        }
+        )
     }
 }
+
 
 @SuppressLint("UnusedCrossfadeTargetStateParameter")
 @Composable

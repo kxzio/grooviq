@@ -152,7 +152,7 @@ fun connectScreens(
                                 disabledIconColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                                 disabledTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                             ),
-                            icon = { Icon(screen.icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                            icon = { Icon(screen.icon, contentDescription = null, modifier = Modifier.size(23.dp)) },
                             label = { },
                             selected = currentTab == screen,
                             onClick = { currentTab = screen }

@@ -135,7 +135,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
         Box(
             modifier = Modifier
-                .fillMaxSize().hazeEffect(state = hazeState)
+                .fillMaxSize()
         )
         {
             if (song != null) {
@@ -168,7 +168,6 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                 HorizontalPager(
                     state = pagerState,
-                    beyondViewportPageCount = 3,
                     flingBehavior = PagerDefaults.flingBehavior(
                         state = pagerState,
                         snapPositionalThreshold = 0.2f,
@@ -227,8 +226,6 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                                 blurRadius = 0f,
                                 turnOffPlaceholders = true,
                                 blendGrad = false,
-                                customLoadSizeX = 500,
-                                customLoadSizeY = 500,
                             )
                         }
                     }
