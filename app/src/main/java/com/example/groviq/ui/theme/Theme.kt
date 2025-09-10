@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -20,23 +21,49 @@ import androidx.compose.ui.unit.sp
 import com.example.groviq.R
 
 val SfProDisplay = FontFamily(
-    Font(R.font.sfprodisplayregular, weight = FontWeight.Normal),
-    Font(R.font.sfprodisplaymedium, weight = FontWeight.Medium),
-    Font(R.font.sfprodisplaybold, weight = FontWeight.Bold),
-    Font(R.font.sfprodisplayblackitalic, weight = FontWeight.Black, style = FontStyle.Italic),
-    Font(R.font.sfprodisplayheavyitalic, weight = FontWeight.ExtraBold, style = FontStyle.Italic),
-    Font(R.font.sfprodisplaylightitalic, weight = FontWeight.Light, style = FontStyle.Italic),
-    Font(R.font.sfprodisplaysemibolditalic, weight = FontWeight.SemiBold, style = FontStyle.Italic),
-    Font(R.font.sfprodisplaythinitalic, weight = FontWeight.Thin, style = FontStyle.Italic),
-    Font(R.font.sfprodisplayultralightitalic, weight = FontWeight.ExtraLight, style = FontStyle.Italic)
+    Font(R.font.regular, weight = FontWeight.Normal),
+    Font(R.font.medium, weight = FontWeight.Medium),
+    Font(R.font.bold, weight = FontWeight.Bold),
+    Font(R.font.blackitalic, weight = FontWeight.Black, style = FontStyle.Italic),
+    Font(R.font.heavy_italic, weight = FontWeight.ExtraBold, style = FontStyle.Italic),
+    Font(R.font.light_italic, weight = FontWeight.Light, style = FontStyle.Italic),
+    Font(R.font.semibold_italic, weight = FontWeight.SemiBold, style = FontStyle.Italic),
+    Font(R.font.regular, weight = FontWeight.Thin, style = FontStyle.Italic),
+    Font(R.font.ultra_light_italic, weight = FontWeight.ExtraLight, style = FontStyle.Italic)
 )
 
-private val DarkColorScheme =
-    darkColorScheme(
-        primary = Purple80,
-        secondary = PurpleGrey80,
-        tertiary = Pink80
-    )
+
+private val DarkColorScheme = darkColorScheme(
+    primary       = Color(
+        132,
+        169,
+        201,
+        255
+    ),
+    onPrimary     = Color.White,
+    secondary     = Color(
+        132,
+        169,
+        201,
+        255
+    ),
+    onSecondary   = Color.White,
+    tertiary      = Color(21, 21, 21),
+    onTertiary    = Color.White,
+    background    = Color(21, 21, 21),
+    onBackground  = Color.White,
+    surface       = Color(21, 21, 21),
+    onSurface     = Color.White,
+    error         = Color(255, 69, 58), // красный для ошибок
+    onError       = Color.White,
+    surfaceVariant = Color(40, 40, 40),
+    onSurfaceVariant = Color.White.copy(alpha = 0.7f),
+    outline       = Color(100, 100, 100),
+    inverseOnSurface = Color.Black,
+    inverseSurface  = Color.White,
+    inversePrimary  = Color(133, 98, 225)
+)
+
 
 private val LightColorScheme =
     lightColorScheme(
@@ -62,17 +89,7 @@ fun GroviqTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme =
-        when {
-            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                val context =
-                    LocalContext.current
-                dynamicDarkColorScheme(context)
-            }
-
-            darkTheme -> DarkColorScheme
-            else -> LightColorScheme
-        }
+    val colorScheme = DarkColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

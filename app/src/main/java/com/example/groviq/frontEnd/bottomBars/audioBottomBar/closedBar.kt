@@ -5,16 +5,23 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -24,6 +31,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,28 +41,39 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.frontEnd.background
 import com.example.groviq.frontEnd.subscribeMe
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.isActive
 
 @OptIn(
     UnstableApi::class
 )
 @Composable
-fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, searchViewModel: SearchViewModel, songProgressUi: State<CurrentSongTimeProgress>)
+fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, searchViewModel: SearchViewModel, songProgressUi: State<CurrentSongTimeProgress>, hazeState: HazeState)
 {
-    val baseColor   = Color(30, 30, 30)
-    val bottomColor = Color(30, 30, 30)
+    val baseColor   = Color(30, 30, 30, 100)
+    val bottomColor = Color(30, 30, 30, 100)
 
-    val highlightColor = Color(200, 100, 100, 255)
+    val highlightColor = MaterialTheme.colorScheme.primary
 
     val gradientShift = remember { androidx.compose.animation.core.Animatable(0f) }
     val gradientAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -83,19 +103,25 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
         }
     }
 
+    val song = allAudioData[playingHash]
+
     Box(modifier = Modifier.fillMaxSize())
     {
         BoxWithConstraints(
             modifier = Modifier.align(Alignment.BottomCenter)
-                .padding(bottom = 100.dp, start = 15.dp, end = 15.dp)
+                .padding(bottom = 65.dp)
                 .fillMaxWidth()
                 .height(80.dp)
-                .background(bottomColor)
+                .background(baseColor)
+                .hazeEffect(state = hazeState)
+
         ) {
 
             val boxWidth = constraints.maxWidth.toFloat()
             val gradientWidth = boxWidth
             val alphaFactor = 0.5f
+
+
 
             Box(
                 modifier = Modifier
@@ -103,9 +129,9 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
-                                baseColor.copy(alpha = 1f - gradientAlpha.value * alphaFactor),
+                                baseColor.copy(alpha = 0.5f - gradientAlpha.value * alphaFactor),
                                 highlightColor.copy(alpha = gradientAlpha.value * alphaFactor),
-                                baseColor.copy(alpha = 1f - gradientAlpha.value * alphaFactor)
+                                baseColor.copy(alpha = 0.5f - gradientAlpha.value * alphaFactor)
                             ),
                             startX  = gradientShift.value * (boxWidth + gradientWidth) - gradientWidth,
                             endX    = gradientShift.value * (boxWidth + gradientWidth),
@@ -113,56 +139,43 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                     )
             )
 
+            Box(Modifier.align(Alignment.BottomStart))
+            {
+                LinearProgressIndicator(
+                    progress = songProgressUi.value.progress,
+                    modifier = Modifier
+                        .fillMaxWidth().height(1.dp)
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .clickable { onToogleSheet() }
             ){
 
-                LinearProgressIndicator(
-                    progress = songProgressUi.value.progress,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                )
 
                 Row(
                     modifier = Modifier
-                        .fillMaxSize(),
+                        .fillMaxSize().padding(horizontal = 15.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
                     IconButton(onClick = {
-                            AppViewModels.player.playerManager.prevSong(mainViewModel, searchViewModel = searchViewModel )
-                        },
+                        if (currentStatus == playerStatus.PAUSE)
+                            AppViewModels.player.playerManager.resume()
+                        if (currentStatus == playerStatus.PLAYING)
+                            AppViewModels.player.playerManager.pause()
+                    },
                     ) {
-                        Icon(imageVector =
-                            Icons.Rounded.SkipPrevious,
-                            contentDescription = "SkipPrev",
-                            tint = Color(255, 255, 255)
+                        Icon(
+                            imageVector = if (currentStatus == playerStatus.PAUSE)
+                                Icons.Rounded.PlayArrow else Icons.Rounded.Pause
+                            ,
+                            contentDescription = "Pause/Play",
+                            tint = Color(255, 255, 255),
+                            modifier = Modifier.size(30.dp)
                         )
-                    }
-
-                    if (loadingAudio)
-                    {
-                        CircularProgressIndicator()
-                    }
-                    else
-                    {
-                        IconButton(onClick = {
-                                if (currentStatus == playerStatus.PAUSE)
-                                    AppViewModels.player.playerManager.resume()
-                                if (currentStatus == playerStatus.PLAYING)
-                                    AppViewModels.player.playerManager.pause()
-                            },
-                        ) {
-                            Icon(
-                                imageVector = if (currentStatus == playerStatus.PAUSE)
-                                    Icons.Rounded.PlayArrow else Icons.Rounded.Pause
-                                ,
-                                contentDescription = "Pause/Play",
-                                tint = Color(255, 255, 255)
-                            )
-                        }
                     }
 
 
@@ -174,15 +187,25 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                             imageVector =
                             Icons.Rounded.SkipNext,
                             contentDescription = "SkipNext",
-                            tint = Color(255, 255, 255)
+                            tint = Color(255, 255, 255),
+                            modifier = Modifier.size(30.dp)
                         )
                     }
 
-                    Column()
+                    Column(Modifier.fillMaxWidth().padding(start = 15.dp))
                     {
                         val song = allAudioData[playingHash]
 
-                        Text(song!!.title, color = Color(255, 255, 255))
+                        Text(text = song!!.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, color = Color(255, 255, 255),
+                            modifier = Modifier.basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                animationMode = MarqueeAnimationMode.Immediately,
+                                repeatDelayMillis = 2000,
+                                velocity = 40.dp
+                            )
+                        )
+
+                        Spacer(Modifier.height(4.dp))
 
                         Row()
                         {
@@ -190,7 +213,13 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
 
                                 Text(
                                     artist.title + if (artist != song.artists.last()) ", " else "",
-                                    maxLines = 1, color = Color(255, 255, 255)
+                                    maxLines = 1, fontSize = 15.sp, color = Color(255, 255, 255, 100),
+                                    modifier = Modifier.basicMarquee(
+                                        iterations = Int.MAX_VALUE,
+                                        animationMode = MarqueeAnimationMode.Immediately,
+                                        repeatDelayMillis = 2000,
+                                        velocity = 40.dp
+                                    ),
                                 )
 
                             }

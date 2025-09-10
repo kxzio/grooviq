@@ -16,6 +16,7 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songProgressState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.subscribeMe
+import dev.chrisbanes.haze.HazeState
 
 //the request of navigation radio for track
 val showSheet = mutableStateOf<Boolean>(false)
@@ -25,14 +26,14 @@ val showSheet = mutableStateOf<Boolean>(false)
 )
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
+fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, hazeState: HazeState, content: @Composable () -> Unit) {
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { true }
     )
 
-    mainSheetDraw(sheetState, showSheet.value, { showSheet.value = !showSheet.value}, mainViewModel,searchViewModel, content)
+    mainSheetDraw(sheetState, showSheet.value, { showSheet.value = !showSheet.value}, mainViewModel,searchViewModel, content, hazeState)
 }
 
 @SuppressLint(
@@ -43,7 +44,7 @@ fun audioBottomSheet(mainViewModel : PlayerViewModel, searchViewModel: SearchVie
 )
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun mainSheetDraw(sheetState: SheetState, showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit) {
+fun mainSheetDraw(sheetState: SheetState, showSheet: Boolean, onToogleSheet: () -> Unit, mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, content: @Composable () -> Unit, hazeState: HazeState) {
 
     // current reactive variables for subscribe //
     val playingHash         by mainViewModel.uiState.subscribeMe { it.playingHash    }
@@ -66,7 +67,8 @@ fun mainSheetDraw(sheetState: SheetState, showSheet: Boolean, onToogleSheet: () 
             mainViewModel       = mainViewModel,
             searchViewModel     = searchViewModel,
             onToogleSheet       = onToogleSheet,
-            songProgressUi      = songProgressUi
+            songProgressUi      = songProgressUi,
+            hazeState = hazeState
         )
 
         //scaffold
@@ -76,7 +78,8 @@ fun mainSheetDraw(sheetState: SheetState, showSheet: Boolean, onToogleSheet: () 
                 searchViewModel     = searchViewModel,
                 onToogleSheet       = onToogleSheet,
                 songProgressUi      = songProgressUi,
-                sheetState          = sheetState
+                sheetState          = sheetState,
+                hazeState = hazeState
             )
         }
     }

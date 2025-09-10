@@ -115,7 +115,8 @@ fun asyncedImage(
     turnOffPlaceholders: Boolean = false,
     blendGrad: Boolean = false,
     turnOffBackground: Boolean = false,
-
+    customLoadSizeX : Int = 0,
+    customLoadSizeY : Int = 0,
 )  {
     if (songData == null) return
 
@@ -123,13 +124,23 @@ fun asyncedImage(
 
     val imageKey = songData.art ?: songData.art_link
 
-    val req = ImageRequest.Builder(context)
+    val req = if (customLoadSizeY == 0) ImageRequest.Builder(context)
         .data(imageKey)
         .crossfade(500)
         .setParameter("coil#disk_cache_key", imageKey)
         .diskCachePolicy(CachePolicy.ENABLED)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .build()
+    else
+        ImageRequest.Builder(context)
+            .data(imageKey)
+            .size(customLoadSizeX, customLoadSizeY)
+            .crossfade(500)
+            .setParameter("coil#disk_cache_key", imageKey)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .build()
+
 
     val painter = rememberAsyncImagePainter(model = req)
 
@@ -156,6 +167,14 @@ fun asyncedImage(
                     )
                 }
         } else {
+
+            if (blurRadius == 0f)
+
+                modifier
+                    .fillMaxSize()
+
+                else
+
             modifier
                 .fillMaxSize()
                 .blur(blurRadius.dp)
@@ -315,7 +334,7 @@ fun UndoPopup(
     "UnusedCrossfadeTargetStateParameter"
 )
 @Composable
-fun background(song: songData) {
+fun background(song: songData, alpha : Float = 0.88f, drawBlack : Boolean = true) {
 
     val imageKey = song?.art ?: song?.art_link
 
@@ -333,7 +352,7 @@ fun background(song: songData) {
                     song,
                     modifier = Modifier
                         .fillMaxSize()
-                        .alpha(0.88f)
+                        .alpha(alpha)
                         .graphicsLayer {
                             scaleX = 1.5f
                             scaleY = 1.5f
@@ -350,22 +369,26 @@ fun background(song: songData) {
             }
         }
 
-        Box(
-            Modifier
-                .fillMaxSize()
-                .drawWithContent {
-                    drawContent()
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            0f to Color.Transparent,
-                            1f to Color(0, 0, 0, 180),
-                            startY = 0f,
-                            endY = size.height * 1.0f
+        if (drawBlack)
+        {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0f to Color.Transparent,
+                                1f to Color(0, 0, 0, 180),
+                                startY = 0f,
+                                endY = size.height * 1.0f
+                            )
                         )
-                    )
-                }
-                .blur(15.dp)
-        )
+                    }
+                    .blur(15.dp)
+            )
+        }
+
     }
 
 

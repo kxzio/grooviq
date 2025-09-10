@@ -29,6 +29,7 @@ import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.bottomBars.createPlaylistBar
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
 import com.example.groviq.frontEnd.subscribeMe
+import com.example.groviq.ui.theme.SfProDisplay
 
 @OptIn(
     UnstableApi::class
@@ -48,7 +49,7 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
         Column(Modifier.padding(5.dp))
         {
             Text(
-                "Плейлисты : "
+                "Плейлисты : ", fontFamily = SfProDisplay
             )
 
             Button(onClick = {

@@ -12,13 +12,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
@@ -86,6 +92,8 @@ import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.background
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.frontEnd.subscribeMe
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -98,7 +106,8 @@ import kotlin.math.abs
 )
 @Composable
 fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songProgressUi: State<CurrentSongTimeProgress>,
-              searchViewModel: SearchViewModel, sheetState: SheetState)
+              searchViewModel: SearchViewModel, sheetState: SheetState, hazeState: HazeState
+)
 {
 
     // current reactive variables for subscribe //
@@ -116,7 +125,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
         sheetState = sheetState,
         modifier = Modifier.fillMaxSize(),
         dragHandle = null,
-        containerColor = Color.Black,
+        containerColor = Color(0, 0, 0, 150),
         contentColor = Color.White,
         shape = RectangleShape
         //windowInsets = WindowInsets(0, 0, 0, 0)
@@ -126,7 +135,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize().hazeEffect(state = hazeState)
         )
         {
             if (song != null) {
@@ -159,6 +168,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
 
                 HorizontalPager(
                     state = pagerState,
+                    beyondViewportPageCount = 3,
                     flingBehavior = PagerDefaults.flingBehavior(
                         state = pagerState,
                         snapPositionalThreshold = 0.2f,
@@ -215,7 +225,10 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                                     .aspectRatio(1f)
                                     .clip(RoundedCornerShape(8.dp)),
                                 blurRadius = 0f,
-                                turnOffPlaceholders = true
+                                turnOffPlaceholders = true,
+                                blendGrad = false,
+                                customLoadSizeX = 500,
+                                customLoadSizeY = 500,
                             )
                         }
                     }
@@ -254,6 +267,8 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                         }
                     }
                 }
+
+
 
                 Spacer(Modifier.height(16.dp))
 

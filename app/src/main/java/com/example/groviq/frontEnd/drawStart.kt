@@ -3,9 +3,11 @@ package com.example.groviq.frontEnd
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -15,6 +17,7 @@ import com.example.groviq.backEnd.playEngine.createListeners
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.audioBottomSheet
 import com.example.groviq.frontEnd.bottomBars.trackSettingsBottomBar
+import dev.chrisbanes.haze.HazeState
 
 //global nav controller for screens
 val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
@@ -25,6 +28,8 @@ val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
 fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel)
 {
     val screenConnectorNavigationLocal = rememberNavController()
+
+    val hazeState = remember { HazeState() }
 
     //we get view now. now we have to attach listeners for view update
     LaunchedEffect(Unit) {
@@ -40,11 +45,11 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
     CompositionLocalProvider(
         screenConnectorNavigation provides screenConnectorNavigationLocal,
     ) {
-        Box(Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().navigationBarsPadding())
         {
-            audioBottomSheet(mainViewModel, searchViewModel)
+            audioBottomSheet(mainViewModel, searchViewModel, hazeState)
             {
-                connectScreens(searchViewModel, mainViewModel)
+                connectScreens(searchViewModel, mainViewModel, hazeState)
             }
             trackSettingsBottomBar(mainViewModel)
         }
