@@ -83,7 +83,7 @@ chaquopy {
         pip {
             install("requests")
             install("yt-dlp")
-            install("git+https://github.com/sigma67/ytmusicapi.git")
+            install("ytmusicapi==1.11.1")
             install("mutagen")
             install("syncedlyrics")
         }

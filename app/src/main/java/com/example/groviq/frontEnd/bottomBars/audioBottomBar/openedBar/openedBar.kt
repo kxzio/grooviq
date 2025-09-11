@@ -62,12 +62,12 @@ import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.background
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.activityButtons
-import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.bottomBarUI
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.*
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.drawPagerForSongs
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.sliderWithDigits
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.playerInputHandlers
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
+import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import dev.chrisbanes.haze.HazeState
 
@@ -109,9 +109,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                 .fillMaxSize()
         )
         {
-            if (song != null) {
-                background(song)
-            }
+            if (song != null) { background(song) }
 
             Column(modifier = Modifier
                 .fillMaxSize(),
@@ -120,29 +118,29 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
             {
                 if (songsLoader == true)
                 {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center){
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(modifier = Modifier.size(100.dp))
                     }
                     return@Column
                 }
 
                 //interactive pager
-                bottomBarUI.openedElements.drawPagerForSongs(mainViewModel, searchViewModel, allAudioData)
+                grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel, searchViewModel, allAudioData)
                 Spacer(Modifier.height(16.dp))
 
                 //current song content
                 Column(Modifier.offset(y = -16.dp).fillMaxSize())
                 {
-                    bottomBarUI.openedElements.titleBar(song!!, onToogleSheet)
+                    grooviqUI.elements.openedElements.titleBar(song!!, onToogleSheet)
                     Spacer(Modifier.height(16.dp))
 
-                    bottomBarUI.openedElements.sliderWithDigits(song!!, songProgressUi)
+                    grooviqUI.elements.openedElements.sliderWithDigits(song!!, songProgressUi)
                     Spacer(Modifier.height(16.dp))
 
-                    bottomBarUI.openedElements.activityButtons(songProgressUi, currentStatus)
+                    grooviqUI.elements.openedElements.activityButtons(songProgressUi, currentStatus)
                     Spacer(modifier = Modifier.weight(1f))
 
-                    bottomBarUI.openedElements.lowerActivityButtons(
+                    grooviqUI.elements.openedElements.lowerActivityButtons(
                         mainViewModel,
                         song,
                         isShuffle,

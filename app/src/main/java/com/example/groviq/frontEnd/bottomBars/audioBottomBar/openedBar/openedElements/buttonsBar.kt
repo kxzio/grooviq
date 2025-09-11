@@ -27,12 +27,13 @@ import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.playerInputHandlers
+import com.example.groviq.frontEnd.grooviqUI
 
 @OptIn(
     UnstableApi::class
 )
 @Composable
-fun bottomBarUI.elements.openedElements.activityButtons(songProgressUi: State<CurrentSongTimeProgress>, currentStatus: playerStatus)
+fun grooviqUI.elements.openedElements.activityButtons(songProgressUi: State<CurrentSongTimeProgress>, currentStatus: playerStatus)
 {
 
     Row(

@@ -26,12 +26,13 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
+import com.example.groviq.frontEnd.grooviqUI
 
 @OptIn(
     UnstableApi::class
 )
 @Composable
-fun bottomBarUI.elements.openedElements.lowerActivityButtons(
+fun grooviqUI.elements.openedElements.lowerActivityButtons(
     mainViewModel: PlayerViewModel,
     song : songData,
     isShuffle : Boolean,

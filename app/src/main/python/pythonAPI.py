@@ -116,7 +116,27 @@ def searchOnServer(q: str) -> str:
                 "image_url": (item.get("thumbnails") or [{"url": ""}])[-1].get("url", "")
             })
 
+    # --- 🔎 доп.обработка артистов с пустым именем в топ-3 ---
+    for idx, res in enumerate(results[:3]):
+        if res["type"] == "artist" and not res["name"].strip():
+            try:
+                artist_candidates = _ytm.search(q, filter="artists", limit=10)
+                for cand in artist_candidates:
+                    cand_img = (cand.get("thumbnails") or [{"url": ""}])[-1].get("url", "")
+                    if cand_img and cand_img == res["image_url"]:
+                        fixed_name = cand.get("artist") or cand.get("name") or cand.get("title") or ""
+                        fixed_id = cand.get("browseId") or cand.get("artistId") or ""
+                        if fixed_name:
+                            res["name"] = fixed_name
+                        if fixed_id:
+                            res["id"] = fixed_id
+                        break
+            except Exception:
+                pass
+
     return json.dumps({"results": results})
+
+
 
 
 def getAlbum(ytmusic_url: str) -> str:

@@ -20,61 +20,45 @@ import androidx.compose.ui.unit.sp
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
+import com.example.groviq.frontEnd.grooviqUI
 
-class bottomBarUI {
-
-    companion object elements
+@Composable
+fun grooviqUI.elements.openedElements.titleBar(song : songData, onToogleSheet: () -> Unit)
+{
+    Box(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
     {
-        object openedElements
+        Column()
         {
-            @Composable
-            fun titleBar(song : songData, onToogleSheet: () -> Unit)
+            Text(text = song?.title ?: "", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.clickable {
+                openAlbum(song?.album_original_link ?: "")
+                onToogleSheet()
+            }.basicMarquee(
+                iterations = Int.MAX_VALUE,
+                animationMode = MarqueeAnimationMode.Immediately,
+                repeatDelayMillis = 2000,
+                velocity = 40.dp
+            )
+            )
+
+
+            Spacer(
+                Modifier.height(10.dp))
+
+            Row()
             {
-                Box(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
-                {
-                    Column()
-                    {
-                        Text(text = song?.title ?: "", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.clickable {
-                            openAlbum(song?.album_original_link ?: "")
+                song?.artists?.forEach { artist ->
+
+                    Text(
+                        artist.title + if (artist != song.artists.last()) ", " else "",
+                        maxLines = 1, fontSize = 17.sp, color = Color(255, 255, 255, 150), modifier = Modifier.clickable {
+                            openArtist(artist.url)
                             onToogleSheet()
-                        }.basicMarquee(
-                            iterations = Int.MAX_VALUE,
-                            animationMode = MarqueeAnimationMode.Immediately,
-                            repeatDelayMillis = 2000,
-                            velocity = 40.dp
-                        )
-                        )
-
-
-                        Spacer(
-                            Modifier.height(10.dp))
-
-                        Row()
-                        {
-                            song?.artists?.forEach { artist ->
-
-                                Text(
-                                    artist.title + if (artist != song.artists.last()) ", " else "",
-                                    maxLines = 1, fontSize = 17.sp, color = Color(255, 255, 255, 150), modifier = Modifier.clickable {
-                                        openArtist(artist.url)
-                                        onToogleSheet()
-                                    }
-                                )
-
-                            }
                         }
-                    }
+                    )
 
                 }
             }
         }
 
-        object closedElements
-        {
-
-        }
-
     }
-
 }
-

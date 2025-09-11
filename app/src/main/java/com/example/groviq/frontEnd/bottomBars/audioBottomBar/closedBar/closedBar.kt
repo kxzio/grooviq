@@ -47,7 +47,7 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.closedBar.closedElements.gradientLoaderBar
-import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.bottomBarUI
+import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
@@ -102,7 +102,7 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
 
         ) {
 
-            bottomBarUI.elements.closedElements.gradientLoaderBar(constraints, baseColor,
+            grooviqUI.elements.closedElements.gradientLoaderBar(constraints, baseColor,
                 gradientShift = gradientShift.value,
                 gradientAlpha = gradientAlpha.value
             )

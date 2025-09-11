@@ -9,10 +9,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Constraints
-import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.bottomBarUI
+import com.example.groviq.frontEnd.grooviqUI
 
 @Composable
-fun bottomBarUI.elements.closedElements.gradientLoaderBar(constraints: Constraints, baseColor: Color, gradientShift : Float, gradientAlpha : Float )
+fun grooviqUI.elements.closedElements.gradientLoaderBar(constraints: Constraints, baseColor: Color, gradientShift : Float, gradientAlpha : Float )
 {
     val highlightColor = MaterialTheme.colorScheme.primary
 

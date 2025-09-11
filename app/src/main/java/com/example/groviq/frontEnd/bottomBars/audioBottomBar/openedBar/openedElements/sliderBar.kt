@@ -26,6 +26,7 @@ import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.dataStructures.songProgressStatus
 import com.example.groviq.formatTime
+import com.example.groviq.frontEnd.grooviqUI
 
 @androidx.annotation.OptIn(
     UnstableApi::class
@@ -34,7 +35,7 @@ import com.example.groviq.formatTime
     ExperimentalMaterial3Api::class
 )
 @Composable
-fun bottomBarUI.elements.openedElements.sliderWithDigits(song : songData, songProgressUi: State<CurrentSongTimeProgress>,)
+fun grooviqUI.elements.openedElements.sliderWithDigits(song : songData, songProgressUi: State<CurrentSongTimeProgress>,)
 {
     Column(modifier = Modifier.fillMaxWidth())
     {

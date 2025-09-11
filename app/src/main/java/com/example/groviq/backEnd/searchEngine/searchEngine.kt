@@ -381,7 +381,7 @@ class SearchViewModel : ViewModel() {
 
         currentArtistJob = viewModelScope.launch {
             val maxRetries = 3
-            val timeoutPerTry = 8000L
+            val timeoutPerTry = 10000L
             var success = false
 
             _uiState.update { it.copy(gettersInProcess = true, publicErrors =  uiState.value.publicErrors.toMutableMap().apply {

@@ -3,7 +3,6 @@ package com.example.groviq.frontEnd
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RenderEffect.createBlurEffect
 import androidx.compose.foundation.Image
@@ -64,9 +63,26 @@ import android.util.LruCache
 import android.util.Size
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -74,13 +90,20 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import coil.compose.SubcomposeAsyncImage
 import coil.imageLoader
 import coil.request.CachePolicy
@@ -88,6 +111,9 @@ import coil.size.Precision
 import android.graphics.RenderEffect as AndroidRenderEffect
 import coil.transform.*
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
+import com.example.groviq.MyApplication
+import com.example.groviq.backEnd.searchEngine.publucErrors
+import com.example.groviq.frontEnd.appScreens.searchingScreen.searchingRequest
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +122,32 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import android.graphics.Color as AndroidColor
+
+class grooviqUI {
+
+    companion object elements
+    {
+        //bottom bars
+
+        object openedElements
+        {
+
+        }
+
+        object closedElements
+        {
+
+        }
+
+        object screenPlaceholders
+        {
+
+        }
+
+    }
+
+}
+
 
 @Composable
 fun <T, R> StateFlow<T>.subscribeMe(
@@ -273,66 +325,83 @@ fun asyncedImage(
 @Composable
 fun errorButton( onClick: () -> Unit,)
 {
-    Button( { onClick() } )
-    {
-        Text("Повторить еще раз..")
-    }
+    iconOutlineButton("Повторить еще раз...", { onClick() }, Icons.Rounded.Restore )
 }
 
 @Composable
-fun UndoPopup(
-    message: String,
-    durationMs: Long = 5000L,
-    onUndo: () -> Unit,
-    visible: Boolean,
-    onDismiss: () -> Unit
-) {
-    if (!visible) return
+fun iconOutlineButton(text : String, onClick: () -> Unit, icon : ImageVector? = null)
+{
+    OutlinedButton( { onClick() } ,
+        modifier = Modifier,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = Color(255, 255, 255, 200),
+            containerColor = Color(0, 0, 0, 0),
 
-    var remainingTime by remember { mutableStateOf(durationMs) }
+        ),
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.primary)
+    )
+    {
+        Row(Modifier.padding(), verticalAlignment = Alignment.CenterVertically)
+        {
+            if (icon != null)
+            {
+                Icon  (icon, "")
+                Spacer(Modifier.width(10.dp))
+            }
 
-    LaunchedEffect(Unit) {
-        val interval = 100L
-        while (remainingTime > 0) {
-            delay(interval)
-            remainingTime -= interval
+            Text(text, fontWeight = FontWeight.Medium)
         }
-        onDismiss()
     }
+}
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .shadow(8.dp, RoundedCornerShape(12.dp)),
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("$message (${(remainingTime / 1000L) + 1})")
-                Button(
-                    onClick = {
-                        onUndo()
-                        onDismiss()
+
+@Composable
+fun grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
+    publicErrors: MutableMap<String, publucErrors>,
+    path : String,
+    retryCallback: () -> Unit,
+    addRetryToNothingFound : Boolean = false
+)
+{
+
+    if (publicErrors[path] != publucErrors.CLEAN)
+    {
+        if (publicErrors[path] == publucErrors.NO_INTERNET)
+        {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+
+                Column(verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally)
+                {
+                    Text(text = "Нет подключения к интернету", color = Color(255, 255, 255, 255))
+
+                    Spacer(Modifier.height(16.dp))
+
+                    errorButton() {
+                        retryCallback()
                     }
-                ) {
-                    Text("Отменить")
+                }
+            }
+        }
+        else if (publicErrors[path] == publucErrors.NO_RESULTS)
+        {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+
+                Column(verticalArrangement = Arrangement.Center)
+                {
+                    Text(text = "Ничего не найдено", color = Color(255, 255, 255, 255))
+
+                    if (addRetryToNothingFound)
+                    {
+                        errorButton() {
+                            retryCallback()
+                        }
+                    }
+
                 }
             }
         }
     }
 }
-
 @SuppressLint(
     "UnusedCrossfadeTargetStateParameter"
 )
@@ -395,4 +464,44 @@ fun background(song: songData, alpha : Float = 0.88f, drawBlack : Boolean = true
     }
 
 
+}
+
+
+@Composable
+fun InfiniteRoundedCircularProgress(
+    modifier: Modifier = Modifier.size(100.dp),
+    strokeWidth: Dp = 3.dp,
+    colors: List<Color> = listOf(MaterialTheme.colorScheme.primary)
+) {
+    val infiniteTransition = rememberInfiniteTransition()
+
+
+    val sweep by infiniteTransition.animateFloat(
+        initialValue = 20f,
+        targetValue = 280f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    val startAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    Canvas(modifier = modifier) {
+        val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+        drawArc(
+            brush = if (colors.size > 1) Brush.sweepGradient(colors) else SolidColor(colors.first()),
+            startAngle = startAngle,
+            sweepAngle = sweep,
+            useCenter = false,
+            style = stroke
+        )
+    }
 }

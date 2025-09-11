@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -47,10 +48,13 @@ import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.backEnd.searchEngine.searchState
+import com.example.groviq.frontEnd.InfiniteRoundedCircularProgress
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.errorButton
+import com.example.groviq.frontEnd.errorsPlaceHoldersScreen
+import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -100,136 +104,129 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
             }
         }
 
+        if (publicErrors_[navigationSaver] != publucErrors.CLEAN) {
+
+            grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
+                publicErrors    = publicErrors_,
+                path            = navigationSaver,
+                retryCallback   = {
+                    searchViewModel.getArtist(
+                        context = MyApplication.globalContext!!,
+                        request = artistUrl,
+                        mainViewModel
+                    )
+                },
+                addRetryToNothingFound = true
+            )
+            return
+
+        }
+        else
+        {
+            if (gettersInProcess == true) {
+
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
+                }
+
+                return
+            }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (publicErrors_[navigationSaver] != publucErrors.CLEAN) {
-                item {
-                    when (publicErrors_[ navigationSaver ]) {
-                        publucErrors.NO_INTERNET -> {
-                            Text("Нет подключения к интернету")
-                            errorButton() {
-                                searchViewModel.getArtist(
-                                    context = MyApplication.globalContext!!,
-                                    request = artistUrl,
-                                    mainViewModel
-                                )
+
+            item {
+                asyncedImage(
+                    currentArtist.imageUrl,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                )
+            }
+
+            item {
+                Text(currentArtist.title)
+            }
+
+            val topSongs = audioData[artistUrl]?.songIds
+                ?.mapNotNull { allAudioData[it] }
+                ?: emptyList()
+
+            items(topSongs) { song ->
+                SwipeToQueueItem(
+                    audioSource = artistUrl,
+                    song = song,
+                    mainViewModel = mainViewModel,
+                    modifier = Modifier.clickable {
+                        mainViewModel.setPlayingAudioSourceHash(artistUrl)
+                        updatePosInQueue(mainViewModel, song.link)
+                        mainViewModel.deleteUserAdds()
+                        AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel, true)
+                    }
+                )
+            }
+
+            item {
+                Text("Альбомы : ")
+            }
+
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(currentArtist.albums) { album ->
+                        Column(
+                            Modifier.clickable {
+                                val link = album.link
+                                val encoded = Uri.encode(link)
+                                searchingScreenNav.navigate("${Screen.Searching.route}/album/$encoded")
                             }
+                        ) {
+                            asyncedImage(
+                                album.image_url,
+                                modifier = Modifier
+                                    .size(110.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                            )
+                            Text(album.album, Modifier.padding(top = 5.dp))
+                            Text(album.year ?: "", Modifier.padding(top = 5.dp))
                         }
-                        publucErrors.NO_RESULTS  -> {
-                            Text("Ничего не найдено")
-                            errorButton() {
-                                searchViewModel.getArtist(
-                                    context = MyApplication.globalContext!!,
-                                    request = artistUrl,
-                                    mainViewModel
-                                )
-                            }
-                        }
-                        else -> Unit
                     }
                 }
             }
-            else
-            {
-                if (gettersInProcess == true) {
-                    item {
-                        CircularProgressIndicator(modifier = Modifier.size(100.dp))
-                    }
-                    return@LazyColumn
-                }
 
-                item {
-                    asyncedImage(
-                        currentArtist.imageUrl,
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                    )
-                }
+            item {
+                Text("Похожие артисты : ")
+            }
 
-                item {
-                    Text(currentArtist.title)
-                }
-
-                val topSongs = audioData[artistUrl]?.songIds
-                    ?.mapNotNull { allAudioData[it] }
-                    ?: emptyList()
-
-                items(topSongs) { song ->
-                    SwipeToQueueItem(
-                        audioSource = artistUrl,
-                        song = song,
-                        mainViewModel = mainViewModel,
-                        modifier = Modifier.clickable {
-                            mainViewModel.setPlayingAudioSourceHash(artistUrl)
-                            updatePosInQueue(mainViewModel, song.link)
-                            mainViewModel.deleteUserAdds()
-                            AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel, true)
-                        }
-                    )
-                }
-
-                item {
-                    Text("Альбомы : ")
-                }
-
-                item {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(currentArtist.albums) { album ->
-                            Column(
-                                Modifier.clickable {
-                                    val link = album.link
-                                    val encoded = Uri.encode(link)
-                                    searchingScreenNav.navigate("${Screen.Searching.route}/album/$encoded")
-                                }
-                            ) {
-                                asyncedImage(
-                                    album.image_url,
-                                    modifier = Modifier
-                                        .size(110.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                )
-                                Text(album.album, Modifier.padding(top = 5.dp))
-                                Text(album.year ?: "", Modifier.padding(top = 5.dp))
-                            }
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(currentArtist.relatedArtists) { item ->
+                        Column(Modifier.clickable { openArtist(item.url) }) {
+                            asyncedImage(
+                                item.imageUrl,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(CircleShape)
+                            )
+                            Text(text = item.title, color = Color.White)
                         }
                     }
                 }
+            }
 
-                item {
-                    Text("Похожие артисты : ")
-                }
-
-                item {
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(currentArtist.relatedArtists) { item ->
-                            Column(Modifier.clickable { openArtist(item.url) }) {
-                                asyncedImage(
-                                    item.imageUrl,
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clip(CircleShape)
-                                )
-                                Text(text = item.title, color = Color.White)
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    if (allAudioData[playingHash] != null) {
-                        Spacer(Modifier.height(80.dp))
-                    }
+            item {
+                if (allAudioData[playingHash] != null) {
+                    Spacer(Modifier.height(80.dp))
                 }
             }
 

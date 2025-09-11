@@ -6,9 +6,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,10 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -59,10 +64,15 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
+import com.example.groviq.frontEnd.InfiniteRoundedCircularProgress
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
+import com.example.groviq.frontEnd.appScreens.searchingScreen.searchingRequest
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.errorButton
+import com.example.groviq.frontEnd.errorsPlaceHoldersScreen
+import com.example.groviq.frontEnd.grooviqUI
+import com.example.groviq.frontEnd.iconOutlineButton
 import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -109,31 +119,24 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
 
         Column()
         {
-            if (publicErrors[navigationSaver] != publucErrors.CLEAN)
-            {
-                if (publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
-                {
-                    Text(text = "Нет подключения к интернету")
-                    errorButton() {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
-                        }
-                    }
-                }
-                else if (publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
-                {
-                    Text(text = "Произошла ошибка")
-                    errorButton() {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
-                        }
-                    }
-                }
-            }
+            grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
+                publicErrors    = publicErrors,
+                path            = navigationSaver,
+                retryCallback   = {
+                    searchViewModel.getAlbum(
+                        context = MyApplication.globalContext!!,
+                        request = albumUrl,
+                        mainViewModel
+                    )
+                },
+                addRetryToNothingFound = true
+            )
 
             if (gettersInProcess == true)
             {
-                CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
+                }
                 return@Column
 
             }
@@ -188,31 +191,22 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
 
         Column()
         {
-            if (publicErrors[navigationSaver] != publucErrors.CLEAN)
-            {
-                if (publicErrors[navigationSaver] == publucErrors.NO_INTERNET)
-                {
-                    Text(text = "Нет подключения к интернету")
-                    errorButton() {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
-                        }
+            grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
+                publicErrors    = publicErrors,
+                path            = navigationSaver,
+                retryCallback   = {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
                     }
-                }
-                else if (publicErrors[navigationSaver] == publucErrors.NO_RESULTS)
-                {
-                    Text(text = "Произошла ошибка")
-                    errorButton() {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
-                        }
-                    }
-                }
-            }
+                },
+                addRetryToNothingFound = true
+            )
 
             if (gettersInProcess == true)
             {
-                CircularProgressIndicator(modifier = Modifier.size(100.dp))
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
+                }
                 return@Column
             }
 
@@ -256,22 +250,26 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
     Column {
 
-
         if (songs.isEmpty())
             return@Column
 
         LazyColumn {
 
             item {
-                Column()
+                Column(Modifier.padding(horizontal = 16.dp))
                 {
-                    asyncedImage(
-                        songs.firstOrNull(),
-                        Modifier.size(85.dp),
-                        onEmptyImageCallback = {
-                            Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(85.dp))
-                        }
-                    )
+                    Spacer(Modifier.height(15.dp))
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally)
+                    {
+                        asyncedImage(
+                            songs.firstOrNull(),
+                            Modifier.size(200.dp),
+                            onEmptyImageCallback = {
+                                Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(200.dp))
+                            }
+                        )
+                    }
+                    Spacer(Modifier.height(15.dp))
 
                     if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
                     {
@@ -308,55 +306,68 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
                     if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
                     {
-                        Text(audioSource!!.yearOfAudioSource)
+                        Spacer(Modifier.height(8.dp))
+                        Text(audioSource!!.yearOfAudioSource, color = Color(255, 255, 255, 180))
+                        Spacer(Modifier.height(8.dp))
                     }
 
                     if (isPlaylist.not())
                     {
-                        Button(onClick = {
+
+                        Spacer(Modifier.height(16.dp))
+
+                        iconOutlineButton(
+
+                        if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
+                            "Удалить"
+                        else
+                            "Сохранить",
+
+                        onClick = {
                             mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
                             mainViewModel.saveAudioSourcesToRoom()
                             mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
-                        })
-                        {
-                            if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
-                            {
-                                Text("Удалить")
-                            }
-                            else
-                            {
-                                Text("Сохранить")
-                            }
-                        }
+                        },
+
+                        icon = Icons.Rounded.Save
+
+                        )
                     }
 
                     if (songs.isNullOrEmpty().not())
                     {
-                        Button(onClick = {
+
+                        Spacer(Modifier.height(16.dp))
+
+                        iconOutlineButton(
 
                             if (songs.all {it.file != null && it.file!!.exists()})
-                            {
-                                songs.forEach { track ->
-                                    DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
-                                }
-                            }
+                                "Удалить с устройства"
                             else
-                            {
-                                songs.forEach { track ->
-                                    DownloadManager.enqueue(mainViewModel, track.link)
-                                }
-                                DownloadManager.start()
-                            }
+                                "Скачать на устройство",
 
-                        })
-                        {
-                            if (songs.all {it.file != null && it.file!!.exists()})
-                            {
-                                Text("Удалить с устройства")
-                            }
-                            else
-                                Text("Скачать на устройство")
-                        }
+                            onClick = {
+                                if (songs.all {it.file != null && it.file!!.exists()})
+                                {
+                                    songs.forEach { track ->
+                                        DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                                    }
+                                }
+                                else
+                                {
+                                    songs.forEach { track ->
+                                        DownloadManager.enqueue(mainViewModel, track.link)
+                                    }
+                                    DownloadManager.start()
+                                }
+                            },
+
+                            icon = Icons.Rounded.Download
+
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
                     }
 
 

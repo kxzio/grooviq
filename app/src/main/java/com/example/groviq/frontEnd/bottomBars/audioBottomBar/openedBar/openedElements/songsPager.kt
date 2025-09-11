@@ -34,6 +34,7 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.asyncedImage
+import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -42,7 +43,7 @@ import kotlin.math.abs
 
 @OptIn(UnstableApi::class)
 @Composable
-fun bottomBarUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, allAudioData: MutableMap<String, songData>)
+fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, allAudioData: MutableMap<String, songData>)
 {
     val currentQueue        by mainViewModel.uiState.subscribeMe { it.currentQueue   }
     val posInQueue          by mainViewModel.uiState.subscribeMe { it.posInQueue     }
