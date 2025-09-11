@@ -15,6 +15,8 @@ import androidx.media3.common.util.UnstableApi
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songProgressState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.frontEnd.bottomBars.audioBottomBar.closedBar.closedBar
+import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedBar
 import com.example.groviq.frontEnd.subscribeMe
 import dev.chrisbanes.haze.HazeState
 
