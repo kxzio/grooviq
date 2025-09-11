@@ -32,7 +32,7 @@ import com.example.groviq.frontEnd.bottomBars.audioBottomBar.playerInputHandlers
     UnstableApi::class
 )
 @Composable
-fun bottomBarUI.openedElements.activityButtons(songProgressUi: State<CurrentSongTimeProgress>, currentStatus: playerStatus)
+fun bottomBarUI.elements.openedElements.activityButtons(songProgressUi: State<CurrentSongTimeProgress>, currentStatus: playerStatus)
 {
 
     Row(

@@ -46,6 +46,8 @@ import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.frontEnd.bottomBars.audioBottomBar.closedBar.closedElements.gradientLoaderBar
+import com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements.bottomBarUI
 import com.example.groviq.frontEnd.subscribeMe
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
@@ -58,9 +60,6 @@ import kotlinx.coroutines.isActive
 fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, searchViewModel: SearchViewModel, songProgressUi: State<CurrentSongTimeProgress>, hazeState: HazeState)
 {
     val baseColor   = Color(40, 40, 40, 100)
-    val bottomColor = Color(40, 40, 40, 100)
-
-    val highlightColor = MaterialTheme.colorScheme.primary
 
     val gradientShift = remember { androidx.compose.animation.core.Animatable(0f) }
     val gradientAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -72,6 +71,7 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
 
     val loadingAudio = (currentStatus == playerStatus.IDLE || currentStatus == playerStatus.BUFFERING)
 
+    //gradient start animating
     LaunchedEffect(loadingAudio) {
         if (loadingAudio) {
             gradientAlpha.animateTo(1f, animationSpec = tween(500))
@@ -90,8 +90,6 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
         }
     }
 
-    val song = allAudioData[playingHash]
-
     Box(modifier = Modifier.fillMaxSize())
     {
         BoxWithConstraints(
@@ -104,26 +102,9 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
 
         ) {
 
-            val boxWidth = constraints.maxWidth.toFloat()
-            val gradientWidth = boxWidth
-            val alphaFactor = 0.5f
-
-
-
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                baseColor.copy(alpha = 0.5f - gradientAlpha.value * alphaFactor),
-                                highlightColor.copy(alpha = gradientAlpha.value * alphaFactor),
-                                baseColor.copy(alpha = 0.5f - gradientAlpha.value * alphaFactor)
-                            ),
-                            startX  = gradientShift.value * (boxWidth + gradientWidth) - gradientWidth,
-                            endX    = gradientShift.value * (boxWidth + gradientWidth),
-                        )
-                    )
+            bottomBarUI.elements.closedElements.gradientLoaderBar(constraints, baseColor,
+                gradientShift = gradientShift.value,
+                gradientAlpha = gradientAlpha.value
             )
 
             Box(Modifier.align(Alignment.BottomStart))
@@ -140,7 +121,6 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                     .matchParentSize()
                     .clickable { onToogleSheet() }
             ){
-
 
                 Row(
                     modifier = Modifier

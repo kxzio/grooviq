@@ -42,7 +42,7 @@ import kotlin.math.abs
 
 @OptIn(UnstableApi::class)
 @Composable
-fun bottomBarUI.openedElements.drawPagerForSongs(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, allAudioData: MutableMap<String, songData>)
+fun bottomBarUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerViewModel, searchViewModel: SearchViewModel, allAudioData: MutableMap<String, songData>)
 {
     val currentQueue        by mainViewModel.uiState.subscribeMe { it.currentQueue   }
     val posInQueue          by mainViewModel.uiState.subscribeMe { it.posInQueue     }

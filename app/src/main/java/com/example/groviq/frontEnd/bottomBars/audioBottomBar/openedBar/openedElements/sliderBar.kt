@@ -34,7 +34,7 @@ import com.example.groviq.formatTime
     ExperimentalMaterial3Api::class
 )
 @Composable
-fun bottomBarUI.openedElements.sliderWithDigits(song : songData, songProgressUi: State<CurrentSongTimeProgress>,)
+fun bottomBarUI.elements.openedElements.sliderWithDigits(song : songData, songProgressUi: State<CurrentSongTimeProgress>,)
 {
     Column(modifier = Modifier.fillMaxWidth())
     {

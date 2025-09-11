@@ -31,7 +31,7 @@ import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
     UnstableApi::class
 )
 @Composable
-fun bottomBarUI.openedElements.lowerActivityButtons(
+fun bottomBarUI.elements.openedElements.lowerActivityButtons(
     mainViewModel: PlayerViewModel,
     song : songData,
     isShuffle : Boolean,
