@@ -142,6 +142,11 @@ fun connectScreens(
                     modifier = Modifier.height(65.dp)
                 ) {
                     items.forEach { screen ->
+
+                        val controller = navControllers[screen]!!
+                        val backStackEntry by controller.currentBackStackEntryAsState()
+                        val currentRoute = backStackEntry?.destination?.route
+                        
                         NavigationBarItem(
                             colors = NavigationBarItemColors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -155,7 +160,14 @@ fun connectScreens(
                             icon = { Icon(screen.icon, contentDescription = null, modifier = Modifier.size(23.dp)) },
                             label = { },
                             selected = currentTab == screen,
-                            onClick = { currentTab = screen }
+                            onClick = {
+                                val isInsideThisTab = currentTab == screen
+                                if (!isInsideThisTab) {
+                                    currentTab = screen
+                                } else {
+                                    controller.popBackStack(screen.route, inclusive = false)
+                                }
+                            }
                         )
                     }
                 }

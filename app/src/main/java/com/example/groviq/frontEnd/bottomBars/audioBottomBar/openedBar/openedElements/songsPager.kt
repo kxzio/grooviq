@@ -17,8 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,7 @@ import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -49,6 +52,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     val posInQueue          by mainViewModel.uiState.subscribeMe { it.posInQueue     }
 
     val songsInQueue = currentQueue
+
     val pagerState = rememberPagerState(
         initialPage = posInQueue,
         pageCount = { songsInQueue.size }
@@ -116,9 +120,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
-                        .clip(
-                            RoundedCornerShape(8.dp)
-                        ),
+                        .clip(RoundedCornerShape(8.dp)),
                     blurRadius = 0f,
                     turnOffPlaceholders = true,
                     blendGrad = false,
@@ -127,10 +129,18 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
         }
     }
 
+    var ignoreNextPageChange by remember { mutableStateOf(false) }
+
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
             .distinctUntilChanged()
             .collect { page ->
+
+                if (ignoreNextPageChange) {
+                    ignoreNextPageChange = false
+                    return@collect
+                }
+
                 if (page < 0 || page >= songsInQueue.size) return@collect
 
                 if (page == mainViewModel.uiState.value.posInQueue) return@collect
@@ -146,10 +156,26 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     }
 
     val coroutineScope = rememberCoroutineScope()
-    LaunchedEffect(posInQueue) {
+
+    val currentTrackId by mainViewModel.uiState.subscribeMe {
+        it.currentQueue.getOrNull(it.posInQueue)?.id
+    }
+
+    LaunchedEffect(posInQueue, songsInQueue.size) {
         val newIndex = posInQueue
+
+        val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
+        if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) {
+            return@LaunchedEffect
+        }
+
         if (newIndex != -1 && newIndex != pagerState.settledPage) {
             coroutineScope.launch {
+
+                snapshotFlow { pagerState.pageCount }
+                    .first { it == songsInQueue.size }
+
+                ignoreNextPageChange = true
                 pagerState.animateScrollToPage(
                     newIndex,
                     animationSpec = tween(
@@ -157,6 +183,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                         easing = FastOutSlowInEasing
                     )
                 )
+                ignoreNextPageChange = false
             }
         }
     }
