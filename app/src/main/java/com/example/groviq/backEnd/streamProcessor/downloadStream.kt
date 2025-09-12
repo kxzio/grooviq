@@ -42,6 +42,7 @@ import okio.sink
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -50,6 +51,8 @@ import androidx.media3.common.util.UnstableApi
 import com.example.groviq.MyApplication
 import com.example.groviq.loadBitmapFromUrl
 import com.example.groviq.retryWithBackoff
+import com.example.groviq.toHashFileName
+import com.example.groviq.toSafeFileName
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -288,8 +291,28 @@ suspend fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: St
                     }
 
                     song.art_link?.let { link ->
-                        mainViewModel.uiState.value.allAudioData[song.link]!!.art =
-                            loadBitmapFromUrl(link)
+                        try {
+                            val bmp = loadBitmapFromUrl(link)
+
+                            //path
+                            val safeName = song.art_link?.toHashFileName() ?: "default_name"
+                            val coverFile = File(
+                                MyApplication.globalContext!!.getExternalFilesDir(null),
+                                "${safeName}.jpg"
+                            )
+
+                            //save
+                            if (bmp != null) {
+                                FileOutputStream(coverFile).use { out ->
+                                    bmp.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                }
+                            }
+
+                            mainViewModel.uiState.value.allAudioData[song.link]!!.art_local_link = coverFile.absolutePath
+
+                        } catch (e: Exception) {
+
+                        }
                     }
 
                 } else {
@@ -360,6 +383,32 @@ suspend fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: St
                             partFile.delete()
                         }
                     }
+
+                    song.art_link?.let { link ->
+                        try {
+                            val bmp = loadBitmapFromUrl(link)
+
+                            //path
+                            val safeName = song.art_link?.toHashFileName() ?: "default_name"
+                            val coverFile = File(
+                                MyApplication.globalContext!!.getExternalFilesDir(null),
+                                "${safeName}.jpg"
+                            )
+
+                            //save
+                            if (bmp != null) {
+                                FileOutputStream(coverFile).use { out ->
+                                    bmp.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                }
+                            }
+
+                            mainViewModel.uiState.value.allAudioData[song.link]!!.art_local_link = coverFile.absolutePath
+
+                        } catch (e: Exception) {
+
+                        }
+                    }
+                    
                 }
 
                 // --- финальные обновления ---
@@ -614,9 +663,27 @@ object DownloadManager {
                 } catch (e: Exception) {
                 }
 
+                song.art_local_link?.let { coverPath ->
+                    try {
+                        val coverFile = File(coverPath)
+                        if (coverFile.exists()) {
+                            if (!coverFile.delete()) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    Files.deleteIfExists(coverFile.toPath())
+                                } else {
+                                    val tmp = File(coverFile.parentFile, "${coverFile.name}.deleted")
+                                    if (coverFile.renameTo(tmp)) tmp.delete()
+                                }
+                            }
+                        }
+                    } catch (_: Exception) { }
+                }
+
                 //delete from Db and update ui
                 withContext(NonCancellable + Dispatchers.Main) {
                     mainViewModel.updateFileForSong(song.link, null)
+
+                    mainViewModel.uiState.value.allAudioData[song.link]?.art_local_link = null
 
                     mainViewModel.updateStatusForSong(
                         song.link,

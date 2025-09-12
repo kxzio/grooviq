@@ -42,6 +42,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import kotlin.coroutines.cancellation.CancellationException
 
 fun getPythonModule(context: Context): PyObject {
@@ -70,6 +71,16 @@ fun hasInternetConnection(context: Context): Boolean {
         val networkInfo = connectivityManager.activeNetworkInfo ?: return false
         return networkInfo.isConnected
     }
+}
+
+fun String.toSafeFileName(): String {
+    return this.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+}
+
+fun String.toHashFileName(): String {
+    val md = MessageDigest.getInstance("MD5")
+    val digest = md.digest(this.toByteArray())
+    return digest.joinToString("") { "%02x".format(it) }
 }
 
 suspend fun Context.loadBitmapFromCacheOrNetwork(

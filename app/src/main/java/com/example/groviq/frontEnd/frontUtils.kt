@@ -175,7 +175,7 @@ fun asyncedImage(
     if (songData == null) return
 
     val context = LocalContext.current
-    val imageKey = songData.art ?: songData.art_link
+    val imageKey = songData.art_local_link ?: songData.art_link
 
     val req = remember(imageKey) {
         val builder = ImageRequest.Builder(context)
@@ -408,7 +408,7 @@ fun grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
 @Composable
 fun background(song: songData, alpha : Float = 0.88f, drawBlack : Boolean = true) {
 
-    val imageKey = song?.art ?: song?.art_link
+    val imageKey = song?.art_local_link ?: song?.art_link
 
     Box(Modifier.fillMaxSize())
     {

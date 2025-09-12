@@ -1,6 +1,7 @@
 package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -558,7 +559,12 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         val song = mainViewModel.uiState.value.allAudioData[songKey]
             ?: throw Exception("Song not found")
 
-        song.art?.let { return SongArtResult.BitmapResult(it) }
+        song.art_local_link?.let { path ->
+            val bmp = BitmapFactory.decodeFile(path)
+            if (bmp != null) {
+                return SongArtResult.BitmapResult(bmp)
+            }
+        }
 
         song.art_link?.let { artLink ->
             if (hasInternetConnection(MyApplication.globalContext)) {

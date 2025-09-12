@@ -40,6 +40,7 @@ import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -162,19 +163,24 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     }
 
     LaunchedEffect(posInQueue, songsInQueue.size) {
+
         val newIndex = posInQueue
 
         val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
         if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) {
             return@LaunchedEffect
         }
+        //dont animate if songs is same to prevent useless animation in queue change
 
         if (newIndex != -1 && newIndex != pagerState.settledPage) {
             coroutineScope.launch {
 
+                //waiting for queue to rebuild
                 snapshotFlow { pagerState.pageCount }
-                    .first { it == songsInQueue.size }
+                    .map { count -> count to songsInQueue.size }
+                    .first { (count, size) -> count == size && size > 0 }
 
+                //lock launched effect to prevent playAtIndex
                 ignoreNextPageChange = true
                 pagerState.animateScrollToPage(
                     newIndex,
@@ -184,7 +190,10 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                     )
                 )
                 ignoreNextPageChange = false
+                //dislock
             }
         }
     }
+
+
 }

@@ -89,6 +89,7 @@ import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.appScreens.openRadio
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.showSheet
+import com.example.groviq.frontEnd.iconOutlineButton
 import com.example.groviq.frontEnd.subscribeMe
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -620,6 +621,8 @@ fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
         return
     }
 
+    iconOutlineButton("Остановить все", { DownloadManager.stop() }, Icons.Rounded.Close)
+
     LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
         val combinedQueue = active.toList() + queue
 
@@ -636,7 +639,6 @@ fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Кнопка отмены
                 IconButton(
                     onClick = {
                         DownloadManager.cancel(hash)
@@ -649,7 +651,6 @@ fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
                     )
                 }
 
-                // Обложка
                 asyncedImage(track, Modifier.size(35.dp))
 
                 Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {

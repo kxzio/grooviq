@@ -85,9 +85,6 @@ fun loadBitmapFromInternalStorage(context: Context, path: String): Bitmap? {
 }
 
 fun songData.toEntity(context: Context): SongEntity {
-    val artFilePath = this.art?.let { bitmap ->
-        saveBitmapToInternalStorage(context, bitmap, this.link)
-    }
 
     val filePath = this.file?.let { file ->
         file.absolutePath
@@ -101,7 +98,7 @@ fun songData.toEntity(context: Context): SongEntity {
         progressStatus = this.progressStatus,
         playingEnterPoint = this.playingEnterPoint,
         duration = this.duration,
-        artPath = artFilePath,
+        artPath = this.art_local_link,
         number = this.number,
         album_original_link = this.album_original_link,
         filePath = filePath,
@@ -127,7 +124,7 @@ fun SongEntity.toDomain(context: Context): songData {
         progressStatus = this.progressStatus,
         playingEnterPoint = this.playingEnterPoint,
         duration = this.duration,
-        art = bitmap,
+        art_local_link = this.artPath,
         number = this.number,
         album_original_link = this.album_original_link ?: "",
         file = file,
