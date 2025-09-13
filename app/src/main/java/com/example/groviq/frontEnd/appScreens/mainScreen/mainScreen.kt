@@ -74,8 +74,7 @@ fun mainScreen(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHost
 
                         })
                     {
-                        Icon(
-                            Icons.Rounded.PlaylistPlay, "", Modifier.size(55.dp))
+                        Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(55.dp))
 
                         Text(
                             mainUiState.audioData[result.key]?.nameOfAudioSource ?: "Неизвестный плейлист"

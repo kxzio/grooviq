@@ -132,7 +132,8 @@ fun createListeners(
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 
-            trackEndingHandled = false
+            val uiState = mainViewModel.uiState.value
+
             addTrackToMediaItems?.cancel()
 
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
@@ -149,6 +150,73 @@ fun createListeners(
                 fetchQueueStream(mainViewModel)
 
             }
+
+            if (uiState.posInQueue + 1 >= uiState.currentQueue.size) return
+
+            val nextSongHash = uiState.currentQueue[uiState.posInQueue + 1].hashKey
+
+            if (nextSongHash.isNullOrEmpty())
+                return
+
+            val song = uiState.allAudioData[nextSongHash] ?: return
+
+            addTrackToMediaItems?.cancel()
+
+            addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
+
+                val mediaUri: Uri = if (song.file?.exists() == true) {
+                    Uri.fromFile(song.file)
+                } else {
+                    val streamUrl = mainViewModel.awaitStreamUrlFor(song.link)
+                        ?: return@launch
+                    Uri.parse(streamUrl)
+                }
+
+                val artLink = song.art_link
+                if (artLink != null) {
+                    val size = getImageSizeFromUrl(artLink)
+                    val tooSmall = size == null || min(size.first, size.second) < 200
+                    if (tooSmall) {
+                        fetchNewImage(mainViewModel, song.link)
+                    }
+                } else {
+                    fetchNewImage(mainViewModel, song.link)
+                }
+
+                val songArtResult = mainViewModel.awaitSongArt(mainViewModel, nextSongHash)
+
+                val mediaMetadataBuilder = MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artists.joinToString { it.title })
+
+                when (songArtResult) {
+                    is PlayerViewModel.SongArtResult.BitmapResult -> {
+                        val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
+                        val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+                        mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                    }
+                    is PlayerViewModel.SongArtResult.UrlResult -> {
+                        mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
+                    }
+                }
+
+                val mediaItem = MediaItem.Builder()
+                    .setUri(mediaUri)
+                    .setTag(song.link)
+                    .setMediaMetadata(mediaMetadataBuilder.build())
+                    .build()
+
+
+                AppViewModels.player.playerManager.player.addMediaItem(mediaItem)
+
+                val currentIndex = AppViewModels.player.playerManager.player.currentMediaItemIndex
+                if (currentIndex > 0) {
+                    AppViewModels.player.playerManager.player.removeMediaItems(0, currentIndex)
+                }
+
+
+            }
+
         }
 
         private var addTrackToMediaItems: Job? = null
@@ -171,82 +239,11 @@ fun createListeners(
                 else
                 {
                     trackEndingHandled = true
-
-                    val uiState = mainViewModel.uiState.value
-
-                    if (uiState.posInQueue + 1 >= uiState.currentQueue.size) return
-
-                    val nextSongHash = uiState.currentQueue[uiState.posInQueue + 1].hashKey
-
-                    if (nextSongHash.isNullOrEmpty())
-                        return
-
-                    val song = uiState.allAudioData[nextSongHash] ?: return
-
-                    addTrackToMediaItems?.cancel()
-
-                    addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
-
-
-                        val mediaUri: Uri = if (song.file?.exists() == true) {
-                            Uri.fromFile(song.file)
-                        } else {
-                            val streamUrl = mainViewModel.awaitStreamUrlFor(song.link)
-                                ?: return@launch
-                            Uri.parse(streamUrl)
-                        }
-
-                        val artLink = song.art_link
-                        if (artLink != null) {
-                            val size = getImageSizeFromUrl(artLink)
-                            val tooSmall = size == null || min(size.first, size.second) < 200
-                            if (tooSmall) {
-                                fetchNewImage(mainViewModel, song.link)
-                            }
-                        } else {
-                            fetchNewImage(mainViewModel, song.link)
-                        }
-
-                        val songArtResult = mainViewModel.awaitSongArt(mainViewModel, nextSongHash)
-
-                        val mediaMetadataBuilder = MediaMetadata.Builder()
-                            .setTitle(song.title)
-                            .setArtist(song.artists.joinToString { it.title })
-
-                        when (songArtResult) {
-                            is PlayerViewModel.SongArtResult.BitmapResult -> {
-                                val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
-                                val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
-                                mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                            }
-                            is PlayerViewModel.SongArtResult.UrlResult -> {
-                                mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
-                            }
-                        }
-
-                        val mediaItem = MediaItem.Builder()
-                            .setUri(mediaUri)
-                            .setTag(song.link)
-                            .setMediaMetadata(mediaMetadataBuilder.build())
-                            .build()
-
-
-                        AppViewModels.player.playerManager.player.addMediaItem(mediaItem)
-
-                        val currentIndex = AppViewModels.player.playerManager.player.currentMediaItemIndex
-                        if (currentIndex > 0) {
-                            AppViewModels.player.playerManager.player.removeMediaItems(0, currentIndex)
-                        }
-
-
-                    }
-
                 }
             }
 
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                 trackEndingHandled = false
-                addTrackToMediaItems?.cancel()
             }
         }
     }

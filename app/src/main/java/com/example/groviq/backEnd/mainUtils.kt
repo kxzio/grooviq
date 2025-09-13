@@ -77,6 +77,35 @@ fun String.toSafeFileName(): String {
     return this.replace(Regex("[\\\\/:*?\"<>|]"), "_")
 }
 
+
+fun getYoutubeObjectId(url: String): String {
+    val normalized = url.substringBefore("&")
+
+    return when {
+        "watch?v=" in normalized -> {
+            val id = Regex("v=([a-zA-Z0-9_-]{11})")
+                .find(normalized)?.groupValues?.get(1)
+            if (id != null) "SONG:$id" else "UNKNOWN"
+        }
+
+        "/browse/" in normalized -> {
+            val id = Regex("browse/([A-Za-z0-9_-]+)")
+                .find(normalized)?.groupValues?.get(1)
+            if (id != null && id.startsWith("MPREb")) "ALBUM:$id" else "UNKNOWN"
+        }
+
+        "/channel/" in normalized -> {
+            val id = Regex("channel/([A-Za-z0-9_-]+)")
+                .find(normalized)?.groupValues?.get(1)
+            if (id != null) "ARTIST:$id" else "UNKNOWN"
+        }
+
+        else -> "UNKNOWN"
+    }
+}
+
+
+
 fun String.toHashFileName(): String {
     val md = MessageDigest.getInstance("MD5")
     val digest = md.digest(this.toByteArray())

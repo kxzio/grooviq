@@ -132,7 +132,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                 addRetryToNothingFound = true
             )
 
-            if (gettersInProcess == true)
+            if (gettersInProcess == true || audioData.get(albumUrl)?.isInGenerationProcess == true)
             {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
@@ -202,7 +202,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                 addRetryToNothingFound = true
             )
 
-            if (gettersInProcess == true)
+            if (gettersInProcess == true || audioData.get(sourceKey)?.isInGenerationProcess == true)
             {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))

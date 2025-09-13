@@ -210,7 +210,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
         val updatedAudioData = currentUiState.audioData.toMutableMap()
         updatedAudioData[request] = audioSource().apply {
-            songIds             = tracks.map { it.link }.toMutableList()
+            songIds             = tracks.filter{ it.}.map { it.link }.toMutableList()
             nameOfAudioSource   = audioSourceName
             artistsOfAudioSource = audioSourceArtist
             yearOfAudioSource   = audioSourceYear

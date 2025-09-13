@@ -49,6 +49,7 @@ import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.MyApplication
+import com.example.groviq.getYoutubeObjectId
 import com.example.groviq.loadBitmapFromUrl
 import com.example.groviq.retryWithBackoff
 import com.example.groviq.toHashFileName
@@ -119,11 +120,10 @@ suspend fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: St
     withContext(Dispatchers.IO) {
         downloadMutex.withLock {
 
-            val safeAlbum = (song.album_original_link ?: "album")
-                .replace(Regex("[\\\\/:*?\"<>| ]"), "_")
-            val urlHash = (song.link.takeIf { it.length >= 40 }?.substring(20, 40) ?: song.link)
-                .let { md5(it) }
-                .take(8)
+            val safeAlbum = getYoutubeObjectId(song.album_original_link)
+
+            val urlHash = getYoutubeObjectId(song.link)
+            
             val uniqueName = "${safeAlbum}__${urlHash}.mp3"
             val partName = "$uniqueName.part"
 

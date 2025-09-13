@@ -168,14 +168,15 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
         val currentPos = mainViewModel.uiState.value.posInQueue
 
         val safeFromIndex = (currentPos - 3).coerceAtLeast(0)
-        val safeToIndex = (currentPos + 3).coerceAtMost(currentQueue.size)
+        val safeToIndex = (currentPos + 3)  .coerceAtMost(currentQueue.size)
 
         val aroundSongs = currentQueue
             .subList(safeFromIndex, safeToIndex)
             .mapNotNull { it.hashKey }
             .mapNotNull { key -> mainViewModel.uiState.value.allAudioData[key] }
-            .filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
-            .filterIndexed { idx, _ -> (safeFromIndex + idx) != currentPos }
+            //.filter { !it.progressStatus.streamHandled && it.shouldGetStream() }
+
+        // i deleted filter for current track, because sometimes track can be auto-switched in 6 hours period
 
         val aroundSongsForPreload = currentQueue
             .subList(safeFromIndex, safeToIndex)
