@@ -2,6 +2,7 @@ package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.annotation.OptIn
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -81,6 +82,9 @@ data class playerState(
 
 
 class PlayerViewModelFactory(private val repository: DataRepository) : ViewModelProvider.Factory {
+    @OptIn(
+        UnstableApi::class
+    )
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return PlayerViewModel(repository) as T
     }
@@ -210,7 +214,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
         val updatedAudioData = currentUiState.audioData.toMutableMap()
         updatedAudioData[request] = audioSource().apply {
-            songIds             = tracks.filter{ it.}.map { it.link }.toMutableList()
+            songIds             = tracks.map { it.link }.toMutableList()
             nameOfAudioSource   = audioSourceName
             artistsOfAudioSource = audioSourceArtist
             yearOfAudioSource   = audioSourceYear
@@ -241,7 +245,9 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         _uiState.value = currentState.copy(audioData = updatedAudioData)
     }
 
-    fun setTrack(request: String, song : songData,
+    fun setTrack(
+        request: String,
+        song: songData,
     ) {
 
         //function for browsing to add new audiosource and chain audiofiles to new audiosource
