@@ -290,6 +290,7 @@ class AudioPlayerManager(context: Context) {
 
                     val mediaItem = MediaItem.Builder()
                         .setUri(mediaUri)
+                        .setMediaId(song.link)
                         .setTag(song.link)
                         .setMediaMetadata(mediaMetadataBuilder.build())
                         .build()
