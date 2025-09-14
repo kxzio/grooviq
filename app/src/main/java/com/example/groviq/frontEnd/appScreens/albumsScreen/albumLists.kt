@@ -47,7 +47,6 @@ fun albumLists(searchingScreenNav: NavHostController,
     val audioData           by mainViewModel.uiState.subscribeMe { it.audioData      }
     val allAudioData        by mainViewModel.uiState.subscribeMe { it.allAudioData   }
 
-
     val audioSources = audioData.entries
 
     val albums = audioSources.filter { it.key.contains("http") && audioData[it.key]?.shouldBeSavedStrictly ?: false }

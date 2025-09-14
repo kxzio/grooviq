@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -53,6 +56,10 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     val posInQueue          by mainViewModel.uiState.subscribeMe { it.posInQueue     }
 
     val songsInQueue = currentQueue
+
+    val currentTrackId by mainViewModel.uiState.subscribeMe {
+        it.currentQueue.getOrNull(it.posInQueue)?.id
+    }
 
     val pagerState = rememberPagerState(
         initialPage = posInQueue,
@@ -131,6 +138,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     }
 
     var ignoreNextPageChange by remember { mutableStateOf(false) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
@@ -146,41 +154,36 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
 
                 if (page == mainViewModel.uiState.value.posInQueue) return@collect
 
+                val pageTrackId = songsInQueue.getOrNull(page)?.id
+                val currentTrackId = mainViewModel.uiState.value
+                    .currentQueue.getOrNull(mainViewModel.uiState.value.posInQueue)?.id
+
+                if (pageTrackId == currentTrackId) return@collect
+
                 mainViewModel.setPosInQueue(page)
 
                 try {
                     AppViewModels.player.playerManager.playAtIndex(mainViewModel, searchViewModel, page)
-                } catch (e: Throwable) {
-
-                }
+                } catch (_: Throwable) {}
             }
     }
 
     val coroutineScope = rememberCoroutineScope()
 
-    val currentTrackId by mainViewModel.uiState.subscribeMe {
-        it.currentQueue.getOrNull(it.posInQueue)?.id
-    }
 
-    LaunchedEffect(posInQueue, songsInQueue.size) {
-
+    LaunchedEffect(currentTrackId, posInQueue) {
         val newIndex = posInQueue
-
         val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
-        if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) {
-            return@LaunchedEffect
-        }
-        //dont animate if songs is same to prevent useless animation in queue change
+
+        if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) return@LaunchedEffect
 
         if (newIndex != -1 && newIndex != pagerState.settledPage) {
-            coroutineScope.launch {
-
-                //waiting for queue to rebuild
+            scrollJob?.cancel()
+            scrollJob = coroutineScope.launch {
                 snapshotFlow { pagerState.pageCount }
                     .map { count -> count to songsInQueue.size }
                     .first { (count, size) -> count == size && size > 0 }
 
-                //lock launched effect to prevent playAtIndex
                 ignoreNextPageChange = true
                 pagerState.animateScrollToPage(
                     newIndex,
@@ -189,11 +192,15 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                         easing = FastOutSlowInEasing
                     )
                 )
+
+                snapshotFlow { pagerState.settledPage }
+                    .first { it == newIndex }
+
                 ignoreNextPageChange = false
-                //dislock
             }
         }
     }
+
 
 
 }

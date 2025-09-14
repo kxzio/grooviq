@@ -66,40 +66,32 @@ fun sanitizeFileName(input: String): String {
     return input.replace(Regex("[^A-Za-z0-9_.-]"), "_")
 }
 
-fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap, filenameKey: String): String {
-
-    val safeFileName = "cover_" + sanitizeFileName(filenameKey) + ".png"
-    val file = File(context.filesDir, safeFileName)
-
-    FileOutputStream(file).use { out ->
-        bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
-    }
-
-    return file.absolutePath
-}
-
-fun loadBitmapFromInternalStorage(context: Context, path: String): Bitmap? {
-    val file = File(path)
-    return if (file.exists()) {
-        BitmapFactory.decodeFile(file.absolutePath)
-    } else null
-}
-
 fun encodeYouTubeMusic(link: String): String? {
-
-    if (link.isNullOrEmpty()) return null
+    if (link.isEmpty()) return null
 
     val uri = Uri.parse(link)
     val v = uri.getQueryParameter("v")
     val list = uri.getQueryParameter("list")
     val path = uri.path ?: ""
+    val host = uri.host ?: ""
 
     return when {
         !v.isNullOrEmpty() && !list.isNullOrEmpty() -> "A_${v}_${list}"
+
         !v.isNullOrEmpty() -> "V_${v}"
+
         !list.isNullOrEmpty() -> "P_${list}"
+
         path.contains("/channel/") -> "C_${path.substringAfterLast("/")}"
-        else -> throw IllegalArgumentException("Unsupported YouTube Music link")
+
+        path.contains("/browse/") -> "C_${path.substringAfterLast("/")}"
+
+        // Артист
+        path.contains("/artist/") -> "R_${path.substringAfterLast("/")}"
+
+        host == "youtu.be" && path.isNotEmpty() -> "V_${path.substring(1)}"
+
+        else -> link
     }
 }
 
@@ -110,7 +102,8 @@ fun decodeYouTubeMusic(encoded: String): String {
         "A" -> "https://music.youtube.com/watch?v=${parts[1]}&list=${parts[2]}"
         "P" -> "https://music.youtube.com/playlist?list=${parts[1]}"
         "C" -> "https://music.youtube.com/channel/${parts[1]}"
-        else -> throw IllegalArgumentException("Invalid encoded format")
+        "R" -> "https://music.youtube.com/artist/${parts[1]}"
+        else -> encoded
     }
 }
 fun safeDecodeYouTubeMusic(link: String?): String? {
@@ -121,8 +114,6 @@ fun safeDecodeYouTubeMusic(link: String?): String? {
         link
     }
 }
-
-
 
 fun songData.toEntity(context: Context): SongEntity {
 
