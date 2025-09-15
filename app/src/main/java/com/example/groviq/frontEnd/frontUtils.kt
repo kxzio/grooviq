@@ -248,12 +248,6 @@ fun asyncedImage(
         ),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painter,
-            contentDescription = null,
-            modifier = mod,
-            contentScale = ContentScale.Crop
-        )
 
         if (blurRadius == 0f && !turnOffPlaceholders) {
             when (painter.state) {
@@ -272,6 +266,13 @@ fun asyncedImage(
                 else -> Unit
             }
         }
+
+        Image(
+            painter = painter,
+            contentDescription = null,
+            modifier = mod,
+            contentScale = ContentScale.Crop
+        )
     }
 }
 
@@ -425,10 +426,14 @@ fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
     val audioSource = audioData[audioSource] ?: return
     val firstFourSongs = audioSource.songIds.mapNotNull { allAudioData[it] }.distinctBy { it.album_original_link }.take(4)
 
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .aspectRatio(1f),
+            .aspectRatio(1f).clip(
+                RoundedCornerShape(8.dp)
+            )
+        ,
         contentAlignment = Alignment.Center
     ) {
         when (firstFourSongs.size) {

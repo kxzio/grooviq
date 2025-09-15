@@ -33,6 +33,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 enum class playerStatus {
     IDLE,
@@ -98,19 +100,33 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(playerState())
     val uiState: StateFlow<playerState> = _uiState
 
+    //mutex control = MEMORY RACE CONTROL
+    private val stateLock = ReentrantLock()
+    private fun <T> withState(block: (playerState) -> T): T =
+        stateLock.withLock { block(_uiState.value) }
+
+    private fun updateState(block: (playerState) -> playerState) {
+        stateLock.withLock {
+            _uiState.value = block(_uiState.value)
+        }
+    }
+
     val playerManager = AudioPlayerManager(MyApplication.globalContext)
 
     fun loadAllFromRoom() {
+
         viewModelScope.launch {
             val (songsMap, audioMap) = withContext(Dispatchers.IO) {
                 repository.loadAllAudioAndSources(MyApplication.globalContext!!)
             }
-            // обновляем state на main
-            _uiState.value = _uiState.value.copy(
-                allAudioData = songsMap.toMutableMap(),
-                audioData = audioMap.toMutableMap()
-            )
+            updateState {
+                it.copy(
+                    allAudioData = songsMap.toMutableMap(),
+                    audioData = audioMap.toMutableMap()
+                )
+            }
         }
+
     }
 
     fun saveSongToRoom(song: songData) {
@@ -119,11 +135,11 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun saveSongsFromSourceToRoom(string: String) {
         viewModelScope.launch(Dispatchers.IO) {
-
-            val songs = _uiState.value.audioData[string]?.songIds
-                ?.mapNotNull { _uiState.value.allAudioData[it] }
-                ?: emptyList()
-
+            val songs = withState { state ->
+                state.audioData[string]?.songIds
+                    ?.mapNotNull { state.allAudioData[it] }
+                    ?: emptyList()
+            }
             songs.forEach { song ->
                 repository.saveSong(this@PlayerViewModel, song, MyApplication.globalContext!!)
             }
@@ -136,210 +152,189 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     //current status of player : BUFFERING, IDLE and etc. to prevent user from not good UI decisions
     fun setPlayerStatus(status: playerStatus) {
-        _uiState.value = _uiState.value.copy(currentStatus = status)
+        updateState { it.copy(currentStatus = status) }
     }
 
-    fun setSongsLoadingStatus(status : Boolean) {
-        _uiState.value =_uiState.value.copy(songsLoader = status)
+    fun setSongsLoadingStatus(status: Boolean) {
+        updateState { it.copy(songsLoader = status) }
     }
-
 
     fun setPlayingHash(songLink: String) {
-        _uiState.value =_uiState.value.copy(playingHash = songLink)
+        updateState { it.copy(playingHash = songLink) }
     }
 
     fun setPlayingAudioSourceHash(audioSourceLink: String) {
-        _uiState.value =_uiState.value.copy(playingAudioSourceHash = audioSourceLink)
+        updateState { it.copy(playingAudioSourceHash = audioSourceLink) }
     }
 
     fun deleteUserAdds() {
-        _uiState.value =_uiState.value.copy(currentQueue  = uiState.value.currentQueue .filter { it.addedByUser == false }.toMutableList())
-        _uiState.value =_uiState.value.copy(originalQueue = uiState.value.originalQueue.filter { it.addedByUser == false }.toMutableList())
+        updateState {
+            it.copy(
+                currentQueue = it.currentQueue.filter { q -> !q.addedByUser }.toMutableList(),
+                originalQueue = it.originalQueue.filter { q -> !q.addedByUser }.toMutableList()
+            )
+        }
     }
 
-    fun setQueue(newQueue: MutableList < queueElement > ) {
-        _uiState.value =_uiState.value.copy(currentQueue = newQueue)
+    fun setQueue(newQueue: MutableList<queueElement>) {
+        updateState { it.copy(currentQueue = newQueue) }
     }
 
-    fun setOriginalQueue(newQueue: List < queueElement > ) {
-        _uiState.value =_uiState.value.copy(originalQueue = newQueue)
+    fun setOriginalQueue(newQueue: List<queueElement>) {
+        updateState { it.copy(originalQueue = newQueue) }
     }
 
-    fun setShouldRebuild(b : Boolean) {
-        _uiState.value =_uiState.value.copy(shouldRebuild = b)
+    fun setShouldRebuild(b: Boolean) {
+        updateState { it.copy(shouldRebuild = b) }
     }
 
-    fun setPosInQueue(newPos : Int) {
-        _uiState.value =_uiState.value.copy(posInQueue = newPos)
+    fun setPosInQueue(newPos: Int) {
+        updateState { it.copy(posInQueue = newPos) }
     }
 
-    fun setLastSourceBuilded(newSource : String) {
-        _uiState.value =_uiState.value.copy(lastSourceBuilded = newSource)
+    fun setLastSourceBuilded(newSource: String) {
+        updateState { it.copy(lastSourceBuilded = newSource) }
     }
 
-    fun toogleShuffleMode()
-    {
-        _uiState.value =_uiState.value.copy(isShuffle = !_uiState.value.isShuffle )
-
-        //rebuild the queue
-        onShuffleToogle(mainViewModel = this, _uiState.value.isShuffle)
+    fun toogleShuffleMode() {
+        updateState { state ->
+            val newShuffle = !state.isShuffle
+            onShuffleToogle(mainViewModel = this, newShuffle)
+            state.copy(isShuffle = newShuffle)
+        }
     }
 
-    fun toogleRepeatMode()
-    {
-        _uiState.value =_uiState.value.copy(repeatMode =
-            if (_uiState.value.repeatMode == repeatMods.NO_REPEAT)          repeatMods.REPEAT_ALL
-            else if (_uiState.value.repeatMode == repeatMods.REPEAT_ALL)    repeatMods.REPEAT_ONE
-            else repeatMods.NO_REPEAT)
-
+    fun toogleRepeatMode() {
+        updateState { state ->
+            state.copy(
+                repeatMode =
+                if (state.repeatMode == repeatMods.NO_REPEAT) repeatMods.REPEAT_ALL
+                else if (state.repeatMode == repeatMods.REPEAT_ALL) repeatMods.REPEAT_ONE
+                else repeatMods.NO_REPEAT
+            )
+        }
     }
 
-    fun setAlbumTracks(request: String, tracks: List<songData>,
-                       audioSourceName      : String,
-                       audioSourceArtist    : List<ArtistDto>,
-                       audioSourceYear      : String,
-                       //autogenerated info
-                       autoGeneratedB       : Boolean = false
-
+    fun setAlbumTracks(
+        request: String,
+        tracks: List<songData>,
+        audioSourceName: String,
+        audioSourceArtist: List<ArtistDto>,
+        audioSourceYear: String,
+        //autogenerated info
+        autoGeneratedB: Boolean = false
     ) {
-
-        //function for browsing to add new audiosource and chain audiofiles to new audiosource
-        val currentUiState = _uiState.value
-
-        val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
-        for (track in tracks) {
-            if (!updatedAllAudio.containsKey(track.link)) {
-                updatedAllAudio[track.link] = track
+        updateState { currentUiState ->
+            val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
+            for (track in tracks) {
+                if (!updatedAllAudio.containsKey(track.link)) {
+                    updatedAllAudio[track.link] = track
+                }
             }
-        }
 
-        val updatedAudioData = currentUiState.audioData.toMutableMap()
-        updatedAudioData[request] = audioSource().apply {
-            songIds             = tracks.map { it.link }.toMutableList()
-            nameOfAudioSource   = audioSourceName
-            artistsOfAudioSource = audioSourceArtist
-            yearOfAudioSource   = audioSourceYear
-            //generated info
-            autoGenerated       = autoGeneratedB
-            timeUpdate          = if (autoGeneratedB) System.currentTimeMillis() else 0L
-        }
+            val updatedAudioData = currentUiState.audioData.toMutableMap()
+            updatedAudioData[request] = audioSource().apply {
+                songIds = tracks.map { it.link }.toMutableList()
+                nameOfAudioSource = audioSourceName
+                artistsOfAudioSource = audioSourceArtist
+                yearOfAudioSource = audioSourceYear
+                //generated info
+                autoGenerated = autoGeneratedB
+                timeUpdate = if (autoGeneratedB) System.currentTimeMillis() else 0L
+            }
 
-        _uiState.value = currentUiState.copy(
-            allAudioData = updatedAllAudio,
-            audioData    = updatedAudioData
-        )
+            currentUiState.copy(
+                allAudioData = updatedAllAudio,
+                audioData = updatedAudioData
+            )
+        }
     }
 
     fun toggleStrictSaveAudioSource(request: String) {
-        val currentState = _uiState.value
-        val updatedAudioData = currentState.audioData.toMutableMap()
-
-        val oldValue = updatedAudioData[request]?.shouldBeSavedStrictly
-
-        if (oldValue != null) {
-            val updatedItem = updatedAudioData[request]!!.copy(
-                shouldBeSavedStrictly = !oldValue
-            )
-            updatedAudioData[request] = updatedItem
+        updateState { currentState ->
+            val updatedAudioData = currentState.audioData.toMutableMap()
+            val oldValue = updatedAudioData[request]?.shouldBeSavedStrictly
+            if (oldValue != null) {
+                val updatedItem = updatedAudioData[request]!!.copy(
+                    shouldBeSavedStrictly = !oldValue
+                )
+                updatedAudioData[request] = updatedItem
+            }
+            currentState.copy(audioData = updatedAudioData)
         }
-
-        _uiState.value = currentState.copy(audioData = updatedAudioData)
     }
 
     fun setTrack(
         request: String,
         song: songData,
     ) {
+        updateState { currentUiState ->
+            val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
+            if (!updatedAllAudio.containsKey(request)) {
+                updatedAllAudio[request] = song
+            }
 
-        //function for browsing to add new audiosource and chain audiofiles to new audiosource
-        val currentUiState = _uiState.value
+            val updatedAudioData = currentUiState.audioData.toMutableMap()
+            updatedAudioData[request] = audioSource().apply {
+                songIds = listOf(song.link).toMutableList()
+                nameOfAudioSource = request
+            }
 
-        val updatedAllAudio = currentUiState.allAudioData.toMutableMap()
-        if (!updatedAllAudio.containsKey(request)) {
-            updatedAllAudio[request] = song
+            currentUiState.copy(
+                allAudioData = updatedAllAudio,
+                audioData = updatedAudioData
+            )
         }
-
-
-        val updatedAudioData = currentUiState.audioData.toMutableMap()
-        updatedAudioData[request] = audioSource().apply {
-            songIds             = listOf(song.link).toMutableList()
-            nameOfAudioSource   = request
-        }
-
-        _uiState.value = currentUiState.copy(
-            allAudioData = updatedAllAudio,
-            audioData    = updatedAudioData
-        )
     }
 
-
     fun updateStreamForSong(songLink: String, streamUrl: String) {
-
-        val currentState = _uiState.value
-
-        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
-
-        val song = updatedAllAudioData[songLink]
-        if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(stream = streamInfo(streamUrl, if (streamUrl == "") 0L else System.currentTimeMillis()))
-            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] =
+                    song.copy(stream = streamInfo(streamUrl, if (streamUrl == "") 0L else System.currentTimeMillis()))
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
 
     fun updateDurationForSong(songLink: String, duration: Long) {
-
-        val currentState = _uiState.value
-
-        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
-
-        val song = updatedAllAudioData[songLink]
-        if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(duration = duration)
-            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] = song.copy(duration = duration)
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
 
     fun addSongToAudioSource(songLink: String, audioSource: String) {
-
-        val currentState = _uiState.value
-        val song = currentState.allAudioData[songLink] ?: return
-
-        val updatedAudioData = currentState.audioData.toMutableMap()
-
-        val currentEntry = updatedAudioData[audioSource]
-        val currentIds = currentEntry?.songIds ?: emptyList()
-
-
-        val newIds = currentIds.toMutableList().apply {
-            //add to 0 position, to add the newest tracks to top
-            if (!contains(songLink)) add(0, songLink)
+        updateState { currentState ->
+            val song = currentState.allAudioData[songLink] ?: return@updateState currentState
+            val updatedAudioData = currentState.audioData.toMutableMap()
+            val currentEntry = updatedAudioData[audioSource]
+            val currentIds = currentEntry?.songIds ?: emptyList()
+            val newIds = currentIds.toMutableList().apply {
+                if (!contains(songLink)) add(0, songLink)
+            }
+            updatedAudioData[audioSource] = audioSource(songIds = newIds)
+            currentState.copy(audioData = updatedAudioData)
         }
-
-        updatedAudioData[audioSource] = audioSource(songIds = newIds)
-
-        _uiState.value = currentState.copy(audioData = updatedAudioData)
     }
 
-
     fun removeSongFromAudioSource(songLink: String, audioSource: String) {
-
-        val currentState = _uiState.value
-        val song = currentState.allAudioData[songLink] ?: return
-
-        val updatedAudioData = currentState.audioData.toMutableMap()
-
-        val currentEntry = updatedAudioData[audioSource] ?: return
-        val currentIds = currentEntry.songIds
-
-        if (!currentIds.contains(songLink)) return
-
-        val newIds = currentIds.toMutableList().apply {
-            remove(songLink)
+        updateState { currentState ->
+            val song = currentState.allAudioData[songLink] ?: return@updateState currentState
+            val updatedAudioData = currentState.audioData.toMutableMap()
+            val currentEntry = updatedAudioData[audioSource] ?: return@updateState currentState
+            val currentIds = currentEntry.songIds
+            if (!currentIds.contains(songLink)) return@updateState currentState
+            val newIds = currentIds.toMutableList().apply { remove(songLink) }
+            updatedAudioData[audioSource] = audioSource(songIds = newIds)
+            currentState.copy(audioData = updatedAudioData)
         }
-
-        updatedAudioData[audioSource] = audioSource(songIds = newIds)
-
-        _uiState.value = currentState.copy(audioData = updatedAudioData)
     }
 
     fun isAudioSourceContainsSong(songLink: String, audioSource: String): Flow<Boolean> {
@@ -350,52 +345,47 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     fun updateStatusForSong(songLink: String, status: songProgressStatus) {
-        val currentState = _uiState.value
-
-        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
-
-        val song = updatedAllAudioData[songLink]
-        if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(progressStatus = status)
-            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] = song.copy(progressStatus = status)
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
 
-    fun updateFileForSong(
-        songLink: String, file: File?
-    ) {
-        val currentState = _uiState.value
-
-        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
-
-        val song = updatedAllAudioData[songLink]
-        if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(file = file)
-            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+    fun updateFileForSong(songLink: String, file: File?) {
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] = song.copy(file = file)
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
 
-    fun updateImageForSong(songLink: String, link : String) {
-        val currentState = _uiState.value
-
-        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
-
-        val song = updatedAllAudioData[songLink]
-        if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(art_link = link)
-            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+    fun updateImageForSong(songLink: String, link: String) {
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] = song.copy(art_link = link)
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
 
-    fun updateDownloadingProgressForSong(songLink: String, progress : Float) {
-        val currentState = _uiState.value
-
-        val updatedAllAudioData = currentState.allAudioData.toMutableMap()
-
-        val song = updatedAllAudioData[songLink]
-        if (song != null) {
-            updatedAllAudioData[songLink] = song.copy(progressStatus = song.progressStatus.copy(downloadingProgress = progress))
-            _uiState.value = currentState.copy(allAudioData = updatedAllAudioData)
+    fun updateDownloadingProgressForSong(songLink: String, progress: Float) {
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] =
+                    song.copy(progressStatus = song.progressStatus.copy(downloadingProgress = progress))
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
         }
     }
 
@@ -411,126 +401,86 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 ?.streamUrl
         }
 
-    fun clearUnusedAudioSourcedAndSongs(searchViewModel: SearchViewModel)
-    {
-        val currentPlayingAudioSource   = _uiState.value.playingAudioSourceHash
+    fun clearUnusedAudioSourcedAndSongs(searchViewModel: SearchViewModel) {
+        val currentPlayingAudioSource = withState { it.playingAudioSourceHash }
+        val playlists = withState { state -> state.audioData.filter { !it.key.contains("https://") } }
+        val currentQueueAudioSources = withState { it.currentQueue.map { q -> q.audioSource }.toSet() }
 
-        //the main logic of filter motion
-        //logic operation :
-        // 1. audiosource playing
-        // 2. song in playlist
-        // 3. browser focus
-        // 4. queue have song in audiosource
+        updateState { state ->
+            val filteredAudioData = state.audioData.filter {
+                state.audioData[it.key]?.shouldBeSavedStrictly ?: false || //this audiosource is saved strictly
+                        it.key == currentPlayingAudioSource ||                      //we play this audioSource
+                        playlists.containsKey(it.key) ||                            //this audioSource is playlist
+                        state.audioData[it.key]?.songIds?.any { songId ->           //if download queue has song from this audio-source
+                            songId in DownloadManager.state.value.active ||
+                                    songId in DownloadManager.state.value.queued
+                        } ?: false ||
+                        it.key == state.searchBroserFocus ||                        //this audiosource is UI focused
+                        currentQueueAudioSources.contains(it.key) ||                //this audiosource is used for queue building
+                        it.key == searchViewModel.uiState.value.currentArtist.url   //current opened artist popular songs
+            }.toMutableMap()
 
-        val playlists    = _uiState.value.audioData.filter { !it.key.contains("https://") }
+            val usedSongIds = filteredAudioData.values
+                .flatMap { it.songIds }
+                .toSet()
 
-        //var for queue check
-        val currentQueueAudioSources = _uiState.value.currentQueue.map { it.audioSource }.toSet()
-
-        _uiState.value.audioData = _uiState.value.audioData.filter {
-
-            _uiState.value.audioData[it.key]?.shouldBeSavedStrictly ?: false || //this audiosource is saved strictly
-            it.key == currentPlayingAudioSource         ||                      //we play this audioSource
-            playlists.containsKey(it.key)               ||                      //this audioSource is playlist
-
-            _uiState.value.audioData[it.key]?.songIds?.any { songId ->          //if download queue has sone from this audio-source
-            songId in DownloadManager.state.value.active ||
-            songId in DownloadManager.state.value.queued
-            } ?: false
-
-            it.key == uiState.value.searchBroserFocus   ||                      //this audiosource is UI focused
-            currentQueueAudioSources.contains(it.key)   ||                      //this audiosource is used for queue building
-            it.key == searchViewModel.uiState.value.currentArtist.url           //current opened artist popular songs
-
-
-        }.toMutableMap()
-
-
-        //dont touch this logic, it just repeat the logic of delete
-        val usedSongIds = _uiState.value.audioData.values
-            .flatMap { it.songIds }
-            .toSet()
-
-        _uiState.value.allAudioData = _uiState.value.allAudioData
-            .filter { usedSongIds.contains(it.key) }
-            .toMutableMap()
-
+            state.copy(
+                audioData = filteredAudioData,
+                allAudioData = state.allAudioData.filter { usedSongIds.contains(it.key) }.toMutableMap()
+            )
+        }
     }
 
-    fun createAudioSource(name : String) {
-        val currentState = _uiState.value
-
-        val updatedAudioData = currentState.audioData.toMutableMap()
-        updatedAudioData[name] = audioSource().apply {
-            nameOfAudioSource    = name
+    fun createAudioSource(name: String) {
+        updateState { currentState ->
+            val updatedAudioData = currentState.audioData.toMutableMap()
+            updatedAudioData[name] = audioSource().apply {
+                nameOfAudioSource = name
+            }
+            currentState.copy(audioData = updatedAudioData)
         }
-
-        _uiState.value = currentState.copy(
-            audioData    = updatedAudioData
-        )
     }
 
     fun isSongSavable(song: songData): Boolean {
-
         val playlists = getPlaylists()
-
         val inPlaylist = playlists.any { it.value.songIds.contains(song.link) }
-        val inStrictSource = _uiState.value.audioData.any { (_, src) ->
-            src.shouldBeSavedStrictly && song.link in src.songIds
+        val inStrictSource = withState { state ->
+            state.audioData.any { (_, src) -> src.shouldBeSavedStrictly && song.link in src.songIds }
         }
-
         return inPlaylist || inStrictSource
     }
 
     fun getSavableAudioSources(): Map<String, audioSource> {
         val playlists = getPlaylists()
-        val strictSaved = _uiState.value.audioData.filter { it.value.shouldBeSavedStrictly }
-
+        val strictSaved = withState { it.audioData.filter { entry -> entry.value.shouldBeSavedStrictly } }
         return playlists + strictSaved
     }
 
-    fun isPlaylist(audioSource: String) : Boolean
-    {
-
-        val isPlaylist  = audioSource.contains("https://").not()
-
+    fun isPlaylist(audioSource: String): Boolean {
+        val isPlaylist = audioSource.contains("https://").not()
         return isPlaylist
-
     }
 
-    fun getPlaylists() : Map<String, audioSource>
-    {
-
-        val playlists  = _uiState.value.audioData.filter { isPlaylist(it.key) }
-
-        return playlists
-
+    fun getPlaylists(): Map<String, audioSource> {
+        return withState { state -> state.audioData.filter { isPlaylist(it.key) } }
     }
 
-    fun updateBrowserHashFocus(hash: String)
-    {
-        _uiState.value =_uiState.value.copy(searchBroserFocus = hash )
+    fun updateBrowserHashFocus(hash: String) {
+        updateState { it.copy(searchBroserFocus = hash) }
     }
 
     fun waitTrackAndPlay(searchViewModel: SearchViewModel, hash: String, audioSourcePath: String) {
-
         if (AppViewModels.player.playerManager.player != null)
             AppViewModels.player.playerManager.player!!.stop()
 
-        _uiState.value = _uiState.value.copy(
-            playingHash = "",
-            playingAudioSourceHash = ""
-        )
+        updateState { it.copy(playingHash = "", playingAudioSourceHash = "") }
 
         viewModelScope.launch {
-
-            //wait
             val track = uiState
                 .map { state -> state.allAudioData[hash] }
                 .filterNotNull()
                 .first()
 
-            //start
             setPlayingAudioSourceHash(audioSourcePath)
             updatePosInQueue(this@PlayerViewModel, track.link)
             deleteUserAdds()
@@ -539,16 +489,12 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     fun waitAudioSoureToAppearAndPlayNext(searchViewModel: SearchViewModel, audioSourcePath: String) {
-
         viewModelScope.launch {
-
-            //wait
-            val source = uiState
+            uiState
                 .map { state -> state.audioData[audioSourcePath] }
                 .filterNotNull()
                 .first()
 
-            //start
             AppViewModels.player.playerManager.nextSong(mainViewModel = this@PlayerViewModel, searchViewModel)
         }
     }
@@ -569,7 +515,6 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     suspend fun awaitSongArt(mainViewModel: PlayerViewModel, songKey: String): SongArtResult {
-
         val song = mainViewModel.uiState.value.allAudioData[songKey]
             ?: throw Exception("Song not found")
 
@@ -587,8 +532,6 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 } else {
                     artLink
                 }
-
-                // Загружаем Bitmap в IO
                 val bitmap = withContext(Dispatchers.IO) { loadBitmapFromUrl(modifiedLink) }
                 bitmap?.let {
                     val scaled = Bitmap.createScaledBitmap(it, 200, 200, true)
@@ -607,18 +550,12 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                     }
                 }
             }
-
             mainViewModel.addArtListener(listener)
-
-            cont.invokeOnCancellation {
-                mainViewModel.removeArtListener(listener)
-            }
+            cont.invokeOnCancellation { mainViewModel.removeArtListener(listener) }
         }
     }
-
-
-
-
 }
+
+
 
 

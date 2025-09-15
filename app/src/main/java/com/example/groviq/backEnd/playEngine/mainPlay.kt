@@ -203,8 +203,8 @@ class AudioPlayerManager(context: Context) {
         if (mainViewModel.uiState.value.shouldRebuild && userPressed)
         {
             //reset all
-            mainViewModel.uiState.value.currentQueue    = mutableListOf()
-            mainViewModel.uiState.value.originalQueue   = emptyList()
+            mainViewModel        .setQueue(mutableListOf())
+            mainViewModel.setOriginalQueue(emptyList())
 
             //if queue was changed and user pressed, we have to recover original queue
             createQueueOnAudioSourceHash(mainViewModel, hashkey)
@@ -242,7 +242,6 @@ class AudioPlayerManager(context: Context) {
                     )
                     //request to get the new one
                     fetchAudioStream(mainViewModel, hashkey)
-
 
                 }
 

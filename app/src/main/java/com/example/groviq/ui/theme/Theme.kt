@@ -20,6 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.groviq.R
 
+val clashFont = FontFamily(
+    Font(R.font.clashsemi, weight = FontWeight.Normal),
+)
+
 val SfProDisplay = FontFamily(
     Font(R.font.regular, weight = FontWeight.Normal),
     Font(R.font.medium, weight = FontWeight.Medium),
@@ -48,11 +52,11 @@ private val DarkColorScheme = darkColorScheme(
         255
     ),
     onSecondary   = Color.White,
-    tertiary      = Color(21, 21, 21),
+    tertiary      = Color(17, 17, 17),
     onTertiary    = Color.White,
-    background    = Color(21, 21, 21),
+    background    = Color(17, 17, 17),
     onBackground  = Color.White,
-    surface       = Color(21, 21, 21),
+    surface       = Color(17, 17, 17),
     onSurface     = Color.White,
     error         = Color(255, 69, 58), // красный для ошибок
     onError       = Color.White,

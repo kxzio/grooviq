@@ -18,6 +18,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.audioBottomSheet
 import com.example.groviq.frontEnd.bottomBars.trackSettingsBottomBar
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 //global nav controller for screens
 val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
@@ -29,7 +30,8 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
 {
     val screenConnectorNavigationLocal = rememberNavController()
 
-    val hazeState = remember { HazeState() }
+    val hazeState            = remember { HazeState() }
+    val hazeStateForSettings = remember { HazeState() }
 
     //we get view now. now we have to attach listeners for view update
     LaunchedEffect(Unit) {
@@ -45,13 +47,16 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
     CompositionLocalProvider(
         screenConnectorNavigation provides screenConnectorNavigationLocal,
     ) {
-        Box(Modifier.fillMaxSize().navigationBarsPadding())
+        Box(Modifier.fillMaxSize().navigationBarsPadding().hazeSource(hazeStateForSettings))
         {
             audioBottomSheet(mainViewModel, searchViewModel, hazeState)
             {
                 connectScreens(searchViewModel, mainViewModel, hazeState)
             }
-            trackSettingsBottomBar(mainViewModel)
+        }
+        Box(Modifier.fillMaxSize())
+        {
+            trackSettingsBottomBar(mainViewModel, hazeStateForSettings)
         }
 
     }

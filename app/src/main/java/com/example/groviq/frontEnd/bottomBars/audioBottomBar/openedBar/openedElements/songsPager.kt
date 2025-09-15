@@ -62,7 +62,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     }
 
     val pagerState = rememberPagerState(
-        initialPage = posInQueue,
+        initialPage = posInQueue.coerceAtLeast(0),
         pageCount = { songsInQueue.size }
     )
 
@@ -171,31 +171,22 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
     val coroutineScope = rememberCoroutineScope()
 
 
-    LaunchedEffect(currentTrackId, posInQueue) {
+    LaunchedEffect(currentTrackId, posInQueue, songsInQueue.size) {
         val newIndex = posInQueue
-        val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
+        if (newIndex < 0 || newIndex >= songsInQueue.size) return@LaunchedEffect
 
+        val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
         if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) return@LaunchedEffect
 
-        if (newIndex != -1 && newIndex != pagerState.settledPage) {
+        if (newIndex != pagerState.settledPage) {
             scrollJob?.cancel()
             scrollJob = coroutineScope.launch {
                 snapshotFlow { pagerState.pageCount }
-                    .map { count -> count to songsInQueue.size }
-                    .first { (count, size) -> count == size && size > 0 }
+                    .first { it == songsInQueue.size && it > 0 }
 
                 ignoreNextPageChange = true
-                pagerState.animateScrollToPage(
-                    newIndex,
-                    animationSpec = tween(
-                        durationMillis = 500,
-                        easing = FastOutSlowInEasing
-                    )
-                )
-
-                snapshotFlow { pagerState.settledPage }
-                    .first { it == newIndex }
-
+                pagerState.animateScrollToPage(newIndex, animationSpec = tween(500, easing = FastOutSlowInEasing))
+                snapshotFlow { pagerState.settledPage }.first { it == newIndex }
                 ignoreNextPageChange = false
             }
         }

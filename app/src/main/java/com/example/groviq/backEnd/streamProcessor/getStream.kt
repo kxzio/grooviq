@@ -344,6 +344,8 @@ fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
 
                 withContext(Dispatchers.Main) {
                     mainViewModel.updateImageForSong(songKey, audioImage)
+                    mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[songKey]!!)
+
                 }
             } catch (e: Exception) {
                 println("Error fetching image for $songKey: ${e.message}")

@@ -15,23 +15,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +51,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,6 +83,7 @@ import com.example.groviq.frontEnd.errorsPlaceHoldersScreen
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.iconOutlineButton
 import com.example.groviq.frontEnd.subscribeMe
+import com.example.groviq.ui.theme.clashFont
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -262,50 +271,42 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                     Spacer(Modifier.height(15.dp))
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally)
                     {
-                        if (isPlaylist)
+                        Box(Modifier.fillMaxWidth())
                         {
-                            Box(Modifier.size(200.dp))
-                            {
-                                grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
-                                    audioSourcePath,
-                                    audioData    = audioData,
-                                    allAudioData = allAudioData
-                                )
-                            }
-                        }
-                        else
-                        {
-                            asyncedImage(
-                                songs.firstOrNull(),
-                                Modifier.size(200.dp),
-                                onEmptyImageCallback = {
-                                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(200.dp))
-                                }
+                            grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                                audioSourcePath,
+                                audioData    = audioData,
+                                allAudioData = allAudioData
                             )
                         }
+
                     }
                     Spacer(Modifier.height(15.dp))
 
                     if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
                     {
-                        Text(audioSourcePath)
+                        Text(audioSourcePath, fontFamily = clashFont, fontSize = 40.sp)
                     }
                     else
                     {
-                        Text(audioSource!!.nameOfAudioSource)
+                        Text(audioSource!!.nameOfAudioSource, fontFamily = clashFont, fontSize = 40.sp)
                     }
+
 
                     if (audioSource!!.artistsOfAudioSource.isNullOrEmpty().not())
                     {
-                        Column {
+                        Spacer(Modifier.height(15.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
 
                             audioSource!!.artistsOfAudioSource.forEach { artist ->
 
                                 Row()
                                 {
-                                    Icon(Icons.Rounded.Person, "", tint = Color(0, 0, 0), modifier = Modifier.background(
-                                        shape = CircleShape, color = Color(255, 255, 255) ) )
-                                    Text(artist.title, Modifier.clickable {
+                                    Icon(Icons.Rounded.Person, "", tint = MaterialTheme.colorScheme.primary)
+
+
+                                    Text(text = artist.title, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp).clickable {
                                         openArtist(artist.url)
                                     })
                                 }
@@ -318,70 +319,66 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
                     }
 
-
                     if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
                     {
-                        Spacer(Modifier.height(8.dp))
-                        Text(audioSource!!.yearOfAudioSource, color = Color(255, 255, 255, 180))
+                        Spacer(Modifier.height(16.dp))
+                        Text(text = audioSource!!.yearOfAudioSource, fontSize = 16.sp, color = Color(255, 255, 255, 100))
                         Spacer(Modifier.height(8.dp))
                     }
 
-                    if (isPlaylist.not())
+                    Row()
                     {
+                        if (isPlaylist.not())
+                        {
 
-                        Spacer(Modifier.height(16.dp))
+                            IconButton(
+                                onClick = {
+                                    mainViewModel.toggleStrictSaveAudioSource(
+                                        audioSourcePath
+                                    )
+                                    mainViewModel.saveAudioSourcesToRoom()
+                                    mainViewModel.saveSongsFromSourceToRoom(
+                                        audioSourcePath
+                                    )
+                                },
+                                content = { Icon(
+                                    if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
+                                        Icons.Rounded.Remove else Icons.Rounded.Add,
+                                    "") },
+                            )
 
-                        iconOutlineButton(
 
-                        if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
-                            "Удалить"
-                        else
-                            "Сохранить",
+                        }
 
-                        onClick = {
-                            mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
-                            mainViewModel.saveAudioSourcesToRoom()
-                            mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
-                        },
+                        if (songs.isNullOrEmpty().not())
+                        {
 
-                        icon = Icons.Rounded.Save
-
-                        )
-                    }
-
-                    if (songs.isNullOrEmpty().not())
-                    {
-
-                        Spacer(Modifier.height(16.dp))
-
-                        iconOutlineButton(
-
-                            if (songs.all {it.file != null && it.file!!.exists()})
-                                "Удалить с устройства"
-                            else
-                                "Скачать на устройство",
-
-                            onClick = {
-                                if (songs.all {it.file != null && it.file!!.exists()})
-                                {
-                                    songs.forEach { track ->
-                                        DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                            IconButton(
+                                onClick = {
+                                    if (songs.all {it.file != null && it.file!!.exists()})
+                                    {
+                                        songs.forEach { track ->
+                                            DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                                        }
                                     }
-                                }
-                                else
-                                {
-                                    songs.forEach { track ->
-                                        DownloadManager.enqueue(mainViewModel, track.link)
+                                    else
+                                    {
+                                        songs.forEach { track ->
+                                            DownloadManager.enqueue(mainViewModel, track.link)
+                                        }
+                                        DownloadManager.start()
                                     }
-                                    DownloadManager.start()
-                                }
-                            },
+                                },
+                                content = { Icon(
+                                    if (songs.all {it.file != null && it.file!!.exists()})
+                                        Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                                    "") },
+                            )
 
-                            icon = Icons.Rounded.Download
 
-                        )
+                            Spacer(Modifier.height(16.dp))
 
-                        Spacer(Modifier.height(16.dp))
+                        }
 
                     }
 
