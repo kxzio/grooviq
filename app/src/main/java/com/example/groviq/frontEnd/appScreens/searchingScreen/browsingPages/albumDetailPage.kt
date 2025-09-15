@@ -69,6 +69,7 @@ import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchingRequest
 import com.example.groviq.frontEnd.asyncedImage
+import com.example.groviq.frontEnd.drawPlaylistCover
 import com.example.groviq.frontEnd.errorButton
 import com.example.groviq.frontEnd.errorsPlaceHoldersScreen
 import com.example.groviq.frontEnd.grooviqUI
@@ -261,13 +262,27 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                     Spacer(Modifier.height(15.dp))
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally)
                     {
-                        asyncedImage(
-                            songs.firstOrNull(),
-                            Modifier.size(200.dp),
-                            onEmptyImageCallback = {
-                                Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(200.dp))
+                        if (isPlaylist)
+                        {
+                            Box(Modifier.size(200.dp))
+                            {
+                                grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                                    audioSourcePath,
+                                    audioData    = audioData,
+                                    allAudioData = allAudioData
+                                )
                             }
-                        )
+                        }
+                        else
+                        {
+                            asyncedImage(
+                                songs.firstOrNull(),
+                                Modifier.size(200.dp),
+                                onEmptyImageCallback = {
+                                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(200.dp))
+                                }
+                            )
+                        }
                     }
                     Spacer(Modifier.height(15.dp))
 

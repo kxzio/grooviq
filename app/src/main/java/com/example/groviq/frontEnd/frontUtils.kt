@@ -76,9 +76,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -112,6 +119,7 @@ import android.graphics.RenderEffect as AndroidRenderEffect
 import coil.transform.*
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
 import com.example.groviq.MyApplication
+import com.example.groviq.backEnd.dataStructures.audioSource
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchingRequest
 import com.example.groviq.loadBitmapFromUrl
@@ -140,6 +148,11 @@ class grooviqUI {
         }
 
         object screenPlaceholders
+        {
+
+        }
+
+        object albumCoverPresenter
         {
 
         }
@@ -402,6 +415,85 @@ fun grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
         }
     }
 }
+
+@Composable
+fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+    audioSource: String,
+    audioData: MutableMap<String, audioSource>,
+    allAudioData: MutableMap<String, songData>
+) {
+    val audioSource = audioData[audioSource] ?: return
+    val firstFourSongs = audioSource.songIds.mapNotNull { allAudioData[it] }.take(4)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .aspectRatio(1f),
+        contentAlignment = Alignment.Center
+    ) {
+        when (firstFourSongs.size) {
+            4 -> {
+                LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
+                    items(firstFourSongs) { song ->
+                        asyncedImage(
+                            song,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .aspectRatio(1f),
+                        )
+                    }
+                }
+            }
+            3 -> {
+                Column(Modifier.fillMaxSize()) {
+                    asyncedImage(
+                        firstFourSongs[2],
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                    )
+                    Row(Modifier.weight(1f)) {
+                        asyncedImage(
+                            firstFourSongs[0],
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                        asyncedImage(
+                            firstFourSongs[1],
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                    }
+                }
+            }
+            2 -> {
+                Row(Modifier.fillMaxSize()) {
+                    firstFourSongs.forEach {
+                        asyncedImage(
+                            it,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                    }
+                }
+            }
+            1 -> {
+                asyncedImage(
+                    firstFourSongs[0],
+                    Modifier.fillMaxSize(),
+                )
+            }
+            0 -> {
+                Icon(Icons.Rounded.PlaylistPlay, "", Modifier.fillMaxSize())
+            }
+        }
+    }
+}
+
+
 @SuppressLint(
     "UnusedCrossfadeTargetStateParameter"
 )
@@ -463,7 +555,6 @@ fun background(song: songData, alpha : Float = 0.88f, drawBlack : Boolean = true
 
     }
 
-
 }
 
 
@@ -474,7 +565,6 @@ fun InfiniteRoundedCircularProgress(
     colors: List<Color> = listOf(MaterialTheme.colorScheme.primary)
 ) {
     val infiniteTransition = rememberInfiniteTransition()
-
 
     val sweep by infiniteTransition.animateFloat(
         initialValue = 20f,

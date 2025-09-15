@@ -67,32 +67,7 @@ fun sanitizeFileName(input: String): String {
 }
 
 fun encodeYouTubeMusic(link: String): String? {
-    if (link.isEmpty()) return null
-
-    val uri = Uri.parse(link)
-    val v = uri.getQueryParameter("v")
-    val list = uri.getQueryParameter("list")
-    val path = uri.path ?: ""
-    val host = uri.host ?: ""
-
-    return when {
-        !v.isNullOrEmpty() && !list.isNullOrEmpty() -> "A_${v}_${list}"
-
-        !v.isNullOrEmpty() -> "V_${v}"
-
-        !list.isNullOrEmpty() -> "P_${list}"
-
-        path.contains("/channel/") -> "C_${path.substringAfterLast("/")}"
-
-        path.contains("/browse/") -> "C_${path.substringAfterLast("/")}"
-
-        // Артист
-        path.contains("/artist/") -> "R_${path.substringAfterLast("/")}"
-
-        host == "youtu.be" && path.isNotEmpty() -> "V_${path.substring(1)}"
-
-        else -> link
-    }
+    return link
 }
 
 fun decodeYouTubeMusic(encoded: String): String {
@@ -107,12 +82,7 @@ fun decodeYouTubeMusic(encoded: String): String {
     }
 }
 fun safeDecodeYouTubeMusic(link: String?): String? {
-    if (link == null) return null
-    return if (link.startsWith("V_") || link.startsWith("A_") || link.startsWith("P_") || link.startsWith("C_")) {
-        decodeYouTubeMusic(link)
-    } else {
-        link
-    }
+    return link
 }
 
 fun songData.toEntity(context: Context): SongEntity {
