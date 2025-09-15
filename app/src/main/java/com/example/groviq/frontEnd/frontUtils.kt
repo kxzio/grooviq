@@ -423,7 +423,7 @@ fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
     allAudioData: MutableMap<String, songData>
 ) {
     val audioSource = audioData[audioSource] ?: return
-    val firstFourSongs = audioSource.songIds.mapNotNull { allAudioData[it] }.take(4)
+    val firstFourSongs = audioSource.songIds.mapNotNull { allAudioData[it] }.distinctBy { it.album_original_link }.take(4)
 
     Box(
         modifier = Modifier

@@ -17,6 +17,7 @@ import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
+import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.Dispatchers
@@ -431,9 +432,16 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             _uiState.value.audioData[it.key]?.shouldBeSavedStrictly ?: false || //this audiosource is saved strictly
             it.key == currentPlayingAudioSource         ||                      //we play this audioSource
             playlists.containsKey(it.key)               ||                      //this audioSource is playlist
+
+            _uiState.value.audioData[it.key]?.songIds?.any { songId ->          //if download queue has sone from this audio-source
+            songId in DownloadManager.state.value.active ||
+            songId in DownloadManager.state.value.queued
+            } ?: false
+
             it.key == uiState.value.searchBroserFocus   ||                      //this audiosource is UI focused
             currentQueueAudioSources.contains(it.key)   ||                      //this audiosource is used for queue building
             it.key == searchViewModel.uiState.value.currentArtist.url           //current opened artist popular songs
+
 
         }.toMutableMap()
 
