@@ -1096,3 +1096,112 @@ def replaceSongs(json_list, official_only: bool = True,
 
     # ---- Вернём JSON ----
     return json.dumps({"results": results}, ensure_ascii=False)
+
+def getGlobalPlaylists(region: str = "US", max_results: int = 20, official_only: bool = True):
+    def make_ytm_url(entity_id: str, entity_type: str = "artist") -> str:
+        if not entity_id:
+            return ''
+        if entity_type == "album":
+            if entity_id.startswith('/browse/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/browse/{entity_id}"
+        else:
+            if entity_id.startswith('/channel/') or entity_id.startswith('/browse/') or entity_id.startswith('/artist/'):
+                return f"https://music.youtube.com{entity_id}"
+            return f"https://music.youtube.com/channel/{entity_id}"
+
+    def _normalize_tracks(raw_tracks: list, limit: int) -> list:
+        tracks = []
+        seen_urls = set()
+        for t in raw_tracks:
+            vid = t.get('videoId') or t.get('id')
+            if not vid:
+                continue
+
+            track_url = f"https://music.youtube.com/watch?v={vid}"
+            if track_url in seen_urls:
+                continue
+            seen_urls.add(track_url)
+
+            title = t.get('title', '')
+            duration_ms = int(t.get('lengthSeconds', 0)) * 1000 \
+                          or t.get('durationMillis', 0) \
+                          or _duration_to_millis(t.get('duration'))
+
+            artists_info = [
+                {'name': ar.get('name', ''), 'url': make_ytm_url(ar.get('id') or '')}
+                for ar in t.get('artists', []) or []
+            ]
+
+            if official_only:
+                if len(artists_info) == 1 and artists_info[0]['name'] == "YouTube":
+                    continue
+
+            image_url = ''
+            if t.get('thumbnail'):
+                image_url = t['thumbnail'][-1].get('url', '')
+            else:
+                thumbs = t.get('thumbnails') or t.get('album', {}).get('thumbnails') or []
+                if isinstance(thumbs, list) and thumbs:
+                    image_url = thumbs[-1].get('url', '')
+
+            album_data = t.get('album', {})
+            album_url = make_ytm_url(album_data.get('id') or '', "album")
+
+            obj = {
+                'id': vid,
+                'title': title,
+                'duration_ms': duration_ms,
+                'url': track_url,
+                'image_url': image_url,
+                'album_url': album_url,
+                'artists': artists_info
+            }
+            tracks.append(obj)
+
+            if len(tracks) >= limit:
+                break
+        return tracks
+
+    results = {}
+
+    def process_charts():
+        data = _ytm.get_charts(region)
+        tracks = data.get("tracks", []) or []
+        return "charts", _normalize_tracks(tracks, max_results)
+
+    def process_hotlist():
+        data = _ytm.get_home()
+        hot_tracks = []
+        for section in data:
+            if "Hotlist" in section.get("title", ""):
+                hot_tracks = section.get("contents", [])
+        return "hotlist", _normalize_tracks(hot_tracks, max_results)
+
+    def process_moods():
+        moods = _ytm.get_mood_playlists()
+        mood_result = {}
+        for mood in moods:
+            title = mood.get("title", "")
+            for pl in mood.get("playlists", []):
+                pid = pl.get("playlistId")
+                if not pid:
+                    continue
+                data = _ytm.get_playlist(pid, limit=max_results*2)
+                tracks = data.get("tracks", []) or []
+                mood_result[title] = _normalize_tracks(tracks, max_results)
+        return "moods", mood_result
+
+    tasks = [process_charts, process_hotlist, process_moods]
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(task): task for task in tasks}
+        for future in as_completed(futures):
+            try:
+                key, value = future.result()
+                results[key] = value
+            except Exception as e:
+                results[futures[future].__name__] = {"error": str(e)}
+
+    return json.dumps({"results": results}, ensure_ascii=False)

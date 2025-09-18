@@ -253,8 +253,8 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     fun renameAudioSourceAndMoveSongs(
-        targetAudioSource : String,
-        newNameOfAudioSource : String
+        targetAudioSource: String,
+        newNameOfAudioSource: String
     ) {
         val oldNameOfAudioSource = targetAudioSource
 
@@ -262,24 +262,24 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
             val updatedAudioData = currentUiState.audioData.toMutableMap()
 
-            updatedAudioData[newNameOfAudioSource] = updatedAudioData[targetAudioSource]?.copy() ?: audioSource()
+            val oldSource = updatedAudioData[targetAudioSource] ?: return@updateState currentUiState
             updatedAudioData.remove(targetAudioSource)
 
-            //if we playing this
+            val newSource = oldSource.copy(nameOfAudioSource = newNameOfAudioSource)
+            updatedAudioData[newNameOfAudioSource] = newSource
+
             if (currentUiState.playingAudioSourceHash == oldNameOfAudioSource) {
-                setShouldRebuild    (true)
+                setShouldRebuild(true)
                 setLastSourceBuilded("")
-                updateNextSongHash  (this)
+                updateNextSongHash(this)
             }
 
             currentUiState.copy(
                 audioData = updatedAudioData
             )
-
         }
-
-
     }
+
 
     fun toggleStrictSaveAudioSource(request: String) {
         updateState { currentState ->

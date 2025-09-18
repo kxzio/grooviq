@@ -256,6 +256,15 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
         ?: emptyList()
 
 
+    if (audioSource?.isInGenerationProcess == true)
+    {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
+        }
+        return
+
+    }
+
     val isPlaylist = mainViewModel.isPlaylist(audioSourcePath)
 
     Column {

@@ -70,9 +70,9 @@ var currentArtistJob: Job? = null
 var currentTrackJob: Job? = null
 
 // daily playlist getter with one job active
-var currentDailyListJob: Job? = null
-var currentMoodListJob : Job? = null
-
+var currentDailyListJob : Job? = null
+var currentMoodListJob  : Job? = null
+var currentChartJob : Job? = null
 
 //recommend list, that we do before song ends
 var preparedRecommendList : MutableList < songData > = mutableListOf()
@@ -1182,7 +1182,7 @@ class SearchViewModel : ViewModel() {
         if (newArtists.isEmpty()) {
             newArtists = lastSongs.map { it.artists[0].url }.distinct().take(2)
         }
-        // fallback если newArtists == topArtists
+
         if (newArtists.any { it in topArtists }) {
             val randomArtist = uiState.allAudioData.values.shuffled().firstOrNull()?.artists?.firstOrNull()?.url
             if (randomArtist != null) newArtists = (newArtists + randomArtist).distinct().take(2)
@@ -1217,8 +1217,8 @@ class SearchViewModel : ViewModel() {
                         val playlistTracks = fetchUniqueRecommendations(
                             seedSongs = hashes,
                             maxResults = 15,
-                            likedSongs = (allSongs.map { it.link } + hashes).toSet(),
-                            allLocalSongs = allSongs.toSet(),
+                            likedSongs = (hashes).toSet(),
+                            allLocalSongs = allSongs.filter { it.link in hashes }.toMutableList(),
                             perBatchCount = 5
                         ).toMutableList()
 
@@ -1272,7 +1272,6 @@ class SearchViewModel : ViewModel() {
             }
         }
     }
-
 
 
 }

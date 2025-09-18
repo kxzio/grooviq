@@ -116,7 +116,7 @@ fun renamePlaylistBar(mainViewModel : PlayerViewModel)
         skipPartiallyExpanded = true
     )
 
-    renamePlaylistName.value   = originalPlaylistName.value
+    renamePlaylistName.value  = originalPlaylistName.value
 
     LaunchedEffect(isOpened) {
         if (isOpened) {
@@ -160,8 +160,6 @@ fun renamePlaylistBar(mainViewModel : PlayerViewModel)
 @Composable
 fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = false, onClose : () -> Unit)
 {
-    val mainUiState     by mainViewModel.uiState.collectAsState()
-
     OutlinedTextField(
         value = if (isRename.not()) playlistName.value else renamePlaylistName.value,
         onValueChange = { newValue ->
@@ -211,8 +209,31 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
 
     Button(onClick =
     {
-        mainViewModel.createAudioSource(playlistName.value)
-        onClose()
+        if (isRename.not()) {
+
+            if (mainViewModel.isAudioSourceAlreadyHad(playlistName.value))
+            {
+                Toast.makeText(MyApplication.globalContext, "This name already in use. Try another name", Toast.LENGTH_SHORT).show()
+            }
+            else
+            {
+                mainViewModel.createAudioSource(playlistName.value)
+                onClose()
+            }
+        }
+        else
+        {
+            if (mainViewModel.isAudioSourceAlreadyHad(renamePlaylistName.value))
+            {
+                Toast.makeText(MyApplication.globalContext, "This name already in use. Try another name", Toast.LENGTH_SHORT).show()
+            }
+            else
+            {
+                mainViewModel.renameAudioSourceAndMoveSongs(
+                    originalPlaylistName.value, renamePlaylistName.value)
+                onClose()
+            }
+        }
     },
         Modifier.fillMaxWidth()){
         Text(if (isRename.not()) "Создать плейлист" else "Переименовать")
