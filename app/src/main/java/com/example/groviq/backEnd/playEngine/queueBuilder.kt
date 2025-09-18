@@ -1,6 +1,7 @@
 package com.example.groviq.backEnd.playEngine
 
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.service.nextSongHashPending
@@ -283,5 +284,13 @@ fun updateNextSongHash(mainViewModel: PlayerViewModel) {
         }
     }
 
-    prepareAndAddNextTrackToMediaItems(mainViewModel, uiState)
+    val hasPlayableItem = player.playbackState == Player.STATE_READY &&
+            player.currentMediaItem != null &&
+            player.mediaItemCount > 0
+
+    if (hasPlayableItem)
+    {
+        prepareAndAddNextTrackToMediaItems(mainViewModel, uiState)
+    }
+
 }

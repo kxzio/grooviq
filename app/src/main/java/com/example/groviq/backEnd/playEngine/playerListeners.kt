@@ -217,6 +217,8 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel, uiState: 
     if (uiState.shouldRebuild)
         return
 
+    addTrackToMediaItems?.cancel()
+
     addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
         val player = AppViewModels.player.playerManager.player
         val nextIndex = uiState.posInQueue + 1
