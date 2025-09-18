@@ -264,6 +264,7 @@ fun moveInQueue(mainViewModel: PlayerViewModel, fromIndex: Int, toIndex: Int) {
 }
 
 fun updateNextSongHash(mainViewModel: PlayerViewModel) {
+
     val uiState = mainViewModel.uiState.value
     val queue = uiState.currentQueue
 
@@ -278,19 +279,12 @@ fun updateNextSongHash(mainViewModel: PlayerViewModel) {
     val player = AppViewModels.player.playerManager.player
     val currentIndex = player.currentMediaItemIndex
 
+    addTrackToMediaItems?.cancel()
+
     if (currentIndex != C.INDEX_UNSET) {
         while (player.mediaItemCount > currentIndex + 1) {
             player.removeMediaItem(currentIndex + 1)
         }
-    }
-
-    val hasPlayableItem = player.playbackState == Player.STATE_READY &&
-            player.currentMediaItem != null &&
-            player.mediaItemCount > 0
-
-    if (hasPlayableItem)
-    {
-        prepareAndAddNextTrackToMediaItems(mainViewModel, uiState)
     }
 
 }

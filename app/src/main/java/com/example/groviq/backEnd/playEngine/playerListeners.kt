@@ -28,6 +28,8 @@ import com.example.groviq.service.songPendingIntentNavigationDirection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.logging.Handler
@@ -36,7 +38,7 @@ import kotlin.math.min
 private var attachedPlayer      : Player? = null
 private var attachedListener    : Player.Listener? = null
 private var snapshotJob         : kotlinx.coroutines.Job? = null
-private var addTrackToMediaItems: Job? = null
+var addTrackToMediaItems: Job? = null
 
 var trackEndingHandled = false
 
@@ -238,8 +240,7 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel, uiState: 
             .setTitle(nextSong.title)
             .setArtist(nextSong.artists.joinToString { it.title })
 
-        val songArtResult = mainViewModel.awaitSongArt(mainViewModel, nextSong.link)
-        when (songArtResult) {
+        when (val songArtResult = mainViewModel.awaitSongArt(mainViewModel, nextSong.link)) {
             is PlayerViewModel.SongArtResult.BitmapResult -> {
                 val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
                 val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
@@ -258,5 +259,7 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel, uiState: 
             .build()
 
         player.addMediaItem(mediaItem)
+
     }
+
 }
