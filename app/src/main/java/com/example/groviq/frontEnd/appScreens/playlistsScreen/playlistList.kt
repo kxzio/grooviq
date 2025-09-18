@@ -13,9 +13,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DriveFileRenameOutline
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,6 +33,8 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.bottomBars.createPlaylistBar
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
+import com.example.groviq.frontEnd.bottomBars.isRenamePlaylistOpened
+import com.example.groviq.frontEnd.bottomBars.originalPlaylistName
 import com.example.groviq.frontEnd.drawPlaylistCover
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
@@ -71,33 +77,51 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                     playlists
                 ) { result ->
 
-                    Row(
-                        Modifier.clickable
-                        {
-                            val encoded =
-                                Uri.encode(
-                                    result.key
-                                )
-                            playlistNavigationLocal.navigate(
-                                "${Screen.Playlists.route}/playlist/" + encoded
-                            )
-
-                        })
+                    Row()
                     {
+                        Row(
+                            Modifier.weight(1f).clickable
+                            {
+                                val encoded =
+                                    Uri.encode(
+                                        result.key
+                                    )
+                                playlistNavigationLocal.navigate(
+                                    "${Screen.Playlists.route}/playlist/" + encoded
+                                )
 
-                        Box(Modifier.size(60.dp))
+                            })
                         {
-                            grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
-                                result.key,
-                                audioData    = audioData,
-                                allAudioData = allAudioData
+
+                            Box(Modifier.size(60.dp))
+                            {
+                                grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                                    result.key,
+                                    audioData    = audioData,
+                                    allAudioData = allAudioData
+                                )
+                            }
+
+                            Text(
+                                result.key
                             )
                         }
 
-                        Text(
-                            result.key
-                        )
+                        Box()
+                        {
+                            IconButton(
+                                onClick = {
+                                    originalPlaylistName.value   = result.key
+                                    isRenamePlaylistOpened.value = true
+                                }
+                            ) {
+                                Icon(Icons.Rounded.Edit, "")
+                            }
+                        }
+
+
                     }
+
 
                 }
             }

@@ -13,6 +13,7 @@ import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.playEngine.AudioPlayerManager
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
+import com.example.groviq.backEnd.playEngine.updateNextSongHash
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
 import com.example.groviq.backEnd.searchEngine.ArtistDto
@@ -186,6 +187,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun setShouldRebuild(b: Boolean) {
         updateState { it.copy(shouldRebuild = b) }
+        updateNextSongHash(this)
     }
 
     fun setPosInQueue(newPos: Int) {
@@ -248,6 +250,35 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 audioData = updatedAudioData
             )
         }
+    }
+
+    fun renameAudioSourceAndMoveSongs(
+        targetAudioSource : String,
+        newNameOfAudioSource : String
+    ) {
+        val oldNameOfAudioSource = targetAudioSource
+
+        updateState { currentUiState ->
+
+            val updatedAudioData = currentUiState.audioData.toMutableMap()
+
+            updatedAudioData[newNameOfAudioSource] = updatedAudioData[targetAudioSource]?.copy() ?: audioSource()
+            updatedAudioData.remove(targetAudioSource)
+
+            //if we playing this
+            if (currentUiState.playingAudioSourceHash == oldNameOfAudioSource) {
+                setShouldRebuild    (true)
+                setLastSourceBuilded("")
+                updateNextSongHash  (this)
+            }
+
+            currentUiState.copy(
+                audioData = updatedAudioData
+            )
+
+        }
+
+
     }
 
     fun toggleStrictSaveAudioSource(request: String) {
@@ -343,6 +374,11 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             audioSourceEntry?.songIds?.contains(songLink) == true
         }
     }
+
+    fun isAudioSourceAlreadyHad(audioSource: String): Boolean {
+        return uiState.value.audioData[audioSource] != null
+    }
+
 
     fun updateStatusForSong(songLink: String, status: songProgressStatus) {
         updateState { currentState ->

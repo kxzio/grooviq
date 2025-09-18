@@ -278,9 +278,10 @@ fun updateNextSongHash(mainViewModel: PlayerViewModel) {
     val currentIndex = player.currentMediaItemIndex
 
     if (currentIndex != C.INDEX_UNSET) {
-        // оставляем только текущий и следующий
         while (player.mediaItemCount > currentIndex + 1) {
             player.removeMediaItem(currentIndex + 1)
         }
     }
+
+    prepareAndAddNextTrackToMediaItems(mainViewModel, uiState)
 }
