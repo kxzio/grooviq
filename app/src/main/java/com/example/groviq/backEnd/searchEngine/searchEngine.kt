@@ -867,9 +867,8 @@ class SearchViewModel : ViewModel() {
                 if (trackDtos.isNullOrEmpty())
                 {
                     _uiState.update { it.copy(
-
                         gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
-                        this[navigationSaver] = true
+                        this[navigationSaver] = false
                     },
                         publicErrors = uiState.value.publicErrors.toMutableMap().apply {
                         this[navigationSaver] = publucErrors.NO_RESULTS
@@ -892,7 +891,7 @@ class SearchViewModel : ViewModel() {
                     )
                     _uiState.update { it.copy(
                         gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
-                            this[navigationSaver] = true
+                            this[navigationSaver] = false
                         },
                         publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
                         this[navigationSaver] = publucErrors.CLEAN
@@ -904,7 +903,7 @@ class SearchViewModel : ViewModel() {
                 withContext(NonCancellable + Dispatchers.Main) {
                     _uiState.update { it.copy(
                         gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
-                            this[navigationSaver] = true
+                            this[navigationSaver] = false
                         },
                     ) }
                 }
