@@ -420,7 +420,7 @@ suspend fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: St
                         song.link,
                         song.progressStatus.copy(downloadingHandled = false)
                     )
-                    mainViewModel.addSongToAudioSource(song.link, "Скачанное")
+                    mainViewModel.addSongToAudioSource(song.link, "Downloaded")
 
                     val toSave = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: song
                     mainViewModel.saveSongToRoom(toSave)
@@ -690,7 +690,7 @@ object DownloadManager {
                         song.progressStatus.copy(downloadingHandled = false)
                     )
 
-                    mainViewModel.removeSongFromAudioSource(song.link, "Скачанное")
+                    mainViewModel.removeSongFromAudioSource(song.link, "Downloaded")
 
                     mainViewModel.updateDownloadingProgressForSong(song.link, 0f)
 

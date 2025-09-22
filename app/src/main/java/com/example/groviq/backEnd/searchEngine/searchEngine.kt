@@ -222,7 +222,10 @@ class SearchViewModel : ViewModel() {
             val timeoutPerTry = 10000L
             var success = false
 
-            _uiState.update { it.copy(gettersInProcess = true,
+            _uiState.update { it.copy(
+                gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                    this[navigationSaver] = true
+                },
                 publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
                 this[navigationSaver] = publucErrors.CLEAN
             }) }
@@ -274,7 +277,10 @@ class SearchViewModel : ViewModel() {
                             albumDto.artists,
                             albumDto.year
                         )
-                        _uiState.update { it.copy(gettersInProcess = false,
+                        _uiState.update { it.copy(
+                            gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                                this[navigationSaver] = false
+                            },
                             publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
                             this[navigationSaver] = publucErrors.CLEAN
                         }) }
@@ -294,7 +300,9 @@ class SearchViewModel : ViewModel() {
             if (!success) {
                 _uiState.update {
                     it.copy(
-                        gettersInProcess = false,
+                        gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                            this[navigationSaver] = false
+                        },
                         publicErrors =  if (!hasInternetConnection(context)) uiState.value.publicErrors.toMutableMap().apply {
                             this[navigationSaver] = publucErrors.NO_INTERNET
                         } else uiState.value.publicErrors.toMutableMap().apply {
@@ -303,7 +311,10 @@ class SearchViewModel : ViewModel() {
                     )
                 }
             } else {
-                _uiState.update { it.copy(gettersInProcess = false) }
+                _uiState.update { it.copy(
+                    gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                    this[navigationSaver] = false
+                },) }
             }
         }
     }
@@ -384,7 +395,11 @@ class SearchViewModel : ViewModel() {
             val timeoutPerTry = 10000L
             var success = false
 
-            _uiState.update { it.copy(gettersInProcess = true, publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+            _uiState.update { it.copy(
+                gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                    this[navigationSaver] = true
+                },
+                publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
                 this[ navigationSaver ] = publucErrors.CLEAN
             }) }
 
@@ -425,7 +440,9 @@ class SearchViewModel : ViewModel() {
                                 publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
                                     this[ navigationSaver ] = publucErrors.CLEAN
                                 },
-                                gettersInProcess = false
+                                gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                                    this[navigationSaver] = false
+                                },
                             )
                         }
                         mainViewModel.setAlbumTracks(
@@ -451,7 +468,9 @@ class SearchViewModel : ViewModel() {
             if (!success) {
                 _uiState.update {
                     it.copy(
-                        gettersInProcess = false,
+                        gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                            this[navigationSaver] = false
+                        },
                         publicErrors = if (!hasInternetConnection(context)) uiState.value.publicErrors.toMutableMap().apply {
                             this[ navigationSaver] = publucErrors.NO_INTERNET
                         } else uiState.value.publicErrors.toMutableMap().apply {
@@ -460,7 +479,9 @@ class SearchViewModel : ViewModel() {
                     )
                 }
             } else {
-                _uiState.update { it.copy(gettersInProcess = false) }
+                _uiState.update { it.copy(                gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                    this[navigationSaver] = false
+                },) }
             }
         }
     }
@@ -821,7 +842,11 @@ class SearchViewModel : ViewModel() {
 
         val navigationSaver = Screen.Searching.route + "/radio/" + request
 
-        _uiState.update { it.copy(gettersInProcess = true, publicErrors = uiState.value.publicErrors.toMutableMap().apply {
+        _uiState.update { it.copy(
+            gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                this[navigationSaver] = true
+            },
+            publicErrors = uiState.value.publicErrors.toMutableMap().apply {
             this[navigationSaver] = publucErrors.CLEAN
         }) }
 
@@ -841,9 +866,15 @@ class SearchViewModel : ViewModel() {
 
                 if (trackDtos.isNullOrEmpty())
                 {
-                    _uiState.update { it.copy(gettersInProcess = false, publicErrors = uiState.value.publicErrors.toMutableMap().apply {
+                    _uiState.update { it.copy(
+
+                        gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                        this[navigationSaver] = true
+                    },
+                        publicErrors = uiState.value.publicErrors.toMutableMap().apply {
                         this[navigationSaver] = publucErrors.NO_RESULTS
                     }) }
+
                     return@withContext ""
                 }
 
@@ -855,11 +886,15 @@ class SearchViewModel : ViewModel() {
                     mainViewModel.setAlbumTracks(
                         sourceKey,
                         tracks,
-                        audioSourceName = "Радио " + mainViewModel.uiState.value.allAudioData[request]?.title,
+                        audioSourceName = "Radio " + mainViewModel.uiState.value.allAudioData[request]?.title,
                         audioSourceArtist = emptyList(),
                         audioSourceYear = ""
                     )
-                    _uiState.update { it.copy(gettersInProcess = false, publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
+                    _uiState.update { it.copy(
+                        gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                            this[navigationSaver] = true
+                        },
+                        publicErrors =  uiState.value.publicErrors.toMutableMap().apply {
                         this[navigationSaver] = publucErrors.CLEAN
                     }) }
                 }
@@ -867,7 +902,11 @@ class SearchViewModel : ViewModel() {
                 sourceKey
             } finally {
                 withContext(NonCancellable + Dispatchers.Main) {
-                    _uiState.update { it.copy(gettersInProcess = false) }
+                    _uiState.update { it.copy(
+                        gettersInProcess = uiState.value.gettersInProcess.toMutableMap().apply {
+                            this[navigationSaver] = true
+                        },
+                    ) }
                 }
             }
         }
@@ -1133,7 +1172,7 @@ class SearchViewModel : ViewModel() {
                     mainViewModel.setAlbumTracks(
                         "DAILY_PLAYLIST_AUTOGENERATED",
                         finalLimited,
-                        audioSourceName = "Плейлист дня",
+                        audioSourceName = "Daily Mix",
                         audioSourceArtist = emptyList(),
                         audioSourceYear = "",
                         autoGeneratedB = true
@@ -1202,12 +1241,12 @@ class SearchViewModel : ViewModel() {
                 val playlistRequests = mutableListOf<Pair<String, List<String>>>()
 
                 topArtists.forEachIndexed { index, artistUrl ->
-                    val playlistName = "Настроение ${index + 1}"
+                    val playlistName = "My mood"
                     val songsHashes = allSongs.filter { it.artists[0].url == artistUrl }.map { it.link }
                     playlistRequests.add(playlistName to songsHashes)
                 }
                 newArtists.forEachIndexed { index, artistUrl ->
-                    val playlistName = "Вам может понравиться ${index + 1}"
+                    val playlistName = "You may like"
                     val songsHashes = lastSongs.filter { it.artists[0].url == artistUrl }.map { it.link }
                     playlistRequests.add(playlistName to songsHashes)
                 }

@@ -123,7 +123,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
         }
         else
         {
-            if (gettersInProcess == true) {
+            if (gettersInProcess[navigationSaver] == true) {
 
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))

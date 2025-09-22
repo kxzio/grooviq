@@ -297,7 +297,7 @@ fun SwipeToQueueItem(
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(8.dp),
+                .padding(bottom = 8.dp, top = 8.dp, start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

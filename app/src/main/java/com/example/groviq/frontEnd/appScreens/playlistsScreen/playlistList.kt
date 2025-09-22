@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
@@ -107,7 +108,7 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                             )
                         }
 
-                        Box()
+                        Column()
                         {
                             IconButton(
                                 onClick = {
@@ -117,6 +118,7 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                             ) {
                                 Icon(Icons.Rounded.Edit, "")
                             }
+
                         }
 
 

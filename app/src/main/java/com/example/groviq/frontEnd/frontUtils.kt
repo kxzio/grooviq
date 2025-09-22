@@ -84,6 +84,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Restore
@@ -99,15 +100,19 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathNode
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -171,6 +176,50 @@ fun <T, R> StateFlow<T>.subscribeMe(
     return mapped.collectAsState(initial = initial)
 }
 
+val HeartShape = GenericShape { size, _ ->
+    val scaleX = size.width / 24f
+    val scaleY = size.height / 24f
+
+    moveTo(13.35f * scaleX, 20.13f * scaleY)
+    cubicTo(
+        12.59f * scaleX, 20.82f * scaleY,
+        11.42f * scaleX, 20.82f * scaleY,
+        10.66f * scaleX, 20.12f * scaleY
+    )
+    lineTo(10.55f * scaleX, 20.02f * scaleY)
+    cubicTo(
+        5.3f * scaleX, 15.27f * scaleY,
+        1.87f * scaleX, 12.16f * scaleY,
+        2.0f * scaleX, 8.28f * scaleY
+    )
+    cubicTo(
+        2.06f * scaleX, 6.58f * scaleY,
+        2.93f * scaleX, 4.95f * scaleY,
+        4.34f * scaleX, 4.0f * scaleY
+    )
+    cubicTo(
+        6.98f * scaleX, 2.2f * scaleY,
+        10.24f * scaleX, 3.04f * scaleY,
+        11.99f * scaleX, 5.1f * scaleY
+    )
+    cubicTo(
+        13.75f * scaleX, 3.04f * scaleY,
+        16.99f * scaleX, 2.19f * scaleY,
+        19.65f * scaleX, 4.0f * scaleY
+    )
+    cubicTo(
+        21.06f * scaleX, 4.96f * scaleY,
+        21.93f * scaleX, 6.59f * scaleY,
+        21.99f * scaleX, 8.28f * scaleY
+    )
+    cubicTo(
+        22.13f * scaleX, 12.16f * scaleY,
+        18.7f * scaleX, 15.27f * scaleY,
+        13.45f * scaleX, 20.04f * scaleY
+    )
+    lineTo(13.35f * scaleX, 20.13f * scaleY)
+    close()
+}
 
 @SuppressLint("UnusedCrossfadeTargetStateParameter")
 @Composable
@@ -417,86 +466,111 @@ fun grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
     }
 }
 
+
+
+
+
 @Composable
 fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
     audioSource: String,
     audioData: MutableMap<String, audioSource>,
-    allAudioData: MutableMap<String, songData>
+    allAudioData: MutableMap<String, songData>,
+    modifier: Modifier = Modifier
+        .fillMaxSize()
+        .aspectRatio(1f).clip(
+            RoundedCornerShape(8.dp)
+        ),
+    blur : Float = 0f,
+    drawOnlyFirst : Boolean = false
 ) {
     val audioSource = audioData[audioSource] ?: return
     val firstFourSongs = audioSource.songIds.mapNotNull { allAudioData[it] }.distinctBy { it.album_original_link }.take(4)
 
-
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .aspectRatio(1f).clip(
-                RoundedCornerShape(8.dp)
-            )
-        ,
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        when (firstFourSongs.size) {
-            4 -> {
-                LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
-                    items(firstFourSongs) { song ->
-                        asyncedImage(
-                            song,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .aspectRatio(1f),
-                        )
+        if (drawOnlyFirst)
+        {
+            asyncedImage(
+                firstFourSongs[0],
+                Modifier.fillMaxSize(),
+                blurRadius = blur
+            )
+        }
+        else
+        {
+            when (firstFourSongs.size) {
+                4 -> {
+                    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
+                        items(firstFourSongs) { song ->
+                            asyncedImage(
+                                song,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .aspectRatio(1f),
+                                blurRadius = blur
+                            )
+                        }
                     }
                 }
-            }
-            3 -> {
-                Column(Modifier.fillMaxSize()) {
+                3 -> {
+                    Column(Modifier.fillMaxSize()) {
+                        asyncedImage(
+                            firstFourSongs[2],
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            blurRadius = blur
+                        )
+                        Row(Modifier.weight(1f)) {
+                            asyncedImage(
+                                firstFourSongs[0],
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                blurRadius = blur
+                            )
+                            asyncedImage(
+                                firstFourSongs[1],
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                blurRadius = blur
+                            )
+                        }
+                    }
+                }
+                2 -> {
+                    Row(Modifier.fillMaxSize()) {
+                        firstFourSongs.forEach {
+                            asyncedImage(
+                                it,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                blurRadius = blur
+                            )
+                        }
+                    }
+                }
+                1 -> {
                     asyncedImage(
-                        firstFourSongs[2],
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
+                        firstFourSongs[0],
+                        Modifier.fillMaxSize(),
+                        blurRadius = blur
                     )
-                    Row(Modifier.weight(1f)) {
-                        asyncedImage(
-                            firstFourSongs[0],
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                        )
-                        asyncedImage(
-                            firstFourSongs[1],
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                        )
-                    }
                 }
-            }
-            2 -> {
-                Row(Modifier.fillMaxSize()) {
-                    firstFourSongs.forEach {
-                        asyncedImage(
-                            it,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                        )
-                    }
+                0 -> {
+                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.fillMaxSize())
                 }
-            }
-            1 -> {
-                asyncedImage(
-                    firstFourSongs[0],
-                    Modifier.fillMaxSize(),
-                )
-            }
-            0 -> {
-                Icon(Icons.Rounded.PlaylistPlay, "", Modifier.fillMaxSize())
             }
         }
+
     }
 }
+
+
 
 
 @SuppressLint(

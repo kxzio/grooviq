@@ -252,6 +252,28 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
+
+    fun deleteAudioSource(
+        targetAudioSource: String,
+    ) {
+        updateState { currentUiState ->
+
+            val updatedAudioData = currentUiState.audioData.toMutableMap()
+
+            updatedAudioData.remove(targetAudioSource)
+
+            if (currentUiState.playingAudioSourceHash == targetAudioSource) {
+                setShouldRebuild(true)
+                setLastSourceBuilded("")
+                updateNextSongHash(this)
+            }
+
+            currentUiState.copy(
+                audioData = updatedAudioData
+            )
+        }
+    }
+
     fun renameAudioSourceAndMoveSongs(
         targetAudioSource: String,
         newNameOfAudioSource: String

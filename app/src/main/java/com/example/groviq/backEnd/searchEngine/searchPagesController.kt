@@ -69,9 +69,9 @@ data class searchState(
     //curent opened artist in browser
     var currentArtist: ArtistDto = ArtistDto("", "", emptyList(), "", emptyList()),
 
-    //indicators
+    //indicatorss
     var searchInProcess  : Boolean = false,
-    var gettersInProcess : Boolean = false,
+    var gettersInProcess :  MutableMap<String, Boolean> = mutableMapOf(),
 
     var publicErrors     :  MutableMap<String, publucErrors> = mutableMapOf(),
 

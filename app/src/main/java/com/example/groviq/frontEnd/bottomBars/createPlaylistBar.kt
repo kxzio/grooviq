@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -207,6 +209,8 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
         modifier = Modifier.fillMaxWidth()
     )
 
+    Spacer(Modifier.height(16.dp))
+
     Button(onClick =
     {
         if (isRename.not()) {
@@ -218,6 +222,7 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
             else
             {
                 mainViewModel.createAudioSource(playlistName.value)
+                mainViewModel.saveAudioSourcesToRoom()
                 onClose()
             }
         }
@@ -231,12 +236,32 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
             {
                 mainViewModel.renameAudioSourceAndMoveSongs(
                     originalPlaylistName.value, renamePlaylistName.value)
+
+                mainViewModel.saveAudioSourcesToRoom()
+
                 onClose()
             }
         }
     },
         Modifier.fillMaxWidth()){
         Text(if (isRename.not()) "Создать плейлист" else "Переименовать")
+    }
+
+    if (isRename)
+    {
+        Spacer(Modifier.height(16.dp))
+
+        Button(onClick =
+        {
+            mainViewModel.deleteAudioSource(originalPlaylistName.value)
+            onClose()
+
+            mainViewModel.saveAudioSourcesToRoom()
+            mainViewModel.saveSongsFromSourceToRoom(originalPlaylistName.value)
+        },
+            Modifier.fillMaxWidth()) {
+            Text("Удалить плейлист")
+        }
     }
 
 

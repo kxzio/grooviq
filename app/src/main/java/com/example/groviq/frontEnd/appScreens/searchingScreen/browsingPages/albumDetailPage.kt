@@ -1,15 +1,23 @@
 package com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,12 +57,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -72,6 +101,7 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
+import com.example.groviq.frontEnd.HeartShape
 import com.example.groviq.frontEnd.InfiniteRoundedCircularProgress
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist
@@ -84,6 +114,9 @@ import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.iconOutlineButton
 import com.example.groviq.frontEnd.subscribeMe
 import com.example.groviq.ui.theme.clashFont
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -142,7 +175,7 @@ fun showAudioSourceFromSurf(backStackEntry: NavBackStackEntry,
                 addRetryToNothingFound = true
             )
 
-            if (gettersInProcess == true || audioData.get(albumUrl)?.isInGenerationProcess == true)
+            if (gettersInProcess[navigationSaver] == true || audioData.get(albumUrl)?.isInGenerationProcess == true)
             {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
@@ -212,7 +245,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                 addRetryToNothingFound = true
             )
 
-            if (gettersInProcess == true || audioData.get(sourceKey)?.isInGenerationProcess == true)
+            if (gettersInProcess[navigationSaver] == true || audioData.get(sourceKey)?.isInGenerationProcess == true)
             {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
@@ -244,7 +277,10 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
     val audioData                       by mainViewModel.uiState.subscribeMe    { it.audioData }
     val allAudioData                    by mainViewModel.uiState.subscribeMe    { it.allAudioData }
     val playingHash                     by mainViewModel.uiState.subscribeMe    { it.playingHash }
+    val listState                       = rememberLazyListState()
 
+    var isPreviewVisible                by remember { mutableStateOf(false) }
+    var scale                           by remember { mutableStateOf(1f) }
 
     val audioSource = audioData[audioSourcePath]
 
@@ -262,160 +298,234 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
             InfiniteRoundedCircularProgress(modifier = Modifier.size(100.dp))
         }
         return
-
     }
 
     val isPlaylist = mainViewModel.isPlaylist(audioSourcePath)
 
-    Column {
+    Box {
 
         if (songs.isEmpty())
-            return@Column
+            return@Box
 
-        LazyColumn {
 
-            item {
-                Column(Modifier.padding(horizontal = 16.dp))
-                {
-                    Spacer(Modifier.height(15.dp))
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally)
+        Column(Modifier.fillMaxSize()) {
+            LazyColumn(state = listState) {
+
+                item {
+
+                    Box(Modifier.fillMaxSize())
                     {
-                        Box(Modifier.fillMaxWidth())
+                        Box(Modifier.matchParentSize())
                         {
                             grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
                                 audioSourcePath,
-                                audioData    = audioData,
-                                allAudioData = allAudioData
+                                audioData = audioData,
+                                allAudioData = allAudioData,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight()
+                                    .alpha(0.3f)
+                                    .drawWithContent {
+                                        drawContent()
+                                        drawRect(
+                                            brush = Brush.verticalGradient(
+                                                0.40f to Color.Black,
+                                                1.0f to Color.Transparent,
+                                                startY = 0f,
+                                                endY = size.height * 1.0f
+                                            ),
+                                            blendMode = BlendMode.DstIn
+                                        )
+                                    }
+                                ,
+                                blur = 30f,
+                                drawOnlyFirst = true
                             )
                         }
 
-                    }
-                    Spacer(Modifier.height(15.dp))
+                        Column()
+                        {
+                            Spacer(Modifier.height(8.dp))
 
-                    if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
-                    {
-                        Text(audioSourcePath, fontFamily = clashFont, fontSize = 40.sp)
-                    }
-                    else
-                    {
-                        Text(audioSource!!.nameOfAudioSource, fontFamily = clashFont, fontSize = 40.sp)
-                    }
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally)
+                            {
+                                Spacer(Modifier.height(15.dp))
 
-
-                    if (audioSource!!.artistsOfAudioSource.isNullOrEmpty().not())
-                    {
-                        Spacer(Modifier.height(15.dp))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-
-                            audioSource!!.artistsOfAudioSource.forEach { artist ->
-
-                                Row()
+                                Box(Modifier.fillMaxWidth(0.7f))
                                 {
-                                    Icon(Icons.Rounded.Person, "", tint = MaterialTheme.colorScheme.primary)
-
-
-                                    Text(text = artist.title, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp).clickable {
-                                        openArtist(artist.url)
-                                    })
+                                    grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                                        audioSourcePath,
+                                        audioData = audioData,
+                                        allAudioData = allAudioData,
+                                        modifier = Modifier. fillMaxSize()
+                                            .aspectRatio(1f).background(Color(0, 0, 0, 0)).clickable {
+                                                isPreviewVisible = true
+                                                scale = 0.8f
+                                            }
+                                    )
                                 }
 
 
+                                Spacer(Modifier.height(15.dp))
+
+                                if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
+                                {
+                                    Text(audioSourcePath, fontFamily = clashFont, fontSize = 40.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                else
+                                {
+                                    Text(audioSource!!.nameOfAudioSource, fontFamily = clashFont, fontSize = 40.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+
+
+                                if (audioSource!!.artistsOfAudioSource.isNullOrEmpty().not())
+                                {
+                                    Spacer(Modifier.height(15.dp))
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clip(
+                                        RoundedCornerShape(8.dp)
+                                    ).background(Color(255, 255, 255, 20))) {
+
+                                        audioSource!!.artistsOfAudioSource.forEach { artist ->
+
+                                            Row(modifier = Modifier.padding(4.dp))
+                                            {
+                                                Icon(Icons.Rounded.Person, "", tint = Color(255, 255, 255, 150))
+
+
+                                                Text(text = artist.title, color = Color(255, 255, 255, 150), modifier = Modifier.padding(horizontal = 3.dp).clickable {
+                                                    openArtist(artist.url)
+                                                })
+                                            }
+
+
+                                        }
+
+
+                                    }
+
+                                }
+
+                                if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
+                                {
+                                    Spacer(Modifier.height(16.dp))
+                                    Text(text = audioSource!!.yearOfAudioSource, fontSize = 16.sp, color = Color(255, 255, 255, 100))
+                                }
+
+                                Spacer(Modifier.height(16.dp))
+
+
                             }
-
-
                         }
-
                     }
-
-                    if (audioSource!!.yearOfAudioSource.isNullOrEmpty().not())
-                    {
-                        Spacer(Modifier.height(16.dp))
-                        Text(text = audioSource!!.yearOfAudioSource, fontSize = 16.sp, color = Color(255, 255, 255, 100))
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    Row()
-                    {
-                        if (isPlaylist.not())
-                        {
-
-                            IconButton(
-                                onClick = {
-                                    mainViewModel.toggleStrictSaveAudioSource(
-                                        audioSourcePath
-                                    )
-                                    mainViewModel.saveAudioSourcesToRoom()
-                                    mainViewModel.saveSongsFromSourceToRoom(
-                                        audioSourcePath
-                                    )
-                                },
-                                content = { Icon(
-                                    if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
-                                        Icons.Rounded.Remove else Icons.Rounded.Add,
-                                    "") },
-                            )
-
-
-                        }
-
-                        if (songs.isNullOrEmpty().not())
-                        {
-
-                            IconButton(
-                                onClick = {
-                                    if (songs.all {it.file != null && it.file!!.exists()})
-                                    {
-                                        songs.forEach { track ->
-                                            DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
-                                        }
-                                    }
-                                    else
-                                    {
-                                        songs.forEach { track ->
-                                            DownloadManager.enqueue(mainViewModel, track.link)
-                                        }
-                                        DownloadManager.start()
-                                    }
-                                },
-                                content = { Icon(
-                                    if (songs.all {it.file != null && it.file!!.exists()})
-                                        Icons.Rounded.DownloadDone else Icons.Rounded.Download,
-                                    "") },
-                            )
-
-
-                            Spacer(Modifier.height(16.dp))
-
-                        }
-
-                    }
-
 
                 }
-            }
-            items(
-                songs
-            ) { song ->
 
-                SwipeToQueueItem(audioSource = audioSourcePath, song = song, mainViewModel = mainViewModel,
-                    Modifier.clickable
-                    {
-                        mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
-                        updatePosInQueue(mainViewModel, song.link)
-                        mainViewModel.deleteUserAdds()
-                        AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel,true)
-                    })
-
-            }
-
-            item {
-                if (allAudioData[playingHash] != null) {
-                    Spacer(Modifier.height(80.dp))
+                item {
+                    Spacer(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.background))
                 }
+
+                items(
+                    songs
+                ) { song ->
+                    SwipeToQueueItem(audioSource = audioSourcePath, song = song, mainViewModel = mainViewModel,
+                        Modifier.clickable
+                        {
+                            mainViewModel.setPlayingAudioSourceHash(audioSourcePath)
+                            updatePosInQueue(mainViewModel, song.link)
+                            mainViewModel.deleteUserAdds()
+                            AppViewModels.player.playerManager.play(song.link, mainViewModel, searchViewModel,true)
+                        })
+
+                }
+
+                item {
+                    Spacer(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.background))
+                }
+
+
+                item {
+                    if (allAudioData[playingHash] != null) {
+                        Spacer(Modifier.height(80.dp))
+                    }
+                }
+            }
+
+
+        }
+
+        if (isPreviewVisible) {
+
+            val alpha by animateFloatAsState(targetValue = 0.7f)
+
+            BackHandler { isPreviewVisible = false }
+
+            val scale = remember { mutableStateOf(1f) }
+            val offset = remember { mutableStateOf(Offset.Zero) }
+
+            val density = LocalDensity.current
+            val config = LocalConfiguration.current
+
+            val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+                val newScale = (scale.value * zoomChange).coerceIn(1f, 3f)
+                scale.value = newScale
+
+                val screenWidthPx = with(density) { config.screenWidthDp.dp.toPx() }
+                val screenHeightPx = with(density) { config.screenHeightDp.dp.toPx() }
+
+                val maxX = ((scale.value - 1) * 0.9f * screenWidthPx / 2)
+                val maxY = ((scale.value - 1) * 0.9f * screenHeightPx / 2)
+
+                offset.value = Offset(
+                    x = (offset.value.x + panChange.x).coerceIn(-maxX, maxX),
+                    y = (offset.value.y + panChange.y).coerceIn(-maxY, maxY)
+                )
+            }
+
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = alpha))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { isPreviewVisible = false }
+            )
+
+            Box(
+                Modifier
+                    .fillMaxSize()                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { isPreviewVisible = false }
+                    .transformable(state = transformableState),
+                contentAlignment = Alignment.Center
+            ) {
+                grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                    audioSourcePath,
+                    audioData = audioData,
+                    allAudioData = allAudioData,
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .aspectRatio(1f)
+                        .graphicsLayer {
+                            scaleX = scale.value
+                            scaleY = scale.value
+                            translationX = offset.value.x
+                            translationY = offset.value.y
+                        }
+                        .clip(RoundedCornerShape(16.dp))
+                )
             }
         }
     }
 
-
 }
+
+
