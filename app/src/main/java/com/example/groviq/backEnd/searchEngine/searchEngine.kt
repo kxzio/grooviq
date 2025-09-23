@@ -718,21 +718,11 @@ class SearchViewModel : ViewModel() {
                 {
                     val trackMetaJson = try {
 
-                        //we should get another same list for this song again
-                        if (lastRecommendListProcessed.isNullOrEmpty().not())
-                        {
-                            val gson = Gson()
-                            val json = gson.toJson(lastRecommendListProcessed)
-                            getPythonModule(context)
-                                .callAttr("replaceSongs", json)
-                                .toString()
-                        }
-                        else
-                        {
+
                             getPythonModule(context)
                                 .callAttr("getRelatedTracks", request)
                                 .toString()
-                        }
+
 
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
@@ -917,7 +907,6 @@ class SearchViewModel : ViewModel() {
         request: String,
         mainViewModel: PlayerViewModel
     ){
-
         preparationInProgress = true
 
         if (!hasInternetConnection(context)) return
@@ -929,21 +918,11 @@ class SearchViewModel : ViewModel() {
                 {
                     val trackMetaJson = try {
 
-                        //we should get another same list for this song again
-                        if (lastRecommendListProcessed.isNullOrEmpty().not())
-                        {
-                            val gson = Gson()
-                            val json = gson.toJson(lastRecommendListProcessed)
-                            getPythonModule(context)
-                                .callAttr("replaceSongs", json)
-                                .toString()
-                        }
-                        else
-                        {
+
                             getPythonModule(context)
                                 .callAttr("getRelatedTracks", request)
                                 .toString()
-                        }
+
 
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
@@ -1022,7 +1001,8 @@ class SearchViewModel : ViewModel() {
         maxResults: Int,
         likedSongs: Set<String>,
         allLocalSongs: Collection<songData>,
-        perBatchCount: Int = 3
+        perBatchCount: Int = 3,
+        getOnlyThisArtist: Boolean = false
     ): List<songData> {
         val collected = mutableListOf<songData>()
         val seen = mutableSetOf<String>()
@@ -1030,6 +1010,13 @@ class SearchViewModel : ViewModel() {
 
         var safetyCounter = 0
         val maxIterations = 50
+
+        val targetArtistUrl: String? = if (getOnlyThisArtist) {
+            allLocalSongs.firstOrNull { it.link == seedSongs.firstOrNull() }
+                ?.artists
+                ?.firstOrNull()
+                ?.url
+        } else null
 
         while (collected.size < maxResults && queue.isNotEmpty() && safetyCounter < maxIterations) {
             safetyCounter++
@@ -1053,13 +1040,25 @@ class SearchViewModel : ViewModel() {
             for (dto in trackDtos) {
                 val song = trackDtoToSongData(dto)
 
-                if (song.link !in likedSongs && song.link !in seen) {
-                    collected.add(song)
-                    seen.add(song.link)
-                    foundNew = true
-                } else if (song.link in likedSongs && song.link !in seen) {
-                    queue.add(song.link)
-                    seen.add(song.link)
+                if (getOnlyThisArtist && song.artists.firstOrNull()?.url != targetArtistUrl) {
+                    continue
+                }
+
+                if (getOnlyThisArtist) {
+                    if (song.link !in seen) {
+                        collected.add(song)
+                        seen.add(song.link)
+                        foundNew = true
+                    }
+                } else {
+                    if (song.link !in likedSongs && song.link !in seen) {
+                        collected.add(song)
+                        seen.add(song.link)
+                        foundNew = true
+                    } else if (song.link in likedSongs && song.link !in seen) {
+                        queue.add(song.link)
+                        seen.add(song.link)
+                    }
                 }
 
                 if (collected.size >= maxResults) break
@@ -1070,7 +1069,11 @@ class SearchViewModel : ViewModel() {
 
         if (collected.size < maxResults) {
             val fallbackSongs = allLocalSongs
-                .filter { it.link !in likedSongs && it.link !in seen }
+                .filter {
+                    it.link !in seen &&
+                            (!getOnlyThisArtist && it.link !in likedSongs || getOnlyThisArtist) &&
+                            (!getOnlyThisArtist || it.artists.firstOrNull()?.url == targetArtistUrl)
+                }
                 .shuffled()
                 .take(maxResults - collected.size)
 
@@ -1079,6 +1082,7 @@ class SearchViewModel : ViewModel() {
 
         return collected
     }
+
 
 
     @OptIn(UnstableApi::class)
@@ -1204,7 +1208,7 @@ class SearchViewModel : ViewModel() {
         val allSongs = audioSource.songIds.mapNotNull { uiState.allAudioData[it] }
         if (allSongs.size < 10) return
 
-        val topArtists = allSongs.groupingBy { it.artists[0].url }
+        val topArtists = allSongs.groupingBy { it.artists[0] }
             .eachCount()
             .entries
             .sortedByDescending { it.value }
@@ -1212,21 +1216,21 @@ class SearchViewModel : ViewModel() {
             .map { it.key }
 
         val lastSongs = audioSource.songIds.takeLast(30).mapNotNull { uiState.allAudioData[it] }
-        var newArtists = lastSongs.map { it.artists[0].url }
+        var newArtists = lastSongs.map { it.artists[0] }
             .distinct()
             .filter { it !in topArtists }
             .take(2)
 
         if (newArtists.isEmpty()) {
-            newArtists = lastSongs.map { it.artists[0].url }.distinct().take(2)
+            newArtists = lastSongs.map { it.artists[0] }.distinct().take(2)
         }
 
         if (newArtists.any { it in topArtists }) {
-            val randomArtist = uiState.allAudioData.values.shuffled().firstOrNull()?.artists?.firstOrNull()?.url
+            val randomArtist = uiState.allAudioData.values.shuffled().firstOrNull()?.artists?.firstOrNull()
             if (randomArtist != null) newArtists = (newArtists + randomArtist).distinct().take(2)
         }
 
-        val playlistsMap = mutableMapOf<String, MutableList<songData>>()
+        val playlistsMap = mutableMapOf<String, Pair<String, MutableList<songData>>>()
         val moods = uiState.audioData.filter { it.key.startsWith("MOOD_PLAYLIST_AUTOGENERATED") }
         if (moods.isNotEmpty()) {
             moods.forEach { mood ->
@@ -1237,60 +1241,49 @@ class SearchViewModel : ViewModel() {
         currentMoodListJob?.cancel()
         currentMoodListJob = viewModelScope.launch {
             try {
-                val playlistRequests = mutableListOf<Pair<String, List<String>>>()
+                val playlistRequests = mutableListOf<Triple<String, String, List<String>>>()
 
-                topArtists.forEachIndexed { index, artistUrl ->
-                    val playlistName = "My mood"
-                    val songsHashes = allSongs.filter { it.artists[0].url == artistUrl }.map { it.link }
-                    playlistRequests.add(playlistName to songsHashes)
+                topArtists.forEachIndexed { index, artist ->
+
+                    val displayName = "My mood"
+                    val songsHashes = allSongs.filter { it.artists[0].url == artist.url }.map { it.link }
+                    playlistRequests.add(Triple("mood_$index", displayName, songsHashes))
+
+                    val displayName2 = artist.title
+                    val songsHashes2 = allSongs.filter { it.artists[0].url == artist.url }.map { it.link }
+                    playlistRequests.add(Triple("only_artist_$index", displayName2, songsHashes2))
+
                 }
-                newArtists.forEachIndexed { index, artistUrl ->
-                    val playlistName = "You may like"
-                    val songsHashes = lastSongs.filter { it.artists[0].url == artistUrl }.map { it.link }
-                    playlistRequests.add(playlistName to songsHashes)
+
+                newArtists.forEachIndexed { index, artist ->
+                    val displayName = "You may like"
+                    val songsHashes = lastSongs.filter { it.artists[0].url == artist.url }.map { it.link }
+                    playlistRequests.add(Triple("like_$index", displayName, songsHashes))
                 }
 
                 withContext(Dispatchers.IO) {
-                    playlistRequests.forEach { (playlistName, hashes) ->
+                    playlistRequests.forEach { (uniqueKey, displayName, hashes) ->
                         val playlistTracks = fetchUniqueRecommendations(
                             seedSongs = hashes,
                             maxResults = 15,
-                            likedSongs = (hashes).toSet(),
+                            likedSongs = uiState.allAudioData.keys,
                             allLocalSongs = allSongs.filter { it.link in hashes }.toMutableList(),
-                            perBatchCount = 5
+                            perBatchCount = if (uniqueKey.contains("only_artist_")) 35 else 5,
+                            getOnlyThisArtist = if (uniqueKey.contains("only_artist_")) true else false
                         ).toMutableList()
 
-                        if (playlistTracks.size < 15) {
-                            val artistUrls = hashes.mapNotNull { id -> uiState.allAudioData[id]?.artists?.firstOrNull()?.url }
-                            val extraFromSeeds = allSongs.filter { it.artists[0].url in artistUrls }
-
-                            playlistTracks.addAll(
-                                extraFromSeeds
-                                    .filter { it.link !in playlistTracks.map { t -> t.link } }
-                                    .take(20 - playlistTracks.size)
-                            )
-                        }
-
-                        if (playlistTracks.size < 20) {
-                            playlistTracks.addAll(
-                                uiState.allAudioData.values
-                                    .filter { it.link !in playlistTracks.map { t -> t.link } }
-                                    .shuffled()
-                                    .take(20 - playlistTracks.size)
-                            )
-                        }
-
-                        playlistsMap[playlistName] = playlistTracks
+                        playlistsMap[uniqueKey] = displayName to playlistTracks
                     }
                 }
 
                 withContext(Dispatchers.Main) {
-                    playlistsMap.entries.toList().forEachIndexed { index, (playlistName, tracks) ->
-                        if (tracks.isNotEmpty()) {
+                    playlistsMap.entries.toList().forEachIndexed { index, (uniqueKey, pair) ->
+                        val (displayName, tracks) = pair
+                        if (tracks.isNotEmpty() && tracks.size > 10) {
                             mainViewModel.setAlbumTracks(
                                 "MOOD_PLAYLIST_AUTOGENERATED_${index + 1}",
                                 tracks.distinctBy { it.link }.take(20).shuffled(),
-                                audioSourceName = playlistName,
+                                audioSourceName = displayName,
                                 audioSourceArtist = emptyList(),
                                 audioSourceYear = "",
                                 autoGeneratedB = true
@@ -1306,10 +1299,17 @@ class SearchViewModel : ViewModel() {
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                currentMoodListJob = null
+                withContext(
+                    NonCancellable + Dispatchers.Main) {
+                    val playlistsAutoGenerated = uiState.audioData.entries.filter { it.value.autoGenerated }
+                    playlistsAutoGenerated.forEach { playlist ->
+                        uiState.audioData[playlist.key]?.isInGenerationProcess = false
+                    }
+                }
             }
         }
     }
+
 
 
 }

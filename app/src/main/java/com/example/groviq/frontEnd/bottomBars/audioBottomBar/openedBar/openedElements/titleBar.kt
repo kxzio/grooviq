@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,6 +22,7 @@ import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.grooviqUI
+import com.example.groviq.ui.theme.clashFont
 
 @Composable
 fun grooviqUI.elements.openedElements.titleBar(song : songData, onToogleSheet: () -> Unit)
@@ -29,7 +31,7 @@ fun grooviqUI.elements.openedElements.titleBar(song : songData, onToogleSheet: (
     {
         Column()
         {
-            Text(text = song?.title ?: "", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.clickable {
+            Text(text = song?.title ?: "", fontWeight = FontWeight.SemiBold, fontSize = 22.sp, maxLines = 1, modifier = Modifier.clickable {
                 openAlbum(song?.album_original_link ?: "")
                 onToogleSheet()
             }.basicMarquee(

@@ -324,7 +324,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .fillMaxHeight()
-                                    .alpha(0.3f)
+                                    .alpha(0.6f)
                                     .drawWithContent {
                                         drawContent()
                                         drawRect(
@@ -390,7 +390,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
                                     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clip(
                                         RoundedCornerShape(8.dp)
-                                    ).background(Color(255, 255, 255, 20))) {
+                                    ).background(Color(255, 255, 255, 14))) {
 
                                         audioSource!!.artistsOfAudioSource.forEach { artist ->
 

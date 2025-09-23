@@ -502,7 +502,7 @@ fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
         {
             when (firstFourSongs.size) {
                 4 -> {
-                    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
+                    LazyVerticalGrid(userScrollEnabled = false, columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
                         items(firstFourSongs) { song ->
                             asyncedImage(
                                 song,

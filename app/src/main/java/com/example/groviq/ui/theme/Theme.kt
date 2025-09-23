@@ -22,10 +22,12 @@ import com.example.groviq.R
 
 val clashFont = FontFamily(
     Font(R.font.clashsemi, weight = FontWeight.Normal),
+    Font(R.font.clashmedium, weight = FontWeight.Medium),
 )
 
 val SfProDisplay = FontFamily(
     Font(R.font.regular, weight = FontWeight.Normal),
+    Font(R.font.light, weight = FontWeight.Light),
     Font(R.font.medium, weight = FontWeight.Medium),
     Font(R.font.bold, weight = FontWeight.Bold),
     Font(R.font.blackitalic, weight = FontWeight.Black, style = FontStyle.Italic),

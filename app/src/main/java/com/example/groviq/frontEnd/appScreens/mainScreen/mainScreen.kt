@@ -2,35 +2,151 @@ package com.example.groviq.frontEnd.appScreens.mainScreen
 
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
+import com.example.groviq.frontEnd.drawPlaylistCover
+import com.example.groviq.frontEnd.grooviqUI
+import com.example.groviq.frontEnd.subscribeMe
+import com.example.groviq.ui.theme.SfProDisplay
+import com.example.groviq.ui.theme.clashFont
 import kotlinx.coroutines.flow.filter
+
+fun randomBrightColor(): Color {
+    val hue = (0..360).random().toFloat()
+    val saturation = 0.7f + (0..30).random() / 100f  // 0.7–1.0
+    val value = 0.8f + (0..20).random() / 100f       // 0.8–1.0
+    val hsv = floatArrayOf(hue, saturation, value)
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+@Composable
+fun AutoFitText(
+    text: String,
+    modifier: Modifier = Modifier,
+    maxLines: Int = 3,
+    fontFamily: FontFamily = FontFamily.Default,
+    fontWeight: FontWeight = FontWeight.Bold,
+    padding: Dp = 8.dp
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val maxWidthPx = with(density) { (maxWidth - padding * 2).toPx() }
+        val maxHeightPx = with(density) { (maxHeight - padding * 2).toPx() }
+
+        var fontSize by remember { mutableStateOf(20.sp) }
+        var readyToDraw by remember { mutableStateOf(false) }
+
+        val textMeasurer = rememberTextMeasurer()
+
+        LaunchedEffect(text, maxWidthPx, maxHeightPx) {
+            var currentFontSize = maxHeight / maxLines // это Dp
+            var currentFontSizeSp = with(density) { currentFontSize.toSp() } // конвертируем в sp
+
+            var fits = false
+            while (!fits && currentFontSize.value > 6f) {
+                val result = textMeasurer.measure(
+                    text = AnnotatedString(text),
+                    style = TextStyle(
+                        fontSize = currentFontSizeSp,
+                        fontFamily = fontFamily,
+                        fontWeight = fontWeight
+                    ),
+                    constraints = Constraints(maxWidth = maxWidthPx.toInt()),
+                    softWrap = true
+                )
+
+                fits = result.size.height <= maxHeightPx && result.lineCount <= maxLines
+
+                if (!fits) currentFontSizeSp *= 0.95f
+            }
+
+            fontSize = currentFontSizeSp
+            readyToDraw = true
+        }
+
+        if (readyToDraw) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.BottomStart
+            ) {
+                Text(
+                    text = text,
+                    fontSize = fontSize,
+                    maxLines = maxLines,
+                    color = Color(255, 255, 255),
+                    fontWeight = fontWeight,
+                    fontFamily = fontFamily,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(
+                        padding
+                    )
+                )
+            }
+        }
+    }
+}
+
+
 
 @Composable
 @OptIn(
@@ -40,44 +156,64 @@ fun mainScreen(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHost
 {
     val mainUiState     by mainViewModel.uiState.collectAsState()
 
+    val audioData               by mainViewModel.uiState.subscribeMe { it.audioData }
+    val allAudioData            by mainViewModel.uiState.subscribeMe { it.allAudioData }
+
     val playlistsAutoGenerated = remember(mainUiState.audioData) {
         mainUiState.audioData.entries.filter { it.value.autoGenerated }
     }
 
     Column()
     {
-        val listState = rememberLazyListState()
+        val listState = rememberLazyGridState()
 
         Column(
-            Modifier.padding(5.dp))
+            Modifier.padding(16.dp))
         {
-            Text(
-                "Главная"
-            )
 
-            LazyColumn(
+            LazyVerticalGrid(
                 state = listState,
-                modifier = Modifier.fillMaxWidth()
+                verticalArrangement   = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                columns = GridCells.Fixed(2),
             ) {
                 items(playlistsAutoGenerated) { result ->
 
-                    Row(
-                        Modifier.clickable
-                        {
-                            val encoded =
-                                Uri.encode(
-                                    result.key
-                                )
-                            playlistNavigationLocal.navigate(
-                                "${Screen.Home.route}/playlist/" + encoded
+
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(
+                                RoundedCornerShape(8.dp)
                             )
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.0f))
+                            .clickable {
+                                val encoded = Uri.encode(result.key)
+                                playlistNavigationLocal.navigate("${Screen.Home.route}/playlist/$encoded")
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
 
-                        })
-                    {
-                        Icon(Icons.Rounded.PlaylistPlay, "", Modifier.size(55.dp))
+                        grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                            result.key,
+                            audioData    = audioData,
+                            allAudioData = allAudioData,
+                            modifier = Modifier.alpha(0.9f)
+                                .graphicsLayer
+                                {
+                                    scaleX = 3f
+                                    scaleY = 3f
+                                },
+                            drawOnlyFirst = true,
+                            blur = 50f
+                        )
 
-                        Text(
-                            mainUiState.audioData[result.key]?.nameOfAudioSource ?: "Неизвестный плейлист"
+                        AutoFitText(
+                            text = mainUiState.audioData[result.key]?.nameOfAudioSource ?: "",
+                            maxLines = 3,
+                            fontFamily = SfProDisplay,
+                            fontWeight = FontWeight.Normal
                         )
                     }
 

@@ -23,6 +23,7 @@ data class audioSource(
     var isInGenerationProcess : Boolean = false
 ){
     fun shouldBeRegenerated(): Boolean {
+
         val cal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
