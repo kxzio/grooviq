@@ -98,21 +98,30 @@ fun AutoFitText(
 
         val textMeasurer = rememberTextMeasurer()
 
-        LaunchedEffect(text, maxWidthPx, maxHeightPx) {
-            var currentFontSize = maxHeight / maxLines // это Dp
-            var currentFontSizeSp = with(density) { currentFontSize.toSp() } // конвертируем в sp
+        val words = text.split(" ")
+        val processedLines = if (words.size <= maxLines) {
+            words
+        } else {
+            words.take(maxLines - 1) + listOf(words[maxLines - 1] + "…")
+        }
+        val processedText = processedLines.joinToString("\n")
+
+        LaunchedEffect(processedText, maxWidthPx, maxHeightPx) {
+            var currentFontSize = maxHeight / maxLines
+            var currentFontSizeSp = with(density) { currentFontSize.toSp() }
 
             var fits = false
-            while (!fits && currentFontSize.value > 6f) {
+            while (!fits && currentFontSizeSp.value > 6f) {
                 val result = textMeasurer.measure(
-                    text = AnnotatedString(text),
+                    text = AnnotatedString(processedText),
                     style = TextStyle(
                         fontSize = currentFontSizeSp,
                         fontFamily = fontFamily,
-                        fontWeight = fontWeight
+                        fontWeight = fontWeight,
+                        lineHeight = currentFontSizeSp * 1.2f
                     ),
                     constraints = Constraints(maxWidth = maxWidthPx.toInt()),
-                    softWrap = true
+                    softWrap = false
                 )
 
                 fits = result.size.height <= maxHeightPx && result.lineCount <= maxLines
@@ -126,25 +135,25 @@ fun AutoFitText(
 
         if (readyToDraw) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.BottomStart
             ) {
                 Text(
-                    text = text,
+                    text = processedText,
                     fontSize = fontSize,
                     maxLines = maxLines,
-                    color = Color(255, 255, 255),
                     fontWeight = fontWeight,
                     fontFamily = fontFamily,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(
-                        padding
-                    )
+                    color = Color.White,
+                    textAlign = TextAlign.Start,
+                    overflow = TextOverflow.Clip,
                 )
             }
         }
     }
 }
+
+
 
 
 
@@ -213,7 +222,7 @@ fun mainScreen(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHost
                             text = mainUiState.audioData[result.key]?.nameOfAudioSource ?: "",
                             maxLines = 3,
                             fontFamily = SfProDisplay,
-                            fontWeight = FontWeight.Normal
+                            fontWeight = FontWeight.Thin
                         )
                     }
 

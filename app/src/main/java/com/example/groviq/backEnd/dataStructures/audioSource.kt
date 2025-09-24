@@ -1,7 +1,14 @@
 package com.example.groviq.backEnd.dataStructures
 
+import android.widget.Toast
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.searchEngine.ArtistDto
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Date
 import java.util.concurrent.TimeUnit
 
 
@@ -22,15 +29,52 @@ data class audioSource(
     //dont save this param to db (useless to provide it from session to session)
     var isInGenerationProcess : Boolean = false
 ){
-    fun shouldBeRegenerated(): Boolean {
-
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+    // Вспомогательная функция — форматируем миллисекунды в "YYYY-MM-DD HH:mm:ss"
+    private fun formatMillisToReadable(millis: Long): String {
+        return try {
+            val ldt = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDateTime()
+            ldt.format(
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        } catch (e: Exception) {
+            // fallback
+            Date(millis).toString()
         }
-        val todayMidnight = cal.timeInMillis
-        return timeUpdate < todayMidnight
+    }
+
+    // Вспомогательная функция для тостов
+    private fun showToastLog(text: String) {
+        Toast.makeText(MyApplication.globalContext, text, Toast.LENGTH_LONG).show()
+    }
+
+
+    fun shouldBeRegenerated(): Boolean {
+        // если не было времени обновления — считаем, что нужно сгенерировать
+        if (timeUpdate <= 0L) {
+            //showToastLog("shouldBeRegenerated: timeUpdate = $timeUpdate (<=0) -> считаем, что плейлист нужно сгенерировать")
+            return true
+        }
+
+        // конвертируем: если значение похоже на секунды — умножаем на 1000
+        val tsMillis: Long
+        if (timeUpdate < 1_000_000_000_000L) { // явно секунды (примерно до 2001-09-09 01:46:40 — но мы сравниваем с порогом 1e12 для безопасности)
+            tsMillis = timeUpdate * 1000L
+            //showToastLog("shouldBeRegenerated: timeUpdate выглядит как секунды: $timeUpdate -> конвертирую в millis = $tsMillis\n(${formatMillisToReadable(tsMillis)})")
+        } else {
+            tsMillis = timeUpdate
+            //showToastLog("shouldBeRegenerated: timeUpdate в миллисекундах: $tsMillis\n(${formatMillisToReadable(tsMillis)})")
+        }
+
+        // сравниваем по датам (локальная зона) — если дата последнего обновления раньше сегодняшней => regenerate
+        val lastDate = Instant.ofEpochMilli(tsMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+        val today = LocalDate.now(ZoneId.systemDefault())
+
+        val should = lastDate.isBefore(today)
+        //showToastLog("lastDate = $lastDate, today = $today -> isBefore = $should")
+
+                //if (should) showToastLog("Причина: последняя дата обновления раньше сегодняшней.")
+        //else
+               // showToastLog("Причина: уже обновлено сегодня.\"")
+
+        return should
     }
 }
