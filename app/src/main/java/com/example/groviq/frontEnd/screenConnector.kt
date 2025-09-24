@@ -364,9 +364,4 @@ fun connectScreens(
             }
     }
 
-
-}
-
-fun showToastLog(text: String) {
-    Toast.makeText(MyApplication.globalContext, text, Toast.LENGTH_LONG).show()
 }
