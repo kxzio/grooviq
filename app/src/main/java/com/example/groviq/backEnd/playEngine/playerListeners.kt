@@ -3,6 +3,7 @@ package com.example.groviq.backEnd.playEngine
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Looper
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.runtime.snapshotFlow
 import androidx.media3.common.MediaItem
@@ -136,6 +137,7 @@ fun createListeners(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+
             val uiState = mainViewModel.uiState.value
             addTrackToMediaItems?.cancel()
 
@@ -149,7 +151,7 @@ fun createListeners(
                 fetchQueueStream(mainViewModel)
             }
 
-            prepareAndAddNextTrackToMediaItems(mainViewModel, uiState)
+            prepareAndAddNextTrackToMediaItems(mainViewModel)
         }
 
 
@@ -210,11 +212,9 @@ fun createListeners(
 @OptIn(
     UnstableApi::class
 )
-fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel, uiState: playerState)
+fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel)
 {
-    val nextIndex = uiState.posInQueue + 1
-    val nextSong = uiState.currentQueue.getOrNull(nextIndex)?.let { uiState.allAudioData[it.hashKey] }
-        ?: return
+    val uiState = mainViewModel.uiState.value
 
     if (uiState.shouldRebuild)
         return
@@ -224,17 +224,27 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel, uiState: 
     addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
         val player = AppViewModels.player.playerManager.player
         val nextIndex = uiState.posInQueue + 1
-        val nextSong = uiState.currentQueue.getOrNull(nextIndex)?.let { uiState.allAudioData[it.hashKey] } ?: return@launch
+        val nextSong = uiState.currentQueue.getOrNull(nextIndex)
+            ?.let { uiState.allAudioData[it.hashKey] }
+        if (nextSong == null) {
+            return@launch
+        }
 
         val alreadyAdded = (0 until player.mediaItemCount)
             .map { player.getMediaItemAt(it) }
             .any { it.mediaId == nextSong.link }
 
-        if (alreadyAdded) return@launch
+        if (alreadyAdded) {
+            return@launch
+        }
 
-        val mediaUri: Uri = nextSong.file?.takeIf { it.exists() }?.let { Uri.fromFile(it) }
+        val mediaUri: Uri? = nextSong.file?.takeIf { it.exists() }?.let { Uri.fromFile(it) }
             ?: mainViewModel.awaitStreamUrlFor(nextSong.link)?.let { Uri.parse(it) }
-            ?: return@launch
+
+        if (mediaUri == null) {
+            return@launch
+        }
+
 
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(nextSong.title)
@@ -258,7 +268,7 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel, uiState: 
             .setMediaMetadata(metadataBuilder.build())
             .build()
 
-        player.addMediaItem(mediaItem)
+        AppViewModels.player.playerManager.player.addMediaItem(mediaItem)
 
     }
 

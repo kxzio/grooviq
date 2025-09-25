@@ -116,6 +116,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                 horizontalAlignment = Alignment.CenterHorizontally
             )
             {
+
                 if (songsLoader == true)
                 {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
