@@ -6,11 +6,17 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [SongEntity::class, AudioSourceEntity::class], version = 1, exportSchema = true)
+@Database(
+    entities = [SongEntity::class, AudioSourceEntity::class, FolderEntity::class],
+    version = 2,
+    exportSchema = true
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+
     abstract fun songDao(): SongDao
     abstract fun audioSourceDao(): AudioSourceDao
+    abstract fun folderDao(): FolderDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null

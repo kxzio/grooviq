@@ -225,6 +225,7 @@ class AudioPlayerManager(context: Context) {
         //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
         mainViewModel.clearUnusedAudioSourcedAndSongs(searchViewModel)
 
+
         currentPlaybackJob = playbackScope.launch {
 
             val song = mainViewModel.uiState.value.allAudioData[hashkey] ?: return@launch
@@ -248,21 +249,25 @@ class AudioPlayerManager(context: Context) {
 
             val artLink = song.art_link
 
-            if (artLink != null) {
-                val size = getImageSizeFromUrl(artLink)
-                val tooSmall = size == null || min(size.first, size.second) < 200
-                if (tooSmall) {
+            val fileUri = song.fileUri?.takeIf { song.localExists() }
+
+            if (fileUri == null)
+            {
+                if (artLink != null) {
+                    val size = getImageSizeFromUrl(artLink)
+                    val tooSmall = size == null || min(size.first, size.second) < 200
+                    if (tooSmall) {
+                        fetchNewImage(mainViewModel, song.link)
+                    }
+                } else {
                     fetchNewImage(mainViewModel, song.link)
                 }
-            } else {
-                fetchNewImage(mainViewModel, song.link)
             }
+
 
             //reactive waiting for stream url
 
-            val file = song.file?.takeIf { it.exists() }
-
-            if (file == null)
+            if (fileUri == null)
             {
                 val streamUrl = mainViewModel.awaitStreamUrlFor(hashkey)
 
@@ -288,8 +293,8 @@ class AudioPlayerManager(context: Context) {
                             }
                         }
 
-                        val mediaUri: Uri = file?.let {
-                            Uri.fromFile(it)
+                        val mediaUri: Uri = fileUri?.let {
+                            Uri.parse(fileUri)
                         } ?: Uri.parse(streamUrl)
 
                         val mediaItem = MediaItem.Builder()
@@ -349,9 +354,7 @@ class AudioPlayerManager(context: Context) {
                             }
                         }
 
-                        val mediaUri: Uri = file?.let {
-                            Uri.fromFile(it)
-                        }!!
+                        val mediaUri: Uri? = fileUri?.let { Uri.parse(it) }
 
                         val mediaItem = MediaItem.Builder()
                             .setUri(mediaUri)

@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
+import android.media.MediaMetadataRetriever
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -16,6 +17,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -25,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import androidx.navigation.NavDeepLinkRequest
 import coil.ImageLoader
@@ -39,11 +42,28 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import kotlin.coroutines.cancellation.CancellationException
+
+@OptIn(
+    UnstableApi::class
+)
+fun getArtFromURI(uri: Uri): Bitmap? {
+    return try {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(MyApplication.globalContext, uri)
+        val bytes = retriever.embeddedPicture
+        retriever.release()
+        bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+    } catch (e: Exception) {
+        null
+    }
+}
+
 
 fun getPythonModule(context: Context): PyObject {
 

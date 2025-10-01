@@ -101,7 +101,6 @@ import com.example.groviq.backEnd.searchEngine.searchState
 import com.example.groviq.backEnd.streamProcessor.DownloadManager
 import com.example.groviq.backEnd.streamProcessor.fetchAudioSource
 import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
-import com.example.groviq.frontEnd.HeartShape
 import com.example.groviq.frontEnd.InfiniteRoundedCircularProgress
 import com.example.groviq.frontEnd.Screen
 import com.example.groviq.frontEnd.appScreens.openArtist

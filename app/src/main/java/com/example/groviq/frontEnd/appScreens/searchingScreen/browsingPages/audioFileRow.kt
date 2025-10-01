@@ -313,7 +313,7 @@ fun SwipeToQueueItem(
                         )
                     )
 
-                    if (song.file?.exists()?.not() ?: true)
+                    if ((song.localExists()).not() ?: true)
                         SquareProgressBox(song.progressStatus.downloadingProgress.toInt(), size = 43.dp, cornerRadius = 4.dp)
 
                 }

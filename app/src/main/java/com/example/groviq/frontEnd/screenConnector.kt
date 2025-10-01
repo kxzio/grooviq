@@ -76,6 +76,7 @@ import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.show
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceFromSurf
 import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.showAudioSourceOfRadio
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchResultsNavigation
+import com.example.groviq.frontEnd.appScreens.settingScreen.settingsPage
 import com.example.groviq.frontEnd.appScreens.trackRadioPendingNavigation
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
@@ -232,106 +233,93 @@ fun connectScreens(
                 }
             }
 
+            val stateHolder = rememberSaveableStateHolder()
+
             Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                items.forEach { screen ->
-                    val controller = navControllers[screen]!!
-                    val isVisible = screen == currentTab
-
-                    // animate alpha to make transition smooth
-                    val targetAlpha = if (isVisible) 1f else 0f
-                    val alpha by animateFloatAsState(targetValue = targetAlpha)
-
-                    // put the NavHost into composition always, but change alpha and zIndex
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(if (isVisible) 1f else 0f)
-                            .alpha(alpha)
-                            // prevent pointer events when fully invisible (optional but recommended)
-                            .then(
-                                if (alpha < 0.01f) {
-                                    Modifier.pointerInput(Unit) {
-                                        // consume all touches so invisible layers don't get interaction
-                                        while (true) {
-                                            awaitPointerEventScope {
-                                                val ev = awaitPointerEvent()
-                                                ev.changes.forEach { it.consume() }
-                                            }
-                                        }
-                                    }
-                                } else Modifier
-                            )
+                val controller = navControllers[currentTab]!!
+                stateHolder.SaveableStateProvider(currentTab.route) {
+                    NavHost(
+                        navController = controller,
+                        startDestination = currentTab.route,
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        NavHost(
-                            navController = controller,
-                            startDestination = screen.route,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            when (screen) {
-                                Screen.Searching -> {
+                        when (currentTab) {
+                            Screen.Searching -> {
 
-                                    composable(Screen.Searching.route) {
-                                        searchResultsNavigation(controller, searchViewModel, mainViewModel)
-                                    }
-                                    composable("${Screen.Searching.route}/album/{album_url}",
-                                        arguments = listOf(navArgument("album_url") { type = NavType.StringType })
-                                    ) {
-                                        showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
-                                    }
-                                    composable("${Screen.Searching.route}/radio/{track_url}",
-                                        arguments = listOf(navArgument("track_url") { type = NavType.StringType })
-                                    ) {
-                                        showAudioSourceOfRadio(it, searchViewModel, mainViewModel, controller)
-                                    }
-                                    composable("${Screen.Searching.route}/artist/{artist_url}",
-                                        arguments = listOf(navArgument("artist_url") { type = NavType.StringType })
-                                    ) {
-                                        showArtistFromSurf(it, searchViewModel, mainViewModel, controller)
-                                    }
+                                composable(Screen.Searching.route) {
+                                    searchResultsNavigation(controller, searchViewModel, mainViewModel)
                                 }
-                                Screen.Playlists -> {
-                                    composable(Screen.Playlists.route) {
-                                        playlistList(mainViewModel, controller)
-                                    }
-                                    composable("${Screen.Playlists.route}/playlist/{playlist_name}",
-                                        arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
-                                    ) {
-                                        playlistDetailList(it, searchViewModel, mainViewModel)
-                                    }
+                                composable("${Screen.Searching.route}/album/{album_url}",
+                                    arguments = listOf(navArgument("album_url") { type = NavType.StringType })
+                                ) {
+                                    showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
                                 }
-                                Screen.Albums    -> {
-                                    composable(Screen.Albums.route) {
-                                        albumLists(controller, searchViewModel, mainViewModel)
-                                    }
-                                    composable("${Screen.Albums.route}/album/{album_url}",
-                                        arguments = listOf(navArgument("album_url") { type = NavType.StringType })
-                                    ) {
-                                        showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
-                                    }
+                                composable("${Screen.Searching.route}/radio/{track_url}",
+                                    arguments = listOf(navArgument("track_url") { type = NavType.StringType })
+                                ) {
+                                    showAudioSourceOfRadio(it, searchViewModel, mainViewModel, controller)
                                 }
-                                Screen.Home    -> {
-                                    composable(Screen.Home.route) {
-                                        mainScreen(mainViewModel, controller)
-                                    }
-                                    composable("${Screen.Home.route}/playlist/{playlist_name}",
-                                        arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
-                                    ) {
-                                        playlistDetailList(it, searchViewModel, mainViewModel)
-                                    }
+                                composable("${Screen.Searching.route}/artist/{artist_url}",
+                                    arguments = listOf(navArgument("artist_url") { type = NavType.StringType })
+                                ) {
+                                    showArtistFromSurf(it, searchViewModel, mainViewModel, controller)
                                 }
-                                else -> {
-                                    composable(screen.route) {
-                                        Text("Screen ${screen.route}")
-                                    }
+                            }
+                            Screen.Playlists -> {
+                                composable(Screen.Playlists.route) {
+                                    playlistList(mainViewModel, controller)
+                                }
+                                composable("${Screen.Playlists.route}/playlist/{playlist_name}",
+                                    arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
+                                ) {
+                                    playlistDetailList(it, searchViewModel, mainViewModel)
+                                }
+                            }
+                            Screen.Albums    -> {
+                                composable(Screen.Albums.route) {
+                                    albumLists(controller, searchViewModel, mainViewModel)
+                                }
+                                composable("${Screen.Albums.route}/album/{album_url}",
+                                    arguments = listOf(navArgument("album_url") { type = NavType.StringType })
+                                ) {
+                                    showAudioSourceFromSurf(it, searchViewModel, mainViewModel, controller)
+                                }
+                            }
+                            Screen.Home    -> {
+                                composable(Screen.Home.route) {
+                                    mainScreen(mainViewModel, controller)
+                                }
+                                composable("${Screen.Home.route}/playlist/{playlist_name}",
+                                    arguments = listOf(navArgument("playlist_name") { type = NavType.StringType })
+                                ) {
+                                    playlistDetailList(it, searchViewModel, mainViewModel)
+                                }
+                            }
+                            Screen.Settings    -> {
+                                composable(Screen.Settings.route) {
+                                    settingsPage(mainViewModel)
+                                }
+                            }
+                            else -> {
+                                composable(currentTab.route) {
+                                    Text("Screen ${currentTab.route}")
                                 }
                             }
                         }
                     }
                 }
+
             }
         }
     }
 
+    //DISSAMBLED
+    //
+    //
+    //
+    //
+
+    return
 
     val audioData by mainViewModel.uiState.subscribeMe { it.audioData }
     val allAudioData by mainViewModel.uiState.subscribeMe { it.allAudioData }

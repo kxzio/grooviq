@@ -4,13 +4,19 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.ViewFolder
 import com.example.groviq.backEnd.dataStructures.audioSource
 import com.example.groviq.backEnd.dataStructures.songData
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 class DataRepository(private val db: AppDatabase) {
 
-    private val songDao = db.songDao()
-    private val audioDao = db.audioSourceDao()
+    private val songDao         = db.songDao()
+    private val audioDao        = db.audioSourceDao()
+    private val folderDao       = db.folderDao()
 
     fun saveAllAudioAndSources(
         allAudioData: Map<String, songData>,
@@ -29,10 +35,35 @@ class DataRepository(private val db: AppDatabase) {
         }
     }
 
-    fun loadAllAudioAndSources(context: Context): Pair<Map<String, songData>, Map<String, audioSource>> {
-        val songs       = songDao   .getAll().associateBy({ it.link }, { it.toDomain(context) })
-        val sources     = audioDao  .getAll().associateBy({ it.key }, { it.toDomain() })
-        return Pair(songs, sources)
+    suspend fun loadAllAudioSources(context: Context): Triple<
+            Map<String, songData>,
+            Map<String, audioSource>,
+            List<ViewFolder>
+            > = coroutineScope {
+
+        val songsDeferred = async(
+            Dispatchers.IO) {
+            songDao.getAll().associateBy({ it.link }, { it.toDomain(context) })
+        }
+
+        val sourcesDeferred = async(Dispatchers.IO) {
+            audioDao.getAll().associateBy({ it.key }, { it.toDomain() })
+        }
+
+        val foldersDeferred = async(Dispatchers.IO) {
+            folderDao.getAll().map { it.toDomain() }
+        }
+
+        Triple(
+            songsDeferred.await(),
+            sourcesDeferred.await(),
+            foldersDeferred.await()
+        )
+    }
+
+    suspend fun saveFolders(folders: List<ViewFolder>) {
+        folderDao.clearAll()
+        folderDao.insertAll(folders.map { it.toEntity() })
     }
 
     @OptIn(

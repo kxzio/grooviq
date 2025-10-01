@@ -602,7 +602,6 @@ object DownloadManager {
     ) {
         val song = mainViewModel.uiState.value.allAudioData[hashToDownload] ?: return
 
-        //cancel if we already downloading
         if (cancelActiveDownload) {
             downloadJobs.remove(hashToDownload)?.let { job ->
                 try { job.cancel(CancellationException("User requested delete")) } catch (_: Throwable) {}
@@ -611,56 +610,34 @@ object DownloadManager {
 
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
-                //get final file or part file, if we had one
-                val docFile = song.file
+                val ctx = MyApplication.globalContext
                 val filesToTry = mutableListOf<File>()
-                if (docFile != null) {
-                    filesToTry.add(docFile)
-                    //part files
-                    filesToTry.add(File(docFile.parentFile, "${docFile.name}.part"))
-                    //additional check
-                    filesToTry.add(File(docFile.parentFile, "${docFile.nameWithoutExtension}.mp3.part"))
-                }
-
                 var anyDeleted = false
+
                 filesToTry.forEach { f ->
                     if (f.exists()) {
                         try {
-                            //defaut delete
                             if (f.delete()) {
                                 anyDeleted = true
                             } else {
-                                //try atomic delete if default delete is not availabl
-                                try {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        Files.deleteIfExists(f.toPath())
-                                        anyDeleted = true
-                                    } else {
-                                        //FALBACK - rename to deleted and delete
-                                        val tmp = File(f.parentFile, "${f.name}.deleted")
-                                        if (f.renameTo(tmp)) {
-                                            tmp.delete()
-                                            anyDeleted = true
-                                        }
-                                    }
-                                } catch (ex: Exception) {
-
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    Files.deleteIfExists(f.toPath())
+                                    anyDeleted = true
+                                } else {
+                                    val tmp = File(f.parentFile, "${f.name}.deleted")
+                                    if (f.renameTo(tmp)) tmp.delete().also { anyDeleted = true }
                                 }
                             }
-                        } catch (e: Exception) {
-
-                        }
+                        } catch (_: Exception) { }
                     }
                 }
 
-                //downloading from mediastore
-                try {
-                    val ctx = MyApplication.globalContext ?: applicationContextPlaceholder()
-                    docFile?.let { f ->
-                        //delete from mediastore
-                        deleteFromMediaStoreIfExists(ctx, f)
-                    }
-                } catch (e: Exception) {
+                song.fileUri?.let { uriStr ->
+                    try {
+                        val uri = Uri.parse(uriStr)
+                        val rows = ctx.contentResolver.delete(uri, null, null)
+                        if (rows > 0) anyDeleted = true
+                    } catch (_: Exception) { }
                 }
 
                 song.art_local_link?.let { coverPath ->
@@ -679,34 +656,22 @@ object DownloadManager {
                     } catch (_: Exception) { }
                 }
 
-                //delete from Db and update ui
+                // 🔹 Обновляем стейт
                 withContext(NonCancellable + Dispatchers.Main) {
                     mainViewModel.updateFileForSong(song.link, null)
-
                     mainViewModel.uiState.value.allAudioData[song.link]?.art_local_link = null
-
-                    mainViewModel.updateStatusForSong(
-                        song.link,
-                        song.progressStatus.copy(downloadingHandled = false)
-                    )
-
+                    mainViewModel.updateStatusForSong(song.link, song.progressStatus.copy(downloadingHandled = false))
                     mainViewModel.removeSongFromAudioSource(song.link, "Downloaded")
-
                     mainViewModel.updateDownloadingProgressForSong(song.link, 0f)
-
                     mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashToDownload]!!)
                     mainViewModel.saveAudioSourcesToRoom()
                 }
 
                 if (!anyDeleted) {
-                    //error. show it on ui
                     runOnMain {
-                        Toast.makeText(MyApplication.globalContext, "Не удалось удалить файл (возможно, он используется)", Toast.LENGTH_LONG).show()
+                        Toast.makeText(ctx, "Не удалось удалить файл (возможно, он используется)", Toast.LENGTH_LONG).show()
                     }
                 }
-
-            } catch (e: CancellationException) {
-                //cancel
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(MyApplication.globalContext, "Ошибка при удалении: ${e.message}", Toast.LENGTH_LONG).show()
@@ -714,4 +679,5 @@ object DownloadManager {
             }
         }
     }
+
 }

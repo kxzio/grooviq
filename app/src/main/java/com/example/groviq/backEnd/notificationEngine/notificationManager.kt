@@ -234,5 +234,12 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         try { mediaSession.release() } catch (e: Throwable) {}
         try { AppViewModels.player.playerManager.player.release() } catch (e: Throwable) {}
     }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        AppViewModels.player.playerManager.player.release()
+        stopSelf()
+    }
+
 }
 

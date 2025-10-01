@@ -2,6 +2,7 @@ package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
@@ -10,15 +11,20 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
+import com.example.groviq.backEnd.localFileProcessor.extractMetadataFromFile
+import com.example.groviq.backEnd.localFileProcessor.findAudioInFolderRecursively
 import com.example.groviq.backEnd.playEngine.AudioPlayerManager
 import com.example.groviq.backEnd.playEngine.onShuffleToogle
 import com.example.groviq.backEnd.playEngine.queueElement
 import com.example.groviq.backEnd.playEngine.updateNextSongHash
 import com.example.groviq.backEnd.playEngine.updatePosInQueue
 import com.example.groviq.backEnd.saveSystem.DataRepository
+import com.example.groviq.backEnd.saveSystem.FolderEntity
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.streamProcessor.DownloadManager
+import com.example.groviq.frontEnd.grooviqUI
+import com.example.groviq.getArtFromURI
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +70,9 @@ data class playerState(
     //keys of songs in albums, playlists. for example. use key for album (link of album) or use name of playlist as key
     var audioData     : MutableMap<String, audioSource> = mutableMapOf(),
 
+    //list of folders that user added
+    var localFilesFolders : MutableList<ViewFolder> = mutableListOf(),
+
     //curent played data
     var playingHash              : String = "", // to indicate, whitch audio playing right now
     var playingAudioSourceHash   : String = "", // to indicate, whitch audio source is playing right now
@@ -107,7 +116,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     private fun <T> withState(block: (playerState) -> T): T =
         stateLock.withLock { block(_uiState.value) }
 
-    private fun updateState(block: (playerState) -> playerState) {
+    fun updateState(block: (playerState) -> playerState) {
         stateLock.withLock {
             _uiState.value = block(_uiState.value)
         }
@@ -118,22 +127,32 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     fun loadAllFromRoom() {
 
         viewModelScope.launch {
-            val (songsMap, audioMap) = withContext(Dispatchers.IO) {
-                repository.loadAllAudioAndSources(MyApplication.globalContext!!)
+            val (songsMap, audioMap, folders) = withContext(Dispatchers.IO) {
+                repository.loadAllAudioSources(MyApplication.globalContext!!)
             }
             updateState {
                 it.copy(
-                    allAudioData = songsMap.toMutableMap(),
-                    audioData = audioMap.toMutableMap()
+                    allAudioData         = songsMap.toMutableMap(),
+                    audioData            = audioMap.toMutableMap(),
+                    localFilesFolders    = folders.toMutableList()
                 )
             }
         }
 
     }
 
+    fun saveAllFolders() {
+        val foldersToSave = withState { it.localFilesFolders.toList() }
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveFolders(foldersToSave)
+        }
+    }
+
     fun saveSongToRoom(song: songData) {
         viewModelScope.launch(Dispatchers.IO) { repository.saveSong(this@PlayerViewModel, song, MyApplication.globalContext!!) }
     }
+
+
 
     fun saveSongsFromSourceToRoom(string: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -434,7 +453,10 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             val updatedAllAudioData = currentState.allAudioData.toMutableMap()
             val song = updatedAllAudioData[songLink]
             if (song != null) {
-                updatedAllAudioData[songLink] = song.copy(file = file)
+                val newUri = file?.let { Uri.fromFile(it).toString() }
+                updatedAllAudioData[songLink] = song.copy(
+                    fileUri = newUri
+                )
             }
             currentState.copy(allAudioData = updatedAllAudioData)
         }
@@ -599,6 +621,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             }
         }
 
+
         song.art_link?.let { artLink ->
             if (hasInternetConnection(MyApplication.globalContext)) {
                 val modifiedLink = if (artLink.contains("=w")) {
@@ -626,6 +649,59 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             }
             mainViewModel.addArtListener(listener)
             cont.invokeOnCancellation { mainViewModel.removeArtListener(listener) }
+        }
+    }
+
+
+    fun generateSongsFromFolder(viewFolder: ViewFolder) {
+        viewModelScope.launch(Dispatchers.IO) {
+
+            val files = findAudioInFolderRecursively(Uri.parse(viewFolder.uri))
+
+            val total = files.size.coerceAtLeast(1)
+            val songs = mutableListOf<songData>()
+
+            files.forEachIndexed { index, file ->
+
+                val metadata = extractMetadataFromFile(file)
+
+                val song = songData(
+                    link = file.toString(),
+                    title = metadata.title,
+                    album_original_link = metadata.album,
+                    fileUri = file.toString(),
+                    art_local_link = grooviqUI.elements.URICoverGetter.saveAlbumArtPermanentFromUri(file, metadata.album + metadata.year),
+                    artists = metadata.artistDto,
+                    year = metadata.year
+                )
+                songs.add(song)
+
+                val progress = (index + 1).toFloat() / total.toFloat()
+
+                updateState { state ->
+                    state.copy(
+                        localFilesFolders = state.localFilesFolders.map {
+                            if (it.uri == viewFolder.uri) it.copy(progressOfLoading = progress)
+                            else it
+                        }.toMutableList()
+                    )
+                }
+            }
+
+            songs.map { it.album_original_link }.forEach { album_name ->
+
+                val albumSongs = songs.filter { it.album_original_link == album_name }
+
+                setAlbumTracks(
+                    album_name,
+                    albumSongs,
+                    album_name,
+                    albumSongs[0].artists,
+                    albumSongs[0].year
+                )
+            }
+
+
         }
     }
 }

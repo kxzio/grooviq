@@ -238,7 +238,7 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel)
             return@launch
         }
 
-        val mediaUri: Uri? = nextSong.file?.takeIf { it.exists() }?.let { Uri.fromFile(it) }
+        val mediaUri: Uri? = Uri.parse(nextSong.fileUri?.takeIf { nextSong.localExists() })
             ?: mainViewModel.awaitStreamUrlFor(nextSong.link)?.let { Uri.parse(it) }
 
         if (mediaUri == null) {

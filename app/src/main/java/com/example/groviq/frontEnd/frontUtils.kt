@@ -3,6 +3,7 @@ package com.example.groviq.frontEnd
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.RenderEffect.createBlurEffect
 import androidx.compose.foundation.Image
@@ -51,16 +52,21 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import android.graphics.Shader
 import android.graphics.drawable.BitmapDrawable
+import android.media.MediaMetadataRetriever
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
+import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.renderscript.Allocation
 import android.renderscript.Element
 import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
 import android.util.LruCache
 import android.util.Size
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.AnimationSpec
@@ -116,6 +122,8 @@ import androidx.compose.ui.graphics.vector.PathNode
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 import coil.compose.SubcomposeAsyncImage
 import coil.imageLoader
 import coil.request.CachePolicy
@@ -127,6 +135,7 @@ import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.audioSource
 import com.example.groviq.backEnd.searchEngine.publucErrors
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchingRequest
+import com.example.groviq.getArtFromURI
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -134,6 +143,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.File
 import android.graphics.Color as AndroidColor
 
 class grooviqUI {
@@ -162,10 +172,44 @@ class grooviqUI {
 
         }
 
+        object URICoverGetter
+        {
+            fun saveAlbumArtPermanentFromUri(uri: Uri, fileName: String): String? {
+                val context = MyApplication.globalContext ?: return null
+
+                return try {
+                    val dir = File(context.filesDir, "album_art")
+                    val dirCreated = if (!dir.exists()) dir.mkdirs() else true
+
+                    var safeName = fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                    if (safeName.isBlank()) safeName = "unknown_art"
+
+                    val outputFile = File(dir, "$safeName.jpg")
+
+                    if (outputFile.exists()) {
+                        return outputFile.absolutePath
+                    }
+
+                    val bitmap = getArtFromURI(uri)
+                    if (bitmap == null) {
+                        return null
+                    }
+
+                    outputFile.outputStream().use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                    }
+                    outputFile.absolutePath
+
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        }
+
+
     }
 
 }
-
 
 @Composable
 fun <T, R> StateFlow<T>.subscribeMe(
@@ -176,50 +220,6 @@ fun <T, R> StateFlow<T>.subscribeMe(
     return mapped.collectAsState(initial = initial)
 }
 
-val HeartShape = GenericShape { size, _ ->
-    val scaleX = size.width / 24f
-    val scaleY = size.height / 24f
-
-    moveTo(13.35f * scaleX, 20.13f * scaleY)
-    cubicTo(
-        12.59f * scaleX, 20.82f * scaleY,
-        11.42f * scaleX, 20.82f * scaleY,
-        10.66f * scaleX, 20.12f * scaleY
-    )
-    lineTo(10.55f * scaleX, 20.02f * scaleY)
-    cubicTo(
-        5.3f * scaleX, 15.27f * scaleY,
-        1.87f * scaleX, 12.16f * scaleY,
-        2.0f * scaleX, 8.28f * scaleY
-    )
-    cubicTo(
-        2.06f * scaleX, 6.58f * scaleY,
-        2.93f * scaleX, 4.95f * scaleY,
-        4.34f * scaleX, 4.0f * scaleY
-    )
-    cubicTo(
-        6.98f * scaleX, 2.2f * scaleY,
-        10.24f * scaleX, 3.04f * scaleY,
-        11.99f * scaleX, 5.1f * scaleY
-    )
-    cubicTo(
-        13.75f * scaleX, 3.04f * scaleY,
-        16.99f * scaleX, 2.19f * scaleY,
-        19.65f * scaleX, 4.0f * scaleY
-    )
-    cubicTo(
-        21.06f * scaleX, 4.96f * scaleY,
-        21.93f * scaleX, 6.59f * scaleY,
-        21.99f * scaleX, 8.28f * scaleY
-    )
-    cubicTo(
-        22.13f * scaleX, 12.16f * scaleY,
-        18.7f * scaleX, 15.27f * scaleY,
-        13.45f * scaleX, 20.04f * scaleY
-    )
-    lineTo(13.35f * scaleX, 20.13f * scaleY)
-    close()
-}
 
 @SuppressLint("UnusedCrossfadeTargetStateParameter")
 @Composable
@@ -234,18 +234,21 @@ fun asyncedImage(
     customLoadSizeX: Int = 0,
     customLoadSizeY: Int = 0,
 ) {
+
+
     if (songData == null) return
 
     val context = LocalContext.current
     val imageKey = songData.art_local_link ?: songData.art_link
 
+    val data = if (imageKey?.startsWith("/") ?: false) File(imageKey) else imageKey
+
     val req = remember(imageKey) {
         val builder = ImageRequest.Builder(context)
-            .data(imageKey)
+            .data(data)
             .setParameter("coil#disk_cache_key", imageKey)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
-            .dispatcher(Dispatchers.IO)
             .crossfade(500)
 
         if (blurRadius > 0f) {

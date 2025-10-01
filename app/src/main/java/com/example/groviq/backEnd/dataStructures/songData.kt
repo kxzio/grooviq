@@ -1,7 +1,9 @@
 package com.example.groviq.backEnd.dataStructures
 
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.searchEngine.ArtistDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,14 +63,41 @@ data class songData(
     var album_original_link : String = "",
 
     //file downloaded
-    var file: File? = null,
+    var fileUri: String? = null,
+
+    //USING YEAR ONLY FOR LOCAL FILES, cause audiosource dont cahce year in local files
+    var year : String = ""
 
     )
 {
+    private val existenceCache = mutableMapOf<String, Boolean>()
+
+    fun localExists(): Boolean {
+        val pathOrUri = fileUri ?: return false
+
+        // кэш
+        existenceCache[pathOrUri]?.let { return it }
+
+        val exists = try {
+            if (pathOrUri.startsWith("/")) {
+                File(pathOrUri).exists()
+            } else {
+                val uri = Uri.parse(pathOrUri)
+                val docFile = DocumentFile.fromSingleUri(MyApplication.globalContext, uri)
+                docFile?.exists() ?: false
+            }
+        } catch (e: Exception) {
+            false
+        }
+
+        // сохраняем результат в кэш
+        existenceCache[pathOrUri] = exists
+        return exists
+    }
+
     fun shouldGetStream(ttlMillis: Long = TimeUnit.HOURS.toMillis(5)): Boolean {
 
-        if (file != null && file!!.exists())
-            return false
+        if (localExists()) return false
 
         if (stream.streamUrl.isNullOrEmpty()) return true
         val now = System.currentTimeMillis()

@@ -328,14 +328,13 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     })
 
 
-    if (track!!.file != null) {
+    if (track!!.localExists()) {
 
-        if (track!!.file!!.exists()) {
-            buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
-                DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
-                onClose()
-            })
-        }
+        buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
+            DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+            onClose()
+        })
+
     }
     else {
         buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {
@@ -381,7 +380,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 
     buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
         showSheet.value = false
-        openRadio(track.link)
+        openRadio(track!!.link)
         onClose()
     })
 }

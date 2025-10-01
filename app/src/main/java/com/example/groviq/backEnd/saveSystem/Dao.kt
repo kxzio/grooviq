@@ -24,6 +24,25 @@ interface SongDao {
 }
 
 @Dao
+interface FolderDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAll(folders: List<FolderEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insert(folder: FolderEntity)
+
+    @Query("SELECT * FROM folders")
+    fun getAll(): List<FolderEntity>
+
+    @Delete
+    fun delete(folder: FolderEntity)
+
+    @Query("DELETE FROM folders")
+    fun clearAll()
+}
+
+@Dao
 interface AudioSourceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(sources: List<AudioSourceEntity>)
