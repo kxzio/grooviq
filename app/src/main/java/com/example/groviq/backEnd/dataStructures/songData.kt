@@ -66,7 +66,9 @@ data class songData(
     var fileUri: String? = null,
 
     //USING YEAR ONLY FOR LOCAL FILES, cause audiosource dont cahce year in local files
-    var year : String = ""
+    var year : String = "",
+
+    var isExternal : Boolean = false
 
     )
 {

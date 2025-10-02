@@ -1,5 +1,6 @@
 package com.example.groviq.frontEnd.appScreens.settingScreen
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,8 +36,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import com.example.groviq.AppViewModels
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.ViewFolder
 
 @OptIn(UnstableApi::class)
@@ -55,6 +59,13 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         uri?.let {
+
+            val context = MyApplication.globalContext
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+
             val folder = ViewFolder(uri = it.toString(), displayName = it.lastPathSegment ?: "Папка")
             mainViewModel.updateState { state ->
                 state.copy(
@@ -63,7 +74,6 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
                     }
                 )
             }
-            mainViewModel.saveAllFolders()
             mainViewModel.generateSongsFromFolder(folder)
         }
     }
@@ -105,25 +115,35 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
                             Icon(Icons.Rounded.Folder, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = folder.displayName,
+                                text = folder.displayName.replace("primary:", ""),
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            IconButton(onClick = {
-                                mainViewModel.updateState { state ->
-                                    state.copy(
-                                        localFilesFolders = state.localFilesFolders.toMutableList().apply {
-                                            remove(folder)
-                                        }
-                                    )
+                            Row()
+                            {
+                                IconButton(onClick = {
+                                    mainViewModel.generateSongsFromFolder(folder)
+                                }) {
+                                    Icon(Icons.Rounded.Refresh, contentDescription = null)
                                 }
-                                mainViewModel.saveAllFolders()
-                            }) {
-                                Icon(Icons.Rounded.Close, contentDescription = null)
+
+                                IconButton(onClick = {
+                                    mainViewModel.updateState { state ->
+                                        state.copy(
+                                            localFilesFolders = state.localFilesFolders.toMutableList().apply {
+                                                remove(folder)
+                                            }
+                                        )
+                                    }
+                                    mainViewModel.deleteSongsFromFolder(folder)
+                                }) {
+                                    Icon(Icons.Rounded.Close, contentDescription = null)
+                                }
                             }
+
                         }
-                        LinearProgressIndicator(folder.progressOfLoading)
+                        LinearProgressIndicator(folder.progressOfLoading, Modifier.fillMaxWidth())
                     }
 
                 }
@@ -137,6 +157,23 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
         }
 
         Spacer(Modifier.height(16.dp))
+
+        /*
+                LazyColumn(Modifier.height(200.dp)) {
+            items(allAudioData.keys.toMutableList())
+            { d->
+                Text(d, fontSize = 12.sp)
+            }
+        }
+        Text("____")
+        LazyColumn(Modifier.height(200.dp)) {
+            items(audioData.keys.toMutableList())
+            { d->
+                Text(d, fontSize = 12.sp)
+            }
+        }
+        */
+
 
     }
 }

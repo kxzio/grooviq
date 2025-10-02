@@ -163,6 +163,10 @@ fun createListeners(
             if (!trackEndingHandled && remaining in 0..25_000) {
                 if (!AppViewModels.player.playerManager.doesSongHaveNext(mainViewModel)) {
                     trackEndingHandled = true
+
+                    if (mainViewModel.uiState.value.allAudioData[mainViewModel.uiState.value.playingHash]?.isExternal == true)
+                        return
+
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                         searchViewModel.prepareRelatedTracks(
                             MyApplication.globalContext!!,
@@ -238,8 +242,11 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel)
             return@launch
         }
 
-        val mediaUri: Uri? = Uri.parse(nextSong.fileUri?.takeIf { nextSong.localExists() })
+        val mediaUri: Uri? = nextSong.fileUri
+            ?.takeIf { nextSong.localExists() }
+            ?.let { Uri.parse(it) }
             ?: mainViewModel.awaitStreamUrlFor(nextSong.link)?.let { Uri.parse(it) }
+
 
         if (mediaUri == null) {
             return@launch

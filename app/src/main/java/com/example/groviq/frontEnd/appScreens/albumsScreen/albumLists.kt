@@ -12,15 +12,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
@@ -49,7 +57,26 @@ fun albumLists(searchingScreenNav: NavHostController,
 
     val audioSources = audioData.entries
 
-    val albums = audioSources.filter { it.key.contains("http") && audioData[it.key]?.shouldBeSavedStrictly ?: false }
+    var tabForAlbums by remember { mutableStateOf(0) }
+
+    val albums = when (tabForAlbums)
+    {
+
+        0-> { audioSources.filter {
+            !mainViewModel.isPlaylist(it.key)
+                    && audioData[it.key]?.shouldBeSavedStrictly ?: false
+                    && audioData[it.key]?.isExternal == false } }
+
+        1-> { audioSources.filter {
+            !mainViewModel.isPlaylist(it.key)
+                    && audioData[it.key]?.shouldBeSavedStrictly ?: false
+                    && audioData[it.key]?.isExternal == true } }
+
+        else -> { audioSources.filter {
+            !mainViewModel.isPlaylist(it.key)
+                    && audioData[it.key]?.shouldBeSavedStrictly ?: false
+                    && audioData[it.key]?.isExternal == true } }
+    }
 
     Column()
     {
@@ -59,8 +86,43 @@ fun albumLists(searchingScreenNav: NavHostController,
             Modifier.padding(5.dp))
         {
             Text(
-                "Сохраненные альбомы : "
+                "Albums"
             )
+
+            Row(Modifier.fillMaxWidth())
+            {
+                Button({
+                    tabForAlbums = 0
+                },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (tabForAlbums == 0) MaterialTheme.colorScheme.primary else
+                                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(0.dp),
+                    modifier = Modifier.weight(1f)
+                    )
+                {
+                    Text("Streaming")
+                }
+
+                Button({
+                    tabForAlbums = 1
+                },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (tabForAlbums == 1) MaterialTheme.colorScheme.primary else
+                                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(0.dp),
+                    modifier = Modifier.weight(1f)
+                )
+                {
+                    Text("Local files")
+                }
+            }
+
+            LaunchedEffect(albums) {
+                listState.scrollToItem(0)
+            }
 
             LazyColumn(
                 state = listState,

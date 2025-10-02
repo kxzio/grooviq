@@ -487,7 +487,12 @@ class AudioPlayerManager(context: Context) {
             return
         }
 
+        if (view.allAudioData[currentQueue[pos].hashKey]?.isExternal == true)
+            return
+
+
         player.stop()
+
 
         if (mainViewModel.uiState.value.songsLoader == true)
             return

@@ -27,25 +27,10 @@ data class audioSource(
     var timeUpdate      : Long = 0L,
 
     //dont save this param to db (useless to provide it from session to session)
-    var isInGenerationProcess : Boolean = false
+    var isInGenerationProcess : Boolean = false,
+
+    var isExternal : Boolean = false
 ){
-    // Вспомогательная функция — форматируем миллисекунды в "YYYY-MM-DD HH:mm:ss"
-    private fun formatMillisToReadable(millis: Long): String {
-        return try {
-            val ldt = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDateTime()
-            ldt.format(
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-        } catch (e: Exception) {
-            // fallback
-            Date(millis).toString()
-        }
-    }
-
-    // Вспомогательная функция для тостов
-    private fun showToastLog(text: String) {
-        Toast.makeText(MyApplication.globalContext, text, Toast.LENGTH_LONG).show()
-    }
-
 
     fun shouldBeRegenerated(): Boolean {
         // если не было времени обновления — считаем, что нужно сгенерировать

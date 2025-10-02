@@ -328,22 +328,25 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     })
 
 
-    if (track!!.localExists()) {
+    if (track!!.isExternal == false)
+    {
+        if (track!!.localExists()) {
 
-        buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
-            DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
-            onClose()
-        })
+            buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
+                DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                onClose()
+            })
 
-    }
-    else {
-        buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {
+        }
+        else {
+            buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {
 
-            DownloadManager.enqueue(mainViewModel, track.link)
-            DownloadManager.start()
+                DownloadManager.enqueue(mainViewModel, track.link)
+                DownloadManager.start()
 
-            onClose()
-        })
+                onClose()
+            })
+        }
     }
 
     buttonForSettingBar("Перейти к альбому", Icons.Rounded.Album, {
@@ -378,11 +381,15 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         onScreenMove(settingPages.DOWNLOAD_QUEUE_PAGE)
     })
 
-    buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
-        showSheet.value = false
-        openRadio(track!!.link)
-        onClose()
-    })
+    if (track!!.isExternal == false)
+    {
+        buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
+            showSheet.value = false
+            openRadio(track!!.link)
+            onClose()
+        })
+    }
+
 }
 
 @androidx.annotation.OptIn(
