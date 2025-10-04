@@ -25,16 +25,20 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.min
+import kotlin.random.Random
 
 
 //global fetch jobs
@@ -305,7 +309,6 @@ var currentFetchImageJob: Job? = null
     UnstableApi::class
 )
 fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
-
     val song = mainViewModel.uiState.value.allAudioData[songKey] ?: return
 
     CoroutineScope(Dispatchers.Main).launch {
@@ -313,23 +316,47 @@ fun fetchNewImage(mainViewModel: PlayerViewModel, songKey: String) {
 
         currentFetchImageJob = CoroutineScope(Dispatchers.IO).launch {
             try {
+                val maxAttempts = 7
+                repeat(maxAttempts) { attempt ->
+                    if (!isActive) return@repeat
 
-                val audioImage = getPythonModule(MyApplication.globalContext!!)
-                    .callAttr("getTrackImage", songKey)
-                    ?.toString()
+                    try {
+                        val audioImage = withTimeout(15_000L) {
+                            getPythonModule(MyApplication.globalContext!!)
+                                .callAttr("getTrackImage", songKey)
+                                ?.toString()
+                        }
 
-                if (!isActive || audioImage.isNullOrEmpty()) return@launch
+                        if (audioImage.isNullOrEmpty()) {
+                            throw IOException("Empty image result")
+                        }
 
-                if (!isActive) return@launch
+                        withContext(Dispatchers.Main) {
+                            mainViewModel.updateImageForSong(songKey, audioImage)
+                            mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[songKey]!!)
+                        }
+                        return@launch
 
-                withContext(Dispatchers.Main) {
-                    mainViewModel.updateImageForSong(songKey, audioImage)
-                    mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[songKey]!!)
+                    } catch (ce: CancellationException) {
+                        throw ce
+                    } catch (e: Exception) {
 
+                        println("Error fetching image for $songKey attempt ${attempt + 1}: ${e.message}")
+
+                        if (attempt < maxAttempts - 1) {
+                            val base = 1000L * (1L shl attempt) // 1s,2s,4s,8s...
+                            val capped = min(base, 10_000L)
+                            val jitter = Random.nextLong(0, 500L)
+                            delay(capped + jitter)
+                        }
+                    }
                 }
-            } catch (e: Exception) {
-                println("Error fetching image for $songKey: ${e.message}")
+            } finally {
+                withContext(NonCancellable) {
+                    currentFetchImageJob = null
+                }
             }
         }
+
     }
 }

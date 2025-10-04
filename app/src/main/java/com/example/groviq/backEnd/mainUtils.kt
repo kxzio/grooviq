@@ -12,6 +12,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
+import android.os.Debug
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -40,6 +41,7 @@ import com.chaquo.python.android.AndroidPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -48,19 +50,27 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.min
+import kotlin.random.Random
 
 @OptIn(
     UnstableApi::class
 )
 fun getArtFromURI(uri: Uri): Bitmap? {
+    var retriever: MediaMetadataRetriever? = null
     return try {
-        val retriever = MediaMetadataRetriever()
+        retriever = MediaMetadataRetriever()
         retriever.setDataSource(MyApplication.globalContext, uri)
-        val bytes = retriever.embeddedPicture
-        retriever.release()
-        bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        retriever.embeddedPicture?.let { bytes ->
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
     } catch (e: Exception) {
+        e.printStackTrace()
         null
+    } finally {
+        try {
+            retriever?.release()
+        } catch (ignored: Exception) {}
     }
 }
 
@@ -136,23 +146,34 @@ suspend fun Context.loadBitmapFromCacheOrNetwork(
     imageKey: String,
     downsample: Int = 1
 ): Bitmap? = withContext(Dispatchers.IO) {
-    try {
-        val loader = ImageLoader(this@loadBitmapFromCacheOrNetwork)
-        val request = ImageRequest.Builder(this@loadBitmapFromCacheOrNetwork)
-            .data(imageKey)
-            .allowHardware(false)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .size(500 / downsample)
-            .build()
+    repeat(5) { attempt ->
+        try {
+            return@withContext withTimeout(10_000L) {
+                val loader = ImageLoader(this@loadBitmapFromCacheOrNetwork)
+                val request = ImageRequest.Builder(this@loadBitmapFromCacheOrNetwork)
+                    .data(imageKey)
+                    .allowHardware(false)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .size(500 / downsample)
+                    .build()
 
-        val result = loader.execute(request)
-        val drawable = (result as? SuccessResult)?.drawable
-        (drawable as? BitmapDrawable)?.bitmap
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
+                val result = loader.execute(request)
+                val drawable = (result as? SuccessResult)?.drawable
+                (drawable as? BitmapDrawable)?.bitmap
+            }
+        } catch (e: Exception) {
+            println("loadBitmapFromCacheOrNetwork attempt ${attempt + 1} failed: ${e.message}")
+
+            if (attempt >= 4) return@withContext null
+
+            val base = 1000L * (1L shl attempt)   // 1s, 2s, 4s, 8s...
+            val capped = min(base, 5000L)
+            val jitter = Random.nextLong(0, 300L)
+            delay(capped + jitter)
+        }
     }
+    return@withContext null
 }
 
 suspend fun loadBitmapFromUrl(
@@ -251,8 +272,20 @@ suspend fun waitForInternet(maxWaitMs: Long = 60_000L, checkIntervalMs: Long = 1
         throw IOException("No internet available after waiting $maxWaitMs ms")
     }
 }
+fun getAppMemoryUsage(context: Context): String {
+    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    val memoryInfo = ActivityManager.MemoryInfo()
+    activityManager.getMemoryInfo(memoryInfo)
+
+    val usedMem = Debug.getPss() / 1024 // MB
+    val availMem = memoryInfo.availMem / (1024 * 1024)
+    val totalMem = memoryInfo.totalMem / (1024 * 1024)
+
+    return "Used: ${usedMem}MB / ${totalMem}MB (Free: ${availMem}MB)"
+}
 
 suspend fun getImageSizeFromUrl(url: String): Pair<Int, Int>? = withContext(Dispatchers.IO) {
+
     try {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.doInput = true
@@ -269,5 +302,7 @@ suspend fun getImageSizeFromUrl(url: String): Pair<Int, Int>? = withContext(Disp
         e.printStackTrace()
         null
     }
+
+
 }
 

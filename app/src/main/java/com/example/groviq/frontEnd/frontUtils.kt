@@ -172,14 +172,14 @@ class grooviqUI {
 
         }
 
-        object URICoverGetter
-        {
+        object URICoverGetter {
+
             fun saveAlbumArtPermanentFromUri(uri: Uri, fileName: String): String? {
                 val context = MyApplication.globalContext ?: return null
 
                 return try {
                     val dir = File(context.filesDir, "album_art")
-                    val dirCreated = if (!dir.exists()) dir.mkdirs() else true
+                    if (!dir.exists()) dir.mkdirs()
 
                     var safeName = fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
                     if (safeName.isBlank()) safeName = "unknown_art"
@@ -190,18 +190,40 @@ class grooviqUI {
                         return outputFile.absolutePath
                     }
 
-                    val bitmap = getArtFromURI(uri)
-                    if (bitmap == null) {
-                        return null
-                    }
+                    val bitmap = getArtFromURI(uri) ?: return null
 
                     outputFile.outputStream().use { out ->
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
                     }
+                    bitmap.recycle()
                     outputFile.absolutePath
 
                 } catch (e: Exception) {
+                    e.printStackTrace()
                     null
+                }
+            }
+
+            fun deleteAlbumArt(album: String?, year: String?) {
+                val context = MyApplication.globalContext ?: return
+                if (album == null && year == null) return
+
+                try {
+                    val fileName = (album ?: "") + (year ?: "")
+                    var safeName = fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                    if (safeName.isBlank()) safeName = "unknown_art"
+
+                    val dir = File(context.filesDir, "album_art")
+                    val file = File(dir, "$safeName.jpg")
+
+                    if (file.exists()) {
+                        val deleted = file.delete()
+                        if (!deleted) {
+
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }

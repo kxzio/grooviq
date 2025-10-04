@@ -29,6 +29,7 @@ import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,10 +41,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -654,6 +658,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
     }
 
     suspend fun awaitSongArt(mainViewModel: PlayerViewModel, songKey: String): SongArtResult {
+
         val song = mainViewModel.uiState.value.allAudioData[songKey]
             ?: throw Exception("Song not found")
 
@@ -700,6 +705,8 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
 
+            val context = MyApplication.globalContext ?: return@launch
+
             val files = findAudioInFolderRecursively(Uri.parse(viewFolder.uri))
             if (files.isEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -715,13 +722,11 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 return@launch
             }
 
-
             val existingLinks = uiState.value.allAudioData
                 .mapNotNull { it.value.fileUri }
                 .toSet()
 
             val newFiles = files.filter { it.toString() !in existingLinks }
-
             if (newFiles.isEmpty()) {
                 withContext(Dispatchers.Main) {
                     updateState { state ->
@@ -738,49 +743,61 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
             val total = newFiles.size
             val songs = Collections.synchronizedList(mutableListOf<songData>())
+            val counter = AtomicInteger(0)
+            val semaphore = Semaphore(4) // максимум 4 файла одновременно — оптимально по I/O
             val dispatcher = Dispatchers.IO.limitedParallelism(6)
-            val counter = java.util.concurrent.atomic.AtomicInteger(0)
 
             coroutineScope {
-                newFiles.forEachIndexed { index, file ->
+                newFiles.forEach { file ->
                     launch(dispatcher) {
-                        try {
-                            val metadata = extractMetadataFromFile(file)
+                        semaphore.withPermit {
+                            try {
+                                val metadata = extractMetadataFromFile(file)
 
-                            val song = songData(
-                                link = file.toString(),
-                                title = metadata.title,
-                                album_original_link = metadata.album,
-                                fileUri = file.toString(),
-                                art_local_link = grooviqUI.elements.URICoverGetter
-                                    .saveAlbumArtPermanentFromUri(file, metadata.album + metadata.year),
-                                artists = metadata.artistDto,
-                                year = metadata.year,
-                                isExternal = true
-                            )
-                            songs.add(song)
+                                val artPath = grooviqUI.elements.URICoverGetter
+                                    .saveAlbumArtPermanentFromUri(file, metadata.album + metadata.year)
 
-                            val completed = counter.incrementAndGet()
-                            if (completed % 10 == 0 || completed == total) {
-                                val progress = completed.toFloat() / total.toFloat()
-                                withContext(Dispatchers.Main) {
-                                    updateState { state ->
-                                        state.copy(
-                                            localFilesFolders = state.localFilesFolders.map {
-                                                if (it.uri == viewFolder.uri) it.copy(progressOfLoading = progress)
-                                                else it
-                                            }.toMutableList()
-                                        )
+                                val song = songData(
+                                    link = file.toString(),
+                                    title = metadata.title,
+                                    album_original_link = metadata.album,
+                                    fileUri = file.toString(),
+                                    art_local_link = artPath,
+                                    artists = metadata.artistDto,
+                                    year = metadata.year,
+                                    isExternal = true
+                                )
+
+                                songs.add(song)
+
+                                val completed = counter.incrementAndGet()
+                                if (completed % 10 == 0 || completed == total) {
+                                    val progress = completed.toFloat() / total.toFloat()
+                                    withContext(Dispatchers.Main) {
+                                        updateState { state ->
+                                            state.copy(
+                                                localFilesFolders = state.localFilesFolders.map {
+                                                    if (it.uri == viewFolder.uri)
+                                                        it.copy(progressOfLoading = progress)
+                                                    else it
+                                                }.toMutableList()
+                                            )
+                                        }
                                     }
                                 }
+
+                                // лёгкая пауза для разгрузки GC при больших партиях
+                                if (completed % 200 == 0) delay(50)
+
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
                         }
                     }
                 }
             }
 
+            // группировка и сохранение альбомов после завершения всех задач
             val groupedByAlbum = songs.groupBy { it.album_original_link }
             for ((albumName, albumSongs) in groupedByAlbum) {
                 if (albumSongs.isNotEmpty()) {
@@ -790,12 +807,13 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                         albumName,
                         albumSongs[0].artists,
                         albumSongs[0].year,
-                        isExternalSource = true,
+                        isExternalSource = true
                     )
                     saveSongsFromSourceToRoom(albumName)
                 }
             }
 
+            // финальное обновление UI
             withContext(Dispatchers.Main) {
                 updateState { state ->
                     state.copy(
@@ -840,6 +858,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
             // --- Сначала сохраняем альбомы с удаляемыми песнями, чтобы Room удалил их ---
             albumsWithDeletedSongs.keys.forEach { albumName ->
+                grooviqUI.elements.URICoverGetter.deleteAlbumArt(albumName, oldAudioData[albumName]?.yearOfAudioSource)
                 saveSongsFromSourceToRoom(albumName)
             }
 

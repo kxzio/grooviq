@@ -159,7 +159,7 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
         Spacer(Modifier.height(16.dp))
 
         /*
-                LazyColumn(Modifier.height(200.dp)) {
+            LazyColumn(Modifier.height(200.dp)) {
             items(allAudioData.keys.toMutableList())
             { d->
                 Text(d, fontSize = 12.sp)
@@ -173,7 +173,6 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
             }
         }
         */
-
 
     }
 }

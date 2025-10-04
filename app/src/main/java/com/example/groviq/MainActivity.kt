@@ -54,8 +54,10 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
+
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
 
         if (!Python.isStarted()) {
@@ -141,23 +143,6 @@ object AppViewModels {
     }
 }
 
-
-// -------------------- ViewModels Singleton --------------------
-@UnstableApi
-object ViewModels {
-    private var playerViewModel: PlayerViewModel? = null
-
-    fun player(repo: DataRepository): PlayerViewModel {
-        if (playerViewModel == null) {
-            val factory = PlayerViewModelFactory(repo)
-            playerViewModel = ViewModelProvider(
-                MyApplication.instance,
-                factory
-            ).get(PlayerViewModel::class.java)
-        }
-        return playerViewModel!!
-    }
-}
 
 
 @OptIn(

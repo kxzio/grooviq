@@ -143,12 +143,39 @@ fun createListeners(
 
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 moveToNextPosInQueue(mainViewModel)
+
                 val newIndex = mainViewModel.uiState.value.posInQueue
                 if (newIndex < uiState.currentQueue.size) {
                     mainViewModel.setPosInQueue(newIndex)
                     mainViewModel.setPlayingHash(uiState.currentQueue[newIndex].hashKey)
                 }
+                updateNextSongHash  (mainViewModel)
+
                 fetchQueueStream(mainViewModel)
+
+                //update image if needed
+                val song = mainViewModel.uiState.value.allAudioData[uiState.currentQueue[newIndex].hashKey] ?: return
+
+                CoroutineScope(Dispatchers.Main).launch {
+
+                    val artLink = song.art_link
+                    val fileUri = song.fileUri?.takeIf { song.localExists() }
+
+                    if (fileUri == null)
+                    {
+                        if (artLink != null) {
+                            val size = getImageSizeFromUrl(artLink)
+                            val tooSmall = size == null || min(size.first, size.second) < 200
+                            if (tooSmall) {
+                                fetchNewImage(mainViewModel, song.link)
+                            }
+                        } else {
+                            fetchNewImage(mainViewModel, song.link)
+                        }
+                    }
+                }
+
+
             }
 
             prepareAndAddNextTrackToMediaItems(mainViewModel)
@@ -251,7 +278,6 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel)
         if (mediaUri == null) {
             return@launch
         }
-
 
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(nextSong.title)

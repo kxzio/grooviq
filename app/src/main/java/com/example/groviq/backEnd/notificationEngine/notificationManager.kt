@@ -230,15 +230,33 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try { playerNotificationManager.setPlayer(null) } catch (e: Throwable) {}
-        try { mediaSession.release() } catch (e: Throwable) {}
-        try { AppViewModels.player.playerManager.player.release() } catch (e: Throwable) {}
+        try { playerNotificationManager.setPlayer(null) } catch (_: Throwable) {}
+        try { mediaSession.release() } catch (_: Throwable) {}
+        try { AppViewModels.player.playerManager.player.release() } catch (_: Throwable) {}
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(
+            intent,
+            flags,
+            startId
+        )
+        return START_NOT_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+
         super.onTaskRemoved(rootIntent)
-        AppViewModels.player.playerManager.player.release()
+
+        try { playerNotificationManager.setPlayer(null) } catch (_: Throwable) {}
+        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Throwable) {}
+        try { AppViewModels.player.playerManager.player.release() } catch (_: Throwable) {}
+        try { mediaSession.release() } catch (_: Throwable) {}
+
         stopSelf()
+        android.os.Process.killProcess(android.os.Process.myPid())
+        kotlin.system.exitProcess(0)
+
     }
 
 }

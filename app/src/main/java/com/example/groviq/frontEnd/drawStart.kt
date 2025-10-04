@@ -2,23 +2,34 @@ package com.example.groviq.frontEnd
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.playEngine.createListeners
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.audioBottomSheet
 import com.example.groviq.frontEnd.bottomBars.trackSettingsBottomBar
+import com.example.groviq.getAppMemoryUsage
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
+import kotlinx.coroutines.delay
 
 //global nav controller for screens
 val screenConnectorNavigation = staticCompositionLocalOf<NavHostController> {
@@ -58,6 +69,7 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
         {
             trackSettingsBottomBar(mainViewModel, hazeStateForSettings)
         }
+
 
     }
 

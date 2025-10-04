@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Home
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.media3.common.util.UnstableApi
@@ -78,11 +81,13 @@ import com.example.groviq.frontEnd.appScreens.searchingScreen.browsingPages.show
 import com.example.groviq.frontEnd.appScreens.searchingScreen.searchResultsNavigation
 import com.example.groviq.frontEnd.appScreens.settingScreen.settingsPage
 import com.example.groviq.frontEnd.appScreens.trackRadioPendingNavigation
+import com.example.groviq.getAppMemoryUsage
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import dev.chrisbanes.haze.*
+import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Home         : Screen("home",        "Главная",      Icons.Rounded.Home)
@@ -311,6 +316,25 @@ fun connectScreens(
 
             }
         }
+    }
+
+    Box(Modifier.statusBarsPadding()
+        .navigationBarsPadding())
+    {
+        var memoryInfo by remember { mutableStateOf("") }
+
+        LaunchedEffect(Unit) {
+            while (true) {
+                memoryInfo = getAppMemoryUsage(MyApplication.globalContext)
+                delay(2000)
+            }
+        }
+
+        Text(
+            text = memoryInfo,
+            color = Color.Gray,
+            fontSize = 12.sp,
+        )
     }
 
     //DISSAMBLED
