@@ -10,18 +10,34 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 import java.io.IOException
+import kotlin.math.min
+import kotlin.random.Random
 
 suspend fun getBestAudioStreamUrl(videoUrl: String): String? {
-    repeat(5) { attempt ->
+    val maxAttempts = 7
+    repeat(maxAttempts) { attempt ->
         try {
-            return withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 withTimeout(15_000L) {
                     extractAudioStreamSafe(videoUrl)
                 }
             }
+
+            val normalized = result?.trim()
+            if (normalized.isNullOrEmpty() || normalized.equals("null", true) || normalized.equals("n/a", true)) {
+                throw IOException("Empty or invalid stream URL")
+            }
+
+            return normalized
         } catch (e: Exception) {
             println("getBestAudioStreamUrl attempt ${attempt + 1} failed: ${e.message}")
-            delay((attempt + 1) * 1000L)
+
+            if (attempt < maxAttempts - 1) {
+                val base = 1000L * (1L shl attempt) // 1s,2s,4s,8s,...
+                val capped = min(base, 10_000L)     // cap 10s - LIMIT FOR MAX WAITING TIME
+                val jitter = Random.nextLong(0, 500L)
+                delay(capped + jitter)
+            }
         }
     }
     return null
