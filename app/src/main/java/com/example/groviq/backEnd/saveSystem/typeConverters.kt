@@ -92,7 +92,7 @@ fun SongEntity.toDomain(context: Context): songData {
         title = this.title,
         artists = this.artists,
         stream = this.stream,
-        progressStatus = this.progressStatus,
+        progressStatus = songProgressStatus(streamHandled = false, downloadingHandled = false, downloadingProgress = this.progressStatus.downloadingProgress),
         playingEnterPoint = this.playingEnterPoint,
         duration = this.duration,
         art_local_link = this.artPath,

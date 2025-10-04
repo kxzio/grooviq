@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,7 @@ import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
 import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.frontEnd.bottomBars.audioBottomBar.playerInputHandlers
 import com.example.groviq.frontEnd.grooviqUI
+import com.example.groviq.frontEnd.subscribeMe
 
 @OptIn(
     UnstableApi::class
@@ -35,6 +37,7 @@ import com.example.groviq.frontEnd.grooviqUI
 @Composable
 fun grooviqUI.elements.openedElements.activityButtons(songProgressUi: State<CurrentSongTimeProgress>, currentStatus: playerStatus)
 {
+    val isPlaying by AppViewModels.player.uiState.subscribeMe { it.isPlaying         }
 
     Row(
         Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
@@ -66,9 +69,9 @@ fun grooviqUI.elements.openedElements.activityButtons(songProgressUi: State<Curr
         IconButton(
             onClick =
             {
-                if (currentStatus == playerStatus.PAUSE)
+                if (AppViewModels.player.playerManager.player.playWhenReady == false)
                     AppViewModels.player.playerManager.resume()
-                if (currentStatus == playerStatus.PLAYING)
+                else
                     AppViewModels.player.playerManager.pause()
             },
             modifier = Modifier
@@ -76,7 +79,7 @@ fun grooviqUI.elements.openedElements.activityButtons(songProgressUi: State<Curr
                 .background(color = Color(255, 255, 255, 0), shape = CircleShape)
         ) {
             Icon(
-                imageVector = if (currentStatus == playerStatus.PAUSE)
+                imageVector = if (isPlaying == false)
                     Icons.Rounded.PlayArrow else Icons.Rounded.Pause
                 ,
                 contentDescription = "Pause/Play",

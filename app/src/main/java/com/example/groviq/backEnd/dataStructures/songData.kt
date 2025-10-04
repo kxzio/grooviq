@@ -102,8 +102,10 @@ data class songData(
         if (localExists()) return false
 
         if (stream.streamUrl.isNullOrEmpty()) return true
+
         val now = System.currentTimeMillis()
         return now - stream.setTime >= ttlMillis
+
     }
 }
 

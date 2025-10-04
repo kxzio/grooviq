@@ -97,6 +97,8 @@ data class playerState(
     var isShuffle   : Boolean = false,
     var repeatMode  : repeatMods = repeatMods.NO_REPEAT,
 
+    var isPlaying: Boolean = false
+
     //saved audiosources
 
     )

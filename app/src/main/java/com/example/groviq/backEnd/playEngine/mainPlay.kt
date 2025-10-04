@@ -37,6 +37,7 @@ import com.example.groviq.AppViewModels
 import com.example.groviq.MainActivity
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.setSongProgress
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
@@ -154,6 +155,7 @@ class AudioPlayerManager(context: Context) {
 
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
+
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)
             return
@@ -169,6 +171,8 @@ class AudioPlayerManager(context: Context) {
 
         if (player != null)
             player!!.stop()
+
+        player.playWhenReady = true
 
         //if we start playing another track, but last song didnt get the stream yet, we should cancel the thread to not overload
         if (hashkey != mainViewModel.uiState.value.playingHash) {
@@ -308,7 +312,6 @@ class AudioPlayerManager(context: Context) {
 
                         player!!.setMediaItem(mediaItem)
                         player!!.prepare()
-                        player!!.playWhenReady = true
                         player!!.repeatMode = Player.REPEAT_MODE_OFF
                         player!!.shuffleModeEnabled = false
 
@@ -365,7 +368,6 @@ class AudioPlayerManager(context: Context) {
 
                         player!!.setMediaItem(mediaItem)
                         player!!.prepare()
-                        player!!.playWhenReady = true
                         player!!.repeatMode = Player.REPEAT_MODE_OFF
                         player!!.shuffleModeEnabled = false
 
@@ -397,11 +399,24 @@ class AudioPlayerManager(context: Context) {
     }
 
     fun pause() {
-        player!!.pause()
+
+        player?.playWhenReady = false
+
     }
 
+
     fun resume() {
-        player!!.play()
+
+        if (AppViewModels.player.uiState.value.currentStatus != playerStatus.PAUSE &&
+            AppViewModels.player.uiState.value.currentStatus != playerStatus.PLAYING)
+        {
+            player?.playWhenReady = true
+            return
+        }
+
+        player?.play()
+
+
     }
 
     fun stop() {

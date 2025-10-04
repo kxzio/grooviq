@@ -130,10 +130,13 @@ fun createListeners(
             } else if (!playWhenReady && boundPlayer.playbackState == Player.STATE_READY) {
                 mainViewModel.setPlayerStatus(playerStatus.PAUSE)
             }
+            mainViewModel.uiState.value.isPlaying = playWhenReady
+
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) startProgressHandler() else stopProgressHandler()
+
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

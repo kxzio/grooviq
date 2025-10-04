@@ -65,9 +65,11 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
     val gradientAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
 
     // current reactive variables for subscribe //
-    val currentStatus       by mainViewModel.uiState.subscribeMe { it.currentStatus  }
-    val playingHash         by mainViewModel.uiState.subscribeMe { it.playingHash    }
-    val allAudioData        by mainViewModel.uiState.subscribeMe { it.allAudioData   }
+    val currentStatus       by mainViewModel.uiState.subscribeMe { it.currentStatus     }
+    val playingHash         by mainViewModel.uiState.subscribeMe { it.playingHash       }
+    val allAudioData        by mainViewModel.uiState.subscribeMe { it.allAudioData      }
+    val isPlaying           by mainViewModel.uiState.subscribeMe { it.isPlaying         }
+
 
     val loadingAudio = (currentStatus == playerStatus.IDLE || currentStatus == playerStatus.BUFFERING)
 
@@ -129,14 +131,14 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                 ) {
 
                     IconButton(onClick = {
-                        if (currentStatus == playerStatus.PAUSE)
+                        if (AppViewModels.player.playerManager.player.playWhenReady == false)
                             AppViewModels.player.playerManager.resume()
-                        if (currentStatus == playerStatus.PLAYING)
+                        else
                             AppViewModels.player.playerManager.pause()
                     },
                     ) {
                         Icon(
-                            imageVector = if (currentStatus == playerStatus.PAUSE)
+                            imageVector = if (isPlaying == false)
                                 Icons.Rounded.PlayArrow else Icons.Rounded.Pause
                             ,
                             contentDescription = "Pause/Play",

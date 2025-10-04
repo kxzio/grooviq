@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -41,6 +42,10 @@ import com.example.groviq.MyApplication
 import com.example.groviq.R
 import com.example.groviq.backEnd.playEngine.AudioPlayerManager
 import com.example.groviq.backEnd.playEngine.createListeners
+import com.example.groviq.backEnd.playEngine.updateNextSongHash
+import com.example.groviq.backEnd.streamProcessor.fetchAudioStream
+import com.example.groviq.backEnd.streamProcessor.fetchQueueStream
+import com.example.groviq.isServiceRunning
 import com.example.groviq.service.PlayerService.Companion.NOTIF_CHANNEL_ID
 import com.example.groviq.service.PlayerService.Companion.NOTIF_ID
 import com.google.common.collect.ImmutableList
@@ -50,6 +55,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 enum class pendingDirection {
     EMPTY,
@@ -98,6 +104,102 @@ class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
             else -> super.isCommandAvailable(command)
         }
     }
+
+    override fun pause() {
+        super.pause()
+    }
+
+    fun updateCurrentMediaItem()
+    {
+        val uiState = AppViewModels.player.uiState
+        val player  = AppViewModels.player.playerManager
+
+        val song = uiState.value.allAudioData[uiState.value.playingHash] ?: return
+
+        if (uiState.value.allAudioData[uiState.value.playingHash]?.shouldGetStream() ?: false)
+        {
+            if (song.progressStatus.streamHandled.not()) {
+                //stream not handled yet by any thread, we should get it by yourself
+
+                //clear old stream if we had one
+                AppViewModels.player.updateStreamForSong(
+                    uiState.value.playingHash,
+                    ""
+                )
+
+                CoroutineScope(Dispatchers.Main).launch {
+
+                    //request to get the new one
+                    fetchAudioStream(AppViewModels.player, uiState.value.playingHash)
+
+                    val streamUrl = AppViewModels.player.awaitStreamUrlFor(uiState.value.playingHash)
+
+                    if (streamUrl != null)
+                    {
+                        val oldMediaItem = player.player.currentMediaItem
+                        if (oldMediaItem != null)
+                        {
+                            val newItem = oldMediaItem.buildUpon()
+                                .setUri(streamUrl )
+                                .build()
+
+                            val oldPosition = player.player.currentPosition
+                            val wasPlaying = player.player.playWhenReady
+                            val currentIndex = player.player.currentMediaItemIndex
+
+                            player.player.replaceMediaItem(currentIndex, newItem)
+                            player.player.seekTo(currentIndex, oldPosition)
+                            player.player.prepare()
+                            player.player.playWhenReady = wasPlaying
+
+                            updateNextSongHash(AppViewModels.player)
+
+                            AppViewModels.player.playerManager.player!!.repeatMode = Player.REPEAT_MODE_OFF
+                            AppViewModels.player.playerManager.player!!.shuffleModeEnabled = false
+
+                            val svcIntent = Intent(MyApplication.globalContext, PlayerService::class.java)
+                            if (!isServiceRunning(MyApplication.globalContext!!, PlayerService::class.java)) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    ContextCompat.startForegroundService(MyApplication.globalContext, svcIntent)
+                                } else {
+                                    MyApplication.globalContext!!.startService(svcIntent)
+                                }
+                            }
+
+                            //save updated stream
+                            AppViewModels.player.saveSongToRoom(AppViewModels.player.uiState.value.allAudioData[uiState.value.playingHash]!!)
+
+                            fetchQueueStream(AppViewModels.player)
+
+                        }
+                    }
+
+                }
+
+            }
+
+        }
+    }
+
+    override fun play() {
+
+        val uiState = AppViewModels.player.uiState
+        if (uiState == null)
+            return
+
+        val song = uiState.value.allAudioData[uiState.value.playingHash] ?: return
+
+        if (song.progressStatus.streamHandled && !song.shouldGetStream()) {
+            super.play()
+            return
+        }
+
+        updateCurrentMediaItem()
+
+
+        super.play()
+    }
+
 
 }
 
