@@ -765,6 +765,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                                     art_local_link = artPath,
                                     artists = metadata.artistDto,
                                     year = metadata.year,
+                                    number = metadata.num?.toInt(),
                                     isExternal = true
                                 )
 
@@ -800,10 +801,13 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             // группировка и сохранение альбомов после завершения всех задач
             val groupedByAlbum = songs.groupBy { it.album_original_link }
             for ((albumName, albumSongs) in groupedByAlbum) {
+
+                val sortedSongs = albumSongs.sortedBy { it.number }
+
                 if (albumSongs.isNotEmpty()) {
                     setAlbumTracks(
                         albumName,
-                        albumSongs,
+                        sortedSongs,
                         albumName,
                         albumSongs[0].artists,
                         albumSongs[0].year,

@@ -241,7 +241,7 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
 
         super.onTaskRemoved(rootIntent)
 
-        AppViewModels.player.playerManager.player.pa
+        AppViewModels.player.playerManager.player.pause()
 
     }
 

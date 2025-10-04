@@ -42,6 +42,9 @@ import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
 import com.example.groviq.frontEnd.subscribeMe
 
+//the requst of navigation artist
+val tabForAlbums = mutableStateOf<Int>(0)
+
 @Composable
 @OptIn(
     UnstableApi::class
@@ -57,17 +60,15 @@ fun albumLists(searchingScreenNav: NavHostController,
 
     val audioSources = audioData.entries
 
-    var tabForAlbums by remember { mutableStateOf(0) }
-
-    val albums = when (tabForAlbums)
+    val albums = when (tabForAlbums.value)
     {
 
-        0-> { audioSources.filter {
+        0 -> { audioSources.filter {
             !mainViewModel.isPlaylist(it.key)
                     && audioData[it.key]?.shouldBeSavedStrictly ?: false
                     && audioData[it.key]?.isExternal == false } }
 
-        1-> { audioSources.filter {
+        1 -> { audioSources.filter {
             !mainViewModel.isPlaylist(it.key)
                     && audioData[it.key]?.shouldBeSavedStrictly ?: false
                     && audioData[it.key]?.isExternal == true } }
@@ -92,10 +93,10 @@ fun albumLists(searchingScreenNav: NavHostController,
             Row(Modifier.fillMaxWidth())
             {
                 Button({
-                    tabForAlbums = 0
+                    tabForAlbums.value = 0
                 },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (tabForAlbums == 0) MaterialTheme.colorScheme.primary else
+                        containerColor = if (tabForAlbums.value == 0) MaterialTheme.colorScheme.primary else
                                                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     ),
                     shape = RoundedCornerShape(0.dp),
@@ -106,10 +107,10 @@ fun albumLists(searchingScreenNav: NavHostController,
                 }
 
                 Button({
-                    tabForAlbums = 1
+                    tabForAlbums.value = 1
                 },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (tabForAlbums == 1) MaterialTheme.colorScheme.primary else
+                        containerColor = if (tabForAlbums.value == 1) MaterialTheme.colorScheme.primary else
                                                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     ),
                     shape = RoundedCornerShape(0.dp),
