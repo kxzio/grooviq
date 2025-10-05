@@ -21,8 +21,13 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.ExoDatabaseProvider
+import androidx.media3.datasource.ContentDataSource
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.FileDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
@@ -69,13 +74,12 @@ import kotlin.math.min
 @UnstableApi
 class AudioPlayerManager(context: Context) {
 
-    //main player
     val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(
-            /* minBufferMs = */ 2000,
-            /* maxBufferMs = */ 50000,
-            /* bufferForPlaybackMs = */ 500,
-            /* bufferForPlaybackAfterRebufferMs = */ 1500
+            2000,   // minBufferMs
+            50000,  // maxBufferMs
+            500,    // bufferForPlaybackMs
+            1500    // bufferForPlaybackAfterRebufferMs
         )
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
@@ -83,10 +87,9 @@ class AudioPlayerManager(context: Context) {
     val cacheDir = File(context.cacheDir, "media")
     val cacheEvictor = LeastRecentlyUsedCacheEvictor(100L * 1024L * 1024L)
     val databaseProvider = ExoDatabaseProvider(context)
-
     val simpleCache = SimpleCache(cacheDir, cacheEvictor, databaseProvider)
 
-    val upstreamFactory = DefaultHttpDataSource.Factory()
+    val httpDataSourceFactory = DefaultHttpDataSource.Factory()
         .setAllowCrossProtocolRedirects(true)
         .setConnectTimeoutMs(10_000)
         .setReadTimeoutMs(10_000)
@@ -95,14 +98,50 @@ class AudioPlayerManager(context: Context) {
 
     val cacheDataSourceFactory = CacheDataSource.Factory()
         .setCache(simpleCache)
-        .setUpstreamDataSourceFactory(upstreamFactory)
+        .setUpstreamDataSourceFactory(httpDataSourceFactory)
         .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-    val defaultDataSourceFactory = DefaultDataSource.Factory(context, cacheDataSourceFactory)
+    val defaultDataSourceFactory = DefaultDataSource.Factory(
+        context,
+        object : DataSource.Factory {
+            override fun createDataSource(): DataSource {
+                return object : DataSource {
+                    private var inner: DataSource? = null
+
+                    override fun open(dataSpec: DataSpec): Long {
+                        val scheme = dataSpec.uri.scheme
+                        inner = when {
+                            scheme == "content" -> ContentDataSource(context)
+                            scheme == "file" -> FileDataSource()
+                            scheme?.startsWith("http") == true -> cacheDataSourceFactory.createDataSource()
+                            else -> cacheDataSourceFactory.createDataSource()
+                        }
+                        return inner!!.open(dataSpec)
+                    }
+
+                    override fun read(buffer: ByteArray, offset: Int, readLength: Int): Int {
+                        return inner?.read(buffer, offset, readLength) ?: C.RESULT_END_OF_INPUT
+                    }
+
+                    override fun getUri(): Uri? = inner?.uri
+
+                    override fun close() {
+                        inner?.close()
+                        inner = null
+                    }
+
+                    override fun addTransferListener(transferListener: TransferListener) {
+                        inner?.addTransferListener(transferListener)
+                    }
+                }
+            }
+        }
+    )
+
+
     val mediaSourceFactory = DefaultMediaSourceFactory(defaultDataSourceFactory)
 
-
-    val notOverridedPlayer: ExoPlayer = ExoPlayer.Builder(MyApplication.globalContext!!)
+    val exoPlayer = ExoPlayer.Builder(context)
         .setLoadControl(loadControl)
         .setMediaSourceFactory(mediaSourceFactory)
         .setSeekBackIncrementMs(10_000)
@@ -118,7 +157,7 @@ class AudioPlayerManager(context: Context) {
             )
         }
 
-    var player = CustomPlayer(notOverridedPlayer)
+    val player = CustomPlayer(exoPlayer)
 
     //thread controllers
     private var currentPlaybackJob: Job? = null

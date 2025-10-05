@@ -44,6 +44,7 @@ fun grooviqUI.elements.openedElements.sliderWithDigits(song : songData, songProg
         {
             Box(modifier = Modifier.fillMaxWidth())
             {
+
                 Slider(
                     enabled = AppViewModels.player.playerManager.player.duration != C.TIME_UNSET,
                     value = songProgressUi.value.progress,

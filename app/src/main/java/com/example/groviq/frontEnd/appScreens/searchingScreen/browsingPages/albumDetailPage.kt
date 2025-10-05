@@ -6,6 +6,7 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -84,6 +85,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
@@ -348,7 +350,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
                             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally)
                             {
-                                Spacer(Modifier.height(15.dp))
+                                Spacer(Modifier.height(24.dp))
 
                                 Box(Modifier.fillMaxWidth(0.7f))
                                 {
@@ -360,7 +362,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                             .aspectRatio(1f).background(Color(0, 0, 0, 0)).clickable {
                                                 isPreviewVisible = true
                                                 scale = 0.8f
-                                            }
+                                            }.clip(RoundedCornerShape(8.dp))
                                     )
                                 }
 
@@ -369,14 +371,14 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
                                 if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
                                 {
-                                    Text(audioSourcePath, fontFamily = clashFont, fontSize = 40.sp,
+                                    Text(audioSourcePath, fontFamily = clashFont, fontSize = 33.sp, letterSpacing = 0.02.em,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                                 else
                                 {
-                                    Text(audioSource!!.nameOfAudioSource, fontFamily = clashFont, fontSize = 40.sp,
+                                    Text(audioSource!!.nameOfAudioSource, fontFamily = clashFont, fontSize = 33.sp, letterSpacing = 0.02.em,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -387,9 +389,13 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                 {
                                     Spacer(Modifier.height(15.dp))
 
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clip(
-                                        RoundedCornerShape(8.dp)
-                                    ).background(Color(255, 255, 255, 14))) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier
+
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(255, 255, 255, 14))
+                                    .border(1.dp, Color(255, 255, 255, 30), RoundedCornerShape(8.dp))
+
+                                    ) {
 
                                         audioSource!!.artistsOfAudioSource.forEach { artist ->
 

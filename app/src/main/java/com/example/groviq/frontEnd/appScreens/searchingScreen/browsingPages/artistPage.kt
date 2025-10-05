@@ -143,9 +143,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
             item {
                 asyncedImage(
                     currentArtist.imageUrl,
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(RoundedCornerShape(4.dp)),
+                    modifier = Modifier.fillMaxWidth().height(120.dp)
                 )
             }
 
