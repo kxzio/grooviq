@@ -73,28 +73,41 @@ data class songData(
 
     )
 {
-    private val existenceCache = mutableMapOf<String, Boolean>()
+    private data class CachedExistence(val exists: Boolean, val timestamp: Long)
+    private val existenceCache = mutableMapOf<String, CachedExistence>()
+    private val cacheTimeoutMs = 8000L
 
     fun localExists(): Boolean {
         val pathOrUri = fileUri ?: return false
 
-        // кэш
-        existenceCache[pathOrUri]?.let { return it }
+        // проверяем кэш
+        existenceCache[pathOrUri]?.let { cached ->
+            if (System.currentTimeMillis() - cached.timestamp <= cacheTimeoutMs) {
+                return cached.exists
+            }
+        }
 
         val exists = try {
-            if (pathOrUri.startsWith("/")) {
-                File(pathOrUri).exists()
-            } else {
-                val uri = Uri.parse(pathOrUri)
-                val docFile = DocumentFile.fromSingleUri(MyApplication.globalContext, uri)
-                docFile?.exists() ?: false
+            when {
+                pathOrUri.startsWith("file://") -> {
+                    File(Uri.parse(pathOrUri).path!!).exists()
+                }
+                pathOrUri.startsWith("/") -> {
+                    File(pathOrUri).exists()
+                }
+                pathOrUri.startsWith("content://") -> {
+                    val uri = Uri.parse(pathOrUri)
+                    val docFile = DocumentFile.fromSingleUri(MyApplication.globalContext, uri)
+                    docFile?.exists() ?: false
+                }
+                else -> false
             }
         } catch (e: Exception) {
             false
         }
 
-        // сохраняем результат в кэш
-        existenceCache[pathOrUri] = exists
+        // сохраняем в кэш
+        existenceCache[pathOrUri] = CachedExistence(exists, System.currentTimeMillis())
         return exists
     }
 

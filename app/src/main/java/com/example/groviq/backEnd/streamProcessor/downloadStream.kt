@@ -123,8 +123,8 @@ suspend fun downloadAudioFile(mainViewModel: PlayerViewModel, hashToDownload: St
             val safeAlbum = getYoutubeObjectId(song.album_original_link)
 
             val urlHash = getYoutubeObjectId(song.link)
-            
-            val uniqueName = "${safeAlbum}__${urlHash}.mp3"
+
+            val uniqueName = if (song.stream.isVideo ) "${safeAlbum}__${urlHash}.mp4" else "${safeAlbum}__${urlHash}.mp3"
             val partName = "$uniqueName.part"
 
             val finalFile = File(MyApplication.globalContext!!.getExternalFilesDir(null), uniqueName)
