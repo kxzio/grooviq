@@ -104,7 +104,7 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
                         return@withContext
                     }
 
-                    mainViewModel.updateStreamForSong(songKey, audioUrl)
+                    mainViewModel.updateStreamForSongByPair(songKey, audioUrl)
                 }
             } else {
                 // not found
@@ -143,6 +143,9 @@ fun fetchAudioStream(mainViewModel: PlayerViewModel, songKey: String) {
     fetchJobs[songKey] = job
 }
 
+@OptIn(
+    UnstableApi::class
+)
 fun cancelFetchForSong(songKey: String, mainViewModel: PlayerViewModel) {
     val job = fetchJobs.remove(songKey)
     job?.cancel(CancellationException("Switching track"))
@@ -210,7 +213,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
                                 if (!isActive || audioUrl == null) return@async
 
                                 withContext(Dispatchers.Main) {
-                                    mainViewModel.updateStreamForSong(song.link, audioUrl)
+                                    mainViewModel.updateStreamForSongByPair(song.link, audioUrl)
                                 }
                             } finally {
                                 withContext(NonCancellable + Dispatchers.Main) {
@@ -249,6 +252,9 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
 
 var currentAudioSourceFetch: Job? = null
 
+@OptIn(
+    UnstableApi::class
+)
 fun fetchAudioSource(audioSource: String, mainViewModel: PlayerViewModel) {
     CoroutineScope(Dispatchers.Main).launch {
         if (mainViewModel.uiState.value.audioData[audioSource] == null) return@launch
@@ -281,7 +287,7 @@ fun fetchAudioSource(audioSource: String, mainViewModel: PlayerViewModel) {
                                         val audioUrl = getBestAudioStreamUrl(song.link)
                                         if (!isActive || audioUrl == null) return@async
                                         withContext(Dispatchers.Main) {
-                                            mainViewModel.updateStreamForSong(song.link, audioUrl)
+                                            mainViewModel.updateStreamForSongByPair(song.link, audioUrl)
                                         }
                                     } finally {
                                         withContext(NonCancellable + Dispatchers.Main) {

@@ -25,7 +25,8 @@ data class songProgressStatus(
 
 data class streamInfo(
     var streamUrl : String = "",
-    var setTime   : Long   = 0L
+    var setTime   : Long   = 0L,
+    var isVideo   : Boolean = false
 )
 
 

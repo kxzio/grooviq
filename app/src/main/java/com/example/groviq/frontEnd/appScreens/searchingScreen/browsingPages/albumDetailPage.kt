@@ -392,7 +392,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier
 
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(255, 255, 255, 14))
+                                    .background(Color(0, 0, 0, 10))
                                     .border(1.dp, Color(255, 255, 255, 30), RoundedCornerShape(8.dp))
 
                                     ) {
@@ -437,7 +437,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                 }
 
                 items(
-                    songs
+                    songs, key = { it.link }
                 ) { song ->
                     SwipeToQueueItem(audioSource = audioSourcePath, song = song, mainViewModel = mainViewModel,
                         Modifier.clickable
@@ -454,10 +454,13 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                     Spacer(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.background))
                 }
 
+                item {
+                   Spacer(Modifier.height(85.dp))
+                }
 
                 item {
                     if (allAudioData[playingHash] != null) {
-                        Spacer(Modifier.height(80.dp))
+                        Spacer(Modifier.height(95.dp))
                     }
                 }
             }

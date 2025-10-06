@@ -138,7 +138,6 @@ def searchOnServer(q: str) -> str:
 
 
 
-
 def getAlbum(ytmusic_url: str) -> str:
     def extract_id(url: str) -> str:
         m = re.search(r"(?:browse/|album/)([\w-]+)", url)
@@ -153,7 +152,6 @@ def getAlbum(ytmusic_url: str) -> str:
         return (h*3600 + m*60 + s) * 1000
 
     def clean_album_name(name: str) -> str:
-        # Убираем скобочные приписки типа (Deluxe Edition), [Remastered], {Expanded} и т.п.
         return re.sub(r"[\(\[\{].*?[\)\]\}]", "", name).strip()
 
     album_id = extract_id(ytmusic_url)
@@ -170,15 +168,13 @@ def getAlbum(ytmusic_url: str) -> str:
     album_title = album.get('title', '')
     album_title_clean = clean_album_name(album_title)
     tracks = []
-    used_video_ids = set()
 
     for item in album.get('tracks', []):
-        orig_vid = item.get('videoId')
-        if not orig_vid:
+        vid = item.get('videoId')
+        if not vid:
             continue
 
         orig_duration_ms = duration_to_millis(item.get('duration', '0:00'))
-        vid = orig_vid
         title = item.get('title', '')
 
         # Собираем всех артистов трека
@@ -190,33 +186,6 @@ def getAlbum(ytmusic_url: str) -> str:
             url = f"https://music.youtube.com/channel/{ar_id}" if ar_id else ''
             artists_info.append({'name': name, 'url': url})
 
-        # Для поиска используем имя первого артиста
-        first_artist = artists_info[0]['name'] if artists_info else ''
-
-        vt = item.get('videoType', '')
-        if vt in ('MUSIC_VIDEO_TYPE_OMV', 'MUSIC_VIDEO_TYPE_UGC'):
-            query = f"{title} - {first_artist}"
-            results = _ytm.search(query, filter='songs', limit=5)
-
-            for res in results:
-                alb = res.get('album') or {}
-                alb_name_clean = clean_album_name(alb.get('name', ''))
-                if alb.get('id') == album_id or alb_name_clean == album_title_clean:
-                    candidate_vid = res.get('videoId', orig_vid)
-                    if candidate_vid in used_video_ids:
-                        continue
-                    res_dur = res.get('duration')
-                    if res_dur:
-                        cand_duration_ms = duration_to_millis(res_dur)
-                        if cand_duration_ms != orig_duration_ms:
-                            continue
-                    vid = candidate_vid
-                    break
-
-        if vid in used_video_ids:
-            vid = orig_vid
-        used_video_ids.add(vid)
-
         tracks.append({
             'id': vid,
             'title': title,
@@ -226,25 +195,13 @@ def getAlbum(ytmusic_url: str) -> str:
             'artists': artists_info
         })
 
-    album_artist_name = album.get('artist', '').lower()
-
-    if True :
-        # Собираем уникальных артистов из всех треков
-        unique_artists = {}
-        for track in tracks:
-            for ar in track['artists']:
-                key = ar['url'] or ar['name']  # уникальный ключ
-                if key not in unique_artists:
-                    unique_artists[key] = ar
-        artists_all = list(unique_artists.values())
-    else:
-        # Просто берём артистов альбома из метаданных
-        artists_all = []
-        for ar in album.get('artists', []):
-            name = ar.get('name', '')
-            ar_id = ar.get('id')
-            url = f"https://music.youtube.com/channel/{ar_id}" if ar_id else ''
-            artists_all.append({'name': name, 'url': url})
+    unique_artists = {}
+    for track in tracks:
+        for ar in track['artists']:
+            key = ar['url'] or ar['name']
+            if key not in unique_artists:
+                unique_artists[key] = ar
+    artists_all = list(unique_artists.values())
 
     result = {
         'album': album_title,

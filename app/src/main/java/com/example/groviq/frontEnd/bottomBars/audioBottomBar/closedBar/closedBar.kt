@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -35,6 +37,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +66,7 @@ import kotlinx.coroutines.isActive
 @Composable
 fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, searchViewModel: SearchViewModel, songProgressUi: State<CurrentSongTimeProgress>, hazeState: HazeState)
 {
-    val baseColor   = Color(40, 40, 40, 100)
+    val baseColor   = Color(10, 10, 10, 140)
 
     val gradientShift = remember { androidx.compose.animation.core.Animatable(0f) }
     val gradientAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -96,9 +103,11 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
     {
         BoxWithConstraints(
             modifier = Modifier.align(Alignment.BottomCenter)
-                .padding(bottom = 65.dp)
+                .padding(bottom = 100.dp, start = 25.dp, end = 25.dp)
                 .fillMaxWidth()
                 .height(80.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(8.dp))
                 .background(baseColor)
                 .hazeEffect(state = hazeState)
 
@@ -109,12 +118,14 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                 gradientAlpha = gradientAlpha.value
             )
 
-            Box(Modifier.align(Alignment.BottomStart))
+            Box(Modifier.align(Alignment.TopStart))
             {
                 LinearProgressIndicator(
                     progress = songProgressUi.value.progress,
                     modifier = Modifier
-                        .fillMaxWidth().height(2.dp)
+                        .fillMaxWidth().height(4.dp).padding(1.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color(0, 0, 0, 0)
                 )
             }
 
@@ -148,9 +159,10 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                     }
 
 
-                    IconButton(onClick = {
-                            AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
-                        },
+                    /*
+                                        IconButton(onClick = {
+                        AppViewModels.player.playerManager.nextSong(mainViewModel, searchViewModel)
+                    },
                     ) {
                         Icon(
                             imageVector =
@@ -160,6 +172,8 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                             modifier = Modifier.size(30.dp)
                         )
                     }
+                     */
+
 
                     Column(Modifier.fillMaxWidth().padding(start = 15.dp))
                     {
@@ -200,6 +214,7 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
             }
 
         }
+
     }
 
 }

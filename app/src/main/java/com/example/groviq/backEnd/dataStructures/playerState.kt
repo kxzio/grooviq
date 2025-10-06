@@ -413,6 +413,20 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
+    fun updateStreamForSongByPair(songLink: String, streamUrl: Pair<String?, Boolean>) {
+        updateState { currentState ->
+            val updatedAllAudioData = currentState.allAudioData.toMutableMap()
+            val song = updatedAllAudioData[songLink]
+            if (song != null) {
+                updatedAllAudioData[songLink] =
+                    song.copy(
+                        stream = streamInfo(streamUrl.first ?: "", if (streamUrl.first == "") 0L else System.currentTimeMillis(), isVideo = streamUrl.second)
+                    )
+            }
+            currentState.copy(allAudioData = updatedAllAudioData)
+        }
+    }
+
     fun updateDurationForSong(songLink: String, duration: Long) {
         updateState { currentState ->
             val updatedAllAudioData = currentState.allAudioData.toMutableMap()

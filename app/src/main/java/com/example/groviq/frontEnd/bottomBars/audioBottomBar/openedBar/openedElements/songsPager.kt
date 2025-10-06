@@ -2,12 +2,14 @@ package com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedEl
 
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -17,6 +19,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,13 +29,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
@@ -54,6 +63,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
 {
     val currentQueue        by mainViewModel.uiState.subscribeMe { it.currentQueue   }
     val posInQueue          by mainViewModel.uiState.subscribeMe { it.posInQueue     }
+    val playingHash         by mainViewModel.uiState.subscribeMe { it.playingHash    }
 
     val songsInQueue = currentQueue
 
@@ -71,6 +81,19 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
             NestedScrollConnection {}
     }
 
+    val song = allAudioData[playingHash]
+
+    val hasVideo = (song?.stream?.isVideo == true)
+
+    val targetAlpha = if (hasVideo) 0f else 1f
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(
+            durationMillis = 300,
+            easing = FastOutSlowInEasing
+        )
+    )
+
     HorizontalPager(
         state = pagerState,
         beyondViewportPageCount = 1,
@@ -84,6 +107,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
         ),
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(alpha)
             .nestedScroll(nestedScrollConnection)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures { change, dragAmount ->

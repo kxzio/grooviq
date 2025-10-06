@@ -1,11 +1,13 @@
 package com.example.groviq.frontEnd
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Home
@@ -45,6 +48,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -98,6 +104,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 }
 
 
+@SuppressLint(
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 @OptIn(
     UnstableApi::class
 )
@@ -143,104 +152,67 @@ fun connectScreens(
         }
     }
 
-    Box(Modifier.hazeSource(state = hazeState))
+    Box(Modifier)
     {
-        Scaffold(
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.0f),
-                    modifier = Modifier.height(65.dp)
-                ) {
-                    items.forEach { screen ->
-
-                        val controller = navControllers[screen]!!
-                        val backStackEntry by controller.currentBackStackEntryAsState()
-                        val currentRoute = backStackEntry?.destination?.route
-                        
-                        NavigationBarItem(
-                            colors = NavigationBarItemColors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                selectedIndicatorColor = Color.Transparent,
-                                unselectedIconColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                unselectedTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                disabledIconColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                disabledTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            ),
-                            icon = { Icon(screen.icon, contentDescription = null, modifier = Modifier.size(23.dp)) },
-                            label = { },
-                            selected = currentTab == screen,
-                            onClick = {
-                                val isInsideThisTab = currentTab == screen
-                                if (!isInsideThisTab) {
-                                    currentTab = screen
-                                } else {
-                                    controller.popBackStack(screen.route, inclusive = false)
-                                }
-                            }
-                        )
-                    }
-                }
-
-            }
+        Scaffold(Modifier.hazeSource(state = hazeState)
         ) { innerPadding ->
 
             val pendingArtistLink = artistPendingNavigation.value
             LaunchedEffect(pendingArtistLink) {
-                if (pendingArtistLink != null) {
-                    val encoded = Uri.encode(pendingArtistLink)
-                    currentTab = Screen.Searching
-                    val targetController = navControllers[Screen.Searching]!!
+                    if (pendingArtistLink != null) {
+                        val encoded = Uri.encode(pendingArtistLink)
+                        currentTab = Screen.Searching
+                        val targetController = navControllers[Screen.Searching]!!
 
-                    val route = "${Screen.Searching.route}/artist/$encoded"
-                    if (targetController.graph.findNode(route) != null)
-                    {
-                        targetController.navigate(route) {
-                            launchSingleTop = true
+                        val route = "${Screen.Searching.route}/artist/$encoded"
+                        if (targetController.graph.findNode(route) != null)
+                        {
+                            targetController.navigate(route) {
+                                launchSingleTop = true
+                            }
                         }
-                    }
 
-                    artistPendingNavigation.value = null
+                        artistPendingNavigation.value = null
+                    }
                 }
-            }
 
             val pendingAlbumLink = albumPendingNavigation.value
             LaunchedEffect(pendingAlbumLink) {
-                if (pendingAlbumLink != null) {
-                    val encoded = Uri.encode(pendingAlbumLink)
-                    currentTab = Screen.Searching
-                    val targetController = navControllers[Screen.Searching]!!
-                    val route = "${Screen.Searching.route}/album/$encoded"
-                    if (targetController.graph.findNode(route) != null)
-                    {
-                        targetController.navigate(route) {
-                            launchSingleTop = true
+                    if (pendingAlbumLink != null) {
+                        val encoded = Uri.encode(pendingAlbumLink)
+                        currentTab = Screen.Searching
+                        val targetController = navControllers[Screen.Searching]!!
+                        val route = "${Screen.Searching.route}/album/$encoded"
+                        if (targetController.graph.findNode(route) != null)
+                        {
+                            targetController.navigate(route) {
+                                launchSingleTop = true
+                            }
                         }
+                        albumPendingNavigation.value = null
                     }
-                    albumPendingNavigation.value = null
                 }
-            }
 
             val pendingRadioLink = trackRadioPendingNavigation.value
             LaunchedEffect(pendingRadioLink) {
-                if (pendingRadioLink != null) {
-                    val encoded = Uri.encode(pendingRadioLink)
-                    currentTab = Screen.Searching
-                    val targetController = navControllers[Screen.Searching]!!
-                    val route = "${Screen.Searching.route}/radio/$encoded"
-                    if (targetController.graph.findNode(route) != null)
-                    {
-                        targetController.navigate(route) {
-                            launchSingleTop = true
+                    if (pendingRadioLink != null) {
+                        val encoded = Uri.encode(pendingRadioLink)
+                        currentTab = Screen.Searching
+                        val targetController = navControllers[Screen.Searching]!!
+                        val route = "${Screen.Searching.route}/radio/$encoded"
+                        if (targetController.graph.findNode(route) != null)
+                        {
+                            targetController.navigate(route) {
+                                launchSingleTop = true
+                            }
                         }
+                        trackRadioPendingNavigation.value = null
                     }
-                    trackRadioPendingNavigation.value = null
                 }
-            }
 
             val stateHolder = rememberSaveableStateHolder()
 
-            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            Box(modifier = Modifier.padding(top = innerPadding.calculateTopPadding()).fillMaxSize()) {
                 val controller = navControllers[currentTab]!!
                 stateHolder.SaveableStateProvider(currentTab.route) {
                     NavHost(
@@ -314,6 +286,81 @@ fun connectScreens(
                     }
                 }
 
+            }
+
+            Box(Modifier.fillMaxHeight())
+            {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .drawWithCache {
+                            val gradient = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.3f)
+                                ),
+                                startY = 0f,
+                                endY = size.height * 0.2f
+                            )
+                            onDrawBehind {
+                                drawRect(brush = gradient)
+                            }
+                        }
+                )
+            }
+
+
+
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(start = 15.dp, end = 15.dp, bottom = 15.dp, )
+                .height(70.dp)
+                .clip(RoundedCornerShape(36.dp))
+                .hazeEffect(hazeState)
+        ) {
+            Box(Modifier.background(Color(10, 10, 10, 140))
+                .border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(36.dp)))
+            {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.0f),
+                    modifier = Modifier.height(70.dp).padding(horizontal = 10.dp).padding(top = 6.dp)
+                ) {
+                    items.forEach { screen ->
+
+                        val controller = navControllers[screen]!!
+                        val backStackEntry by controller.currentBackStackEntryAsState()
+                        val currentRoute = backStackEntry?.destination?.route
+
+                        NavigationBarItem(
+                            colors = NavigationBarItemColors(
+                                selectedIconColor = Color(255, 255, 255),
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                selectedIndicatorColor = Color.Transparent,
+                                unselectedIconColor = Color(255, 255, 255).copy(alpha = 0.2f),
+                                unselectedTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                disabledIconColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                disabledTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            ),
+                            icon = { Icon(screen.icon, contentDescription = null, modifier = Modifier.size(23.dp)) },
+                            label = { },
+                            selected = currentTab == screen,
+                            onClick = {
+                                val isInsideThisTab = currentTab == screen
+                                if (!isInsideThisTab) {
+                                    currentTab = screen
+                                } else {
+                                    controller.popBackStack(screen.route, inclusive = false)
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }

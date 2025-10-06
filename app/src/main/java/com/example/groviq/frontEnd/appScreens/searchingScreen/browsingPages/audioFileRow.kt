@@ -77,6 +77,7 @@ import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.vibrateLight
+import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 
 
@@ -248,12 +249,16 @@ fun SwipeToQueueItem(
                         }
                     },
                     onDragEnd = {
+
                         scope.launch {
+
                             if (offsetX.value > addToQueueSwipeThreshold) {
                                 addToCurrentQueue(mainViewModel, song.link, audioSource)
                                 vibrateLight(MyApplication.globalContext!!)
                             }
+
                             if (offsetX.value < addToLikesSwipeThreshold) {
+
                                 if (liked)
                                     mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
                                 else
@@ -269,6 +274,7 @@ fun SwipeToQueueItem(
                 )
             }
     ) {
+
 
         if (offsetX.value > 10f || offsetX.value < -10f) {
             Row(

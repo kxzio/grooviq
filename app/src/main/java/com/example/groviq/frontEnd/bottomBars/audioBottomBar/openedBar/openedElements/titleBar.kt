@@ -1,5 +1,6 @@
 package com.example.groviq.frontEnd.bottomBars.audioBottomBar.openedBar.openedElements
 
+import androidx.annotation.OptIn
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -7,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,17 +21,27 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.songData
 import com.example.groviq.frontEnd.appScreens.openAlbum
 import com.example.groviq.frontEnd.appScreens.openArtist
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.ui.theme.clashFont
 
+@OptIn(
+    UnstableApi::class
+)
 @Composable
 fun grooviqUI.elements.openedElements.titleBar(song : songData, onToogleSheet: () -> Unit)
 {
     Box(Modifier.fillMaxWidth().padding(horizontal = 25.dp))
     {
+
         Column()
         {
             Text(text = song?.title ?: "", fontWeight = FontWeight.SemiBold, fontSize = 22.sp, maxLines = 1, modifier = Modifier.clickable {

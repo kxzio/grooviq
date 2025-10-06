@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,13 +44,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.CurrentSongTimeProgress
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -110,6 +117,26 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
         )
         {
             if (song != null) { background(song) }
+
+            val hasVideo = (song?.stream?.isVideo == true)
+
+            if (hasVideo)
+            {
+                AndroidView(
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            player = AppViewModels.player.playerManager.player
+                            setOnTouchListener { _, _ -> true }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 200)))
+
+            }
 
             Column(modifier = Modifier
                 .fillMaxSize(),

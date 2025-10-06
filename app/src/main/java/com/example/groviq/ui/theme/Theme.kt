@@ -54,11 +54,11 @@ private val DarkColorScheme = darkColorScheme(
         255
     ),
     onSecondary   = Color.White,
-    tertiary      = Color(17, 17, 17),
+    tertiary      = Color(14, 14, 14),
     onTertiary    = Color.White,
-    background    = Color(17, 17, 17),
+    background    = Color(14, 14, 14),
     onBackground  = Color.White,
-    surface       = Color(17, 17, 17),
+    surface       = Color(14, 14, 14),
     onSurface     = Color.White,
     error         = Color(255, 69, 58), // красный для ошибок
     onError       = Color.White,
