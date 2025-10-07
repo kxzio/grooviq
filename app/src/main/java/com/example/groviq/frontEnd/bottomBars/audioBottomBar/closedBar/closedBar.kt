@@ -66,7 +66,7 @@ import kotlinx.coroutines.isActive
 @Composable
 fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, searchViewModel: SearchViewModel, songProgressUi: State<CurrentSongTimeProgress>, hazeState: HazeState)
 {
-    val baseColor   = Color(10, 10, 10, 140)
+    val baseColor   = Color(20, 20, 20, 140)
 
     val gradientShift = remember { androidx.compose.animation.core.Animatable(0f) }
     val gradientAlpha = remember { androidx.compose.animation.core.Animatable(1f) }

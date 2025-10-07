@@ -378,8 +378,14 @@ class AudioPlayerManager(context: Context) {
                     //back to UI layer
                     withContext(Dispatchers.Main)
                     {
-
-                        val songArtResult = mainViewModel.awaitSongArt(mainViewModel, hashkey)
+                        val songArtResult =
+                        if (mainViewModel.uiState.value.allAudioData[hashkey]?.art_link.isNullOrEmpty() == true ||
+                            mainViewModel.uiState.value.allAudioData[hashkey]?.art_local_link.isNullOrEmpty())
+                        {
+                            null
+                        } else {
+                            mainViewModel.awaitSongArt(mainViewModel, hashkey)
+                        }
 
                         val mediaMetadataBuilder = MediaMetadata.Builder()
                             .setTitle(song.title)
@@ -393,6 +399,10 @@ class AudioPlayerManager(context: Context) {
                             }
                             is PlayerViewModel.SongArtResult.UrlResult -> {
                                 mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
+                            }
+
+                            null -> {
+
                             }
                         }
 

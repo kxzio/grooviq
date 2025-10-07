@@ -242,7 +242,7 @@ class SearchViewModel : ViewModel() {
                     val albumMetaJson = withTimeoutOrNull(timeoutPerTry) {
                         withContext(Dispatchers.IO) {
                             getPythonModule(context)
-                                .callAttr("getAlbum", request)
+                                .callAttr("getAlbumNoVideo", request)
                                 .toString()
                         }
                     } ?: run {

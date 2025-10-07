@@ -407,7 +407,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             val song = updatedAllAudioData[songLink]
             if (song != null) {
                 updatedAllAudioData[songLink] =
-                    song.copy(stream = streamInfo(streamUrl, if (streamUrl == "") 0L else System.currentTimeMillis()))
+                    song.copy(stream = streamInfo(streamUrl, if (streamUrl == "") 0L else System.currentTimeMillis(), isVideo = song.stream.isVideo))
             }
             currentState.copy(allAudioData = updatedAllAudioData)
         }
@@ -719,6 +719,15 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun generateSongsFromFolder(viewFolder: ViewFolder) {
 
+        fun parseTrackNumber(num: String?): Int? {
+            if (num.isNullOrBlank()) return null
+            return try {
+                num.substringBefore("/").toIntOrNull()
+            } catch (e: Exception) {
+                null
+            }
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
 
             val context = MyApplication.globalContext ?: return@launch
@@ -781,7 +790,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                                     art_local_link = artPath,
                                     artists = metadata.artistDto,
                                     year = metadata.year,
-                                    number = metadata.num?.toInt(),
+                                    number = parseTrackNumber(metadata.num),
                                     isExternal = true
                                 )
 

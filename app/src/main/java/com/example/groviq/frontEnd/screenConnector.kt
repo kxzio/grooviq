@@ -299,7 +299,7 @@ fun connectScreens(
                             val gradient = Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.3f)
+                                    Color.Black.copy(alpha = 0.2f)
                                 ),
                                 startY = 0f,
                                 endY = size.height * 0.2f
@@ -324,7 +324,7 @@ fun connectScreens(
                 .clip(RoundedCornerShape(36.dp))
                 .hazeEffect(hazeState)
         ) {
-            Box(Modifier.background(Color(10, 10, 10, 140))
+            Box(Modifier.background(Color(20, 20, 20, 140))
                 .border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(36.dp)))
             {
                 NavigationBar(
@@ -342,7 +342,7 @@ fun connectScreens(
                                 selectedIconColor = Color(255, 255, 255),
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
                                 selectedIndicatorColor = Color.Transparent,
-                                unselectedIconColor = Color(255, 255, 255).copy(alpha = 0.2f),
+                                unselectedIconColor = Color(255, 255, 255).copy(alpha = 0.3f),
                                 unselectedTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                                 disabledIconColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                                 disabledTextColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),

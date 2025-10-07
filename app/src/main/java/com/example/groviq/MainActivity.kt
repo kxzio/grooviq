@@ -52,6 +52,7 @@ import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.backEnd.searchEngine.SearchViewModelFactory
 
 
+
 class MainActivity : ComponentActivity() {
 
 
@@ -110,6 +111,7 @@ class MyApplication : Application(), ViewModelStoreOwner {
         super.onCreate()
         instance = this
         globalContext = applicationContext
+
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             appendLog(

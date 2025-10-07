@@ -136,8 +136,6 @@ def searchOnServer(q: str) -> str:
 
     return json.dumps({"results": results})
 
-
-
 def getAlbum(ytmusic_url: str) -> str:
     def extract_id(url: str) -> str:
         m = re.search(r"(?:browse/|album/)([\w-]+)", url)
@@ -194,6 +192,104 @@ def getAlbum(ytmusic_url: str) -> str:
             'duration_ms': orig_duration_ms,
             'artists': artists_info
         })
+
+    unique_artists = {}
+    for track in tracks:
+        for ar in track['artists']:
+            key = ar['url'] or ar['name']
+            if key not in unique_artists:
+                unique_artists[key] = ar
+    artists_all = list(unique_artists.values())
+
+    result = {
+        'album': album_title,
+        'artist': artists_all,
+        'year': str(album.get('year', ''))[:4],
+        'image_url': (album.get('thumbnails') or [{}])[-1].get('url', ''),
+        'tracks': tracks
+    }
+
+    return json.dumps(result, ensure_ascii=False, default=str)
+
+def getAlbumNoVideo(ytmusic_url: str) -> str:
+    def extract_id(url: str) -> str:
+        m = re.search(r"(?:browse/|album/)([\w-]+)", url)
+        return m.group(1) if m else url.strip()
+
+    def duration_to_millis(dur: str) -> int:
+        parts = [int(p) for p in dur.split(':')]
+        if len(parts) == 3:
+            h, m, s = parts
+        else:
+            h = 0; m, s = parts
+        return (h * 3600 + m * 60 + s) * 1000
+
+    def clean_album_name(name: str) -> str:
+        return re.sub(r"[\(\[\{].*?[\)\]\}]", "", name).strip()
+
+    album_id = extract_id(ytmusic_url)
+    album = _ytm.get_album(album_id)
+    if not album:
+        return json.dumps({
+            "album": "", "artist": [], "year": "", "image_url": "", "tracks": []
+        }, ensure_ascii=False)
+
+    album_title = album.get('title', '')
+    album_title_clean = clean_album_name(album_title)
+
+    used_video_ids = set()
+
+    def process_track(item):
+        orig_vid = item.get('videoId')
+        if not orig_vid:
+            return None
+
+        orig_duration_ms = duration_to_millis(item.get('duration', '0:00'))
+        vid = orig_vid
+        title = item.get('title', '')
+
+        artists_raw = item.get('artists', [])
+        artists_info = [{'name': a.get('name', ''), 'url': f"https://music.youtube.com/channel/{a['id']}" if a.get('id') else ''} for a in artists_raw]
+        first_artist = artists_info[0]['name'] if artists_info else ''
+        vt = item.get('videoType', '')
+
+        if vt in ('MUSIC_VIDEO_TYPE_OMV', 'MUSIC_VIDEO_TYPE_UGC'):
+            query = f"{title} - {first_artist}"
+            results = _ytm.search(query, filter='songs', limit=5)
+            for res in results:
+                alb = res.get('album') or {}
+                alb_name_clean = clean_album_name(alb.get('name', ''))
+                if alb.get('id') == album_id or alb_name_clean == album_title_clean:
+                    candidate_vid = res.get('videoId', orig_vid)
+                    if candidate_vid in used_video_ids:
+                        continue
+                    res_dur = res.get('duration')
+                    if res_dur:
+                        cand_duration_ms = duration_to_millis(res_dur)
+                        if cand_duration_ms != orig_duration_ms:
+                            continue
+                    vid = candidate_vid
+                    break
+
+        if vid in used_video_ids:
+            vid = orig_vid
+        used_video_ids.add(vid)
+
+        return {
+            'id': vid,
+            'title': title,
+            'track_num': item.get('trackNumber', 0),
+            'url': f"https://music.youtube.com/watch?v={vid}",
+            'duration_ms': orig_duration_ms,
+            'artists': artists_info
+        }
+
+    track_items = album.get('tracks', [])
+    tracks = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        for result in executor.map(process_track, track_items):
+            if result:
+                tracks.append(result)
 
     unique_artists = {}
     for track in tracks:

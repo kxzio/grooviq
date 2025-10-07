@@ -51,24 +51,21 @@ private fun extractStreamSafe(videoUrl: String): Pair<String?, Boolean>? {
         val videoStreams = extractor.videoStreams
         val audioStreams = extractor.audioStreams
 
-        // Если есть видеопотоки — проверяем, что это реально клип
-        if (!videoStreams.isNullOrEmpty()) {
-            val hlsUrl = extractor.hlsUrl
-            if (!hlsUrl.isNullOrEmpty()) {
-                // Это клип с аудио
-                return Pair(hlsUrl, true)
-            }
+        if (true) {
+            val bestVideo = videoStreams
+                .filter {
+                    (it.height ?: 0) >= 360 &&
+                            (it.bitrate ?: 0) > 200_000 &&
+                            (it.fps ?: 0) >= 15
+                }
+                .maxByOrNull { it.bitrate ?: 0 }
 
-            // Если нет HLS, но есть нормальные видео-потоки — считаем клипом
-            val bestVideo = videoStreams.maxByOrNull { it.bitrate }
-            if (bestVideo != null && bestVideo.bitrate > 200_000) { // порог для фильтра автогенерации
+            if (bestVideo != null)
                 return Pair(bestVideo.url, true)
-            }
         }
 
-        // Если видео-потоков нет или они мелкие — возвращаем просто аудио
-        Pair(audioStreams.maxByOrNull { it.averageBitrate }?.url
-            ?: audioStreams.firstOrNull()?.url, false)
+        val bestAudio = audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.firstOrNull()
+        Pair(bestAudio?.url, false)
 
     } catch (e: Exception) {
         e.printStackTrace()

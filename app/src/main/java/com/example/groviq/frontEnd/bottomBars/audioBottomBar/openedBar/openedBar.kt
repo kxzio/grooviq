@@ -134,7 +134,7 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
                     modifier = Modifier.fillMaxSize()
                 )
 
-                Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 200)))
+                Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 165)))
 
             }
 

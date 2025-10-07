@@ -120,8 +120,7 @@ dependencies {
 
     implementation("com.github.shalva97:NewValve:1.5")
 
-    //implementation("com.github.TeamNewPipe.NewPipeExtractor:extractor:v0.24.6")
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:dev-SNAPSHOT")
+    implementation("com.github.TeamNewPipe.NewPipeExtractor:extractor:v0.24.6")
 
 
     //EXOPLAYER
@@ -158,4 +157,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // DELETE ON RELEASE
 }

@@ -109,14 +109,14 @@ fun openTrackSettingsBottomBar(requestHash: String, audioSource : String = "IT_E
     currentSettingsOpenedAudioSource.value = audioSource
 }
 
+@Composable
 @androidx.annotation.OptIn(
     UnstableApi::class
 )
 @OptIn(
     ExperimentalMaterial3Api::class
 )
-@Composable
-fun trackSettingsBottomBar(mainViewModel : PlayerViewModel, hazeState: HazeState)
+fun trackSettingsBottomBar(mainViewModel : PlayerViewModel)
 {
     val isOpened by rememberUpdatedState(isTrackSettingsOpened.value)
     val requestHash = currentTrackHashForSettings.value ?: return
@@ -133,7 +133,6 @@ fun trackSettingsBottomBar(mainViewModel : PlayerViewModel, hazeState: HazeState
         }
     }
 
-
     ModalBottomSheet(
         onDismissRequest = {
             isTrackSettingsOpened.value             = false
@@ -142,27 +141,17 @@ fun trackSettingsBottomBar(mainViewModel : PlayerViewModel, hazeState: HazeState
         },
         sheetState = sheetState,
         containerColor = Color(
-            0x00171717
+            0xFF0D0D0D
         ),
     ) {
-
-        Box {
-
-            Box(modifier = Modifier.background(Color(15, 15, 15, 210)).hazeEffect(hazeState)) {
-                Column(Modifier.background(Color(15, 15, 15, 195)).padding(10.dp)){
-                    drawSettingsBottomBar(mainViewModel, requestHash, {
-                        isTrackSettingsOpened.value             = false
-                        currentTrackHashForSettings.value       = null
-                        currentSettingsOpenedAudioSource.value  = null
-                    } )
-                }
-
-            }
-
+        Column(modifier = Modifier.padding(10.dp)) {
+            drawSettingsBottomBar(mainViewModel, requestHash, {
+                isTrackSettingsOpened.value             = false
+                currentTrackHashForSettings.value       = null
+                currentSettingsOpenedAudioSource.value  = null
+            } )
         }
-
     }
-
 }
 
 

@@ -42,7 +42,6 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
     val screenConnectorNavigationLocal = rememberNavController()
 
     val hazeState            = remember { HazeState() }
-    val hazeStateForSettings = remember { HazeState() }
 
     //we get view now. now we have to attach listeners for view update
     LaunchedEffect(Unit) {
@@ -58,7 +57,7 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
     CompositionLocalProvider(
         screenConnectorNavigation provides screenConnectorNavigationLocal,
     ) {
-        Box(Modifier.fillMaxSize().navigationBarsPadding().hazeSource(hazeStateForSettings))
+        Box(Modifier.fillMaxSize().navigationBarsPadding())
         {
             audioBottomSheet(mainViewModel, searchViewModel, hazeState)
             {
@@ -67,7 +66,7 @@ fun drawLayout(mainViewModel: PlayerViewModel, searchViewModel : SearchViewModel
         }
         Box(Modifier.fillMaxSize())
         {
-            trackSettingsBottomBar(mainViewModel, hazeStateForSettings)
+            trackSettingsBottomBar(mainViewModel)
         }
 
 

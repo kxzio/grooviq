@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -33,6 +35,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
@@ -43,6 +48,7 @@ import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -371,14 +377,14 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
 
                                 if (audioSource!!.nameOfAudioSource.isNullOrEmpty())
                                 {
-                                    Text(audioSourcePath, fontFamily = clashFont, fontSize = 33.sp, letterSpacing = 0.02.em,
+                                    Text(audioSourcePath, fontSize = 33.sp, letterSpacing = 0.015.em,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                                 else
                                 {
-                                    Text(audioSource!!.nameOfAudioSource, fontFamily = clashFont, fontSize = 33.sp, letterSpacing = 0.02.em,
+                                    Text(audioSource!!.nameOfAudioSource, fontSize = 33.sp, letterSpacing = 0.015.em,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -392,17 +398,16 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier
 
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0, 0, 0, 10))
+                                    .background(Color(40, 40, 40, 20))
                                     .border(1.dp, Color(255, 255, 255, 30), RoundedCornerShape(8.dp))
 
                                     ) {
 
                                         audioSource!!.artistsOfAudioSource.forEach { artist ->
 
-                                            Row(modifier = Modifier.padding(4.dp))
+                                            Row(modifier = Modifier.padding(6.dp))
                                             {
                                                 Icon(Icons.Rounded.Person, "", tint = Color(255, 255, 255, 150))
-
 
                                                 Text(text = artist.title, color = Color(255, 255, 255, 150), modifier = Modifier.padding(horizontal = 3.dp).clickable {
                                                     openArtist(artist.url)
@@ -423,8 +428,111 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                     Text(text = audioSource!!.yearOfAudioSource, fontSize = 16.sp, color = Color(255, 255, 255, 100))
                                 }
 
-                                Spacer(Modifier.height(16.dp))
+                                Spacer(Modifier.height(40.dp))
 
+
+                            }
+
+                            Column(Modifier.padding(horizontal = 16.dp)) {
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                )
+                                {
+
+                                    if (audioSource.isExternal)
+                                    {
+                                        Row(verticalAlignment = Alignment.CenterVertically)
+                                        {
+                                            Icon(Icons.Rounded.AudioFile, "", tint = Color(255, 255, 255, 90),)
+
+                                            Text("From local storage",
+                                                color = Color(255, 255, 255, 90),
+                                                fontWeight = FontWeight.Normal,
+                                                letterSpacing = 0.04.em,
+                                                fontSize = 14.sp,
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            )
+                                        }
+
+                                    }
+
+                                    if (isPlaylist.not() && audioSource.isExternal.not())
+                                    {
+                                        Button(
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(40, 40, 40, 20)
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            border = BorderStroke(1.dp, Color(255, 255, 255, 20)),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                            onClick = {
+                                                mainViewModel.toggleStrictSaveAudioSource(audioSourcePath)
+                                                mainViewModel.saveAudioSourcesToRoom()
+                                                mainViewModel.saveSongsFromSourceToRoom(audioSourcePath)
+                                            })
+                                        {
+                                            if (audioData[audioSourcePath]?.shouldBeSavedStrictly ?: false)
+                                            {
+                                                Icon(Icons.Rounded.Close, "", tint = Color(255, 255, 255, 170))
+                                            }
+                                            else
+                                            {
+                                                Icon(Icons.Rounded.Add, "", tint = Color(255, 255, 255, 170))
+                                            }
+                                        }
+                                    }
+
+                                    if (songs.isNullOrEmpty().not() && audioSource.isExternal.not() )
+                                    {
+                                        Button(
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(40, 40, 40, 20)
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            border = BorderStroke(1.dp, Color(255, 255, 255, 20)),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                            onClick = {
+
+                                                if (songs.all { it.localExists() })
+                                                {
+                                                    songs.forEach { track ->
+                                                        DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    songs.forEach { track ->
+                                                        if (track.isExternal == false)
+                                                            DownloadManager.enqueue(mainViewModel, track.link)
+                                                    }
+                                                    DownloadManager.start()
+                                                }
+
+                                            })
+                                        {
+                                            if (songs.all { it.localExists() } )
+                                            {
+                                                Icon(Icons.Rounded.DeleteOutline, "", tint = Color(255, 255, 255, 170))
+
+                                                Text("Delete", Modifier.padding(start = 6.dp),
+                                                    color = Color(255, 255, 255, 170),
+                                                    fontWeight = FontWeight.Normal,
+                                                    letterSpacing = 0.04.em
+                                                )
+                                            }
+                                            else {
+                                                Icon(Icons.Rounded.Download, "", tint = Color(255, 255, 255, 170))
+
+                                                Text("Download", Modifier.padding(start = 6.dp),
+                                                    color = Color(255, 255, 255, 170),
+                                                    fontWeight = FontWeight.Normal,
+                                                    letterSpacing = 0.04.em
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
 
                             }
                         }
