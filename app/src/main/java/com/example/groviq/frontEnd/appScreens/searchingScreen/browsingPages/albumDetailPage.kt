@@ -93,6 +93,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavBackStackEntry
@@ -604,41 +606,48 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                 )
             }
 
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = alpha))
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { isPreviewVisible = false }
-            )
+            Popup(
 
-            Box(
-                Modifier
-                    .fillMaxSize()                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { isPreviewVisible = false }
-                    .transformable(state = transformableState),
-                contentAlignment = Alignment.Center
-            ) {
-                grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
-                    audioSourcePath,
-                    audioData = audioData,
-                    allAudioData = allAudioData,
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .aspectRatio(1f)
-                        .graphicsLayer {
-                            scaleX = scale.value
-                            scaleY = scale.value
-                            translationX = offset.value.x
-                            translationY = offset.value.y
-                        }
-                        .clip(RoundedCornerShape(16.dp))
+            )
+            {
+                Box(
+                    Modifier
+                        .zIndex(3f)
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = alpha))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { isPreviewVisible = false }
                 )
+
+                Box(
+                    Modifier
+                        .zIndex(4f).fillMaxSize()                    .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { isPreviewVisible = false }
+                        .transformable(state = transformableState),
+                    contentAlignment = Alignment.Center
+                ) {
+                    grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                        audioSourcePath,
+                        audioData = audioData,
+                        allAudioData = allAudioData,
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .aspectRatio(1f)
+                            .graphicsLayer {
+                                scaleX = scale.value
+                                scaleY = scale.value
+                                translationX = offset.value.x
+                                translationY = offset.value.y
+                            }
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+                }
             }
+
         }
     }
 

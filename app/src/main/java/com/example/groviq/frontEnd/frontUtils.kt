@@ -331,8 +331,18 @@ fun asyncedImage(
                         contentDescription = "Loading",
                         modifier = Modifier.fillMaxSize(0.7f)
                     )
-                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke()
-                    ?: Icon(
+                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke() ?:
+
+                if (songData.isExternal)
+                    {
+                        Icon(
+                            Icons.Rounded.Image,
+                            contentDescription = "Error",
+                            modifier = Modifier.fillMaxSize(0.7f)
+                        )
+                    }
+                        else
+                    Icon(
                         Icons.Rounded.ImageNotSupported,
                         contentDescription = "Error",
                         modifier = Modifier.fillMaxSize(0.7f)

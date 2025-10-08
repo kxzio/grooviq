@@ -104,13 +104,20 @@ fun createListeners(
                     mainViewModel.setPlayerStatus(playerStatus.BUFFERING)
                 }
                 Player.STATE_READY -> {
+
                     if (boundPlayer.playWhenReady) {
                         mainViewModel.setPlayerStatus(playerStatus.PLAYING)
 
-                        val ui = mainViewModel.uiState.value
-                        if (ui.allAudioData[ui.playingHash]?.duration == 0L) {
-                            mainViewModel.updateDurationForSong(ui.playingHash, boundPlayer.duration)
+                        val currentMediaId = boundPlayer.currentMediaItem?.mediaId
+                        val duration = boundPlayer.duration
+
+                        if (currentMediaId != null && duration != C.TIME_UNSET) {
+                            val song = mainViewModel.uiState.value.allAudioData[currentMediaId]
+                            if (song != null && song.duration == 0L) {
+                                mainViewModel.updateDurationForSong(currentMediaId, duration)
+                            }
                         }
+
                     } else {
                         mainViewModel.setPlayerStatus(playerStatus.PAUSE)
                     }
@@ -145,7 +152,6 @@ fun createListeners(
             val uiState = mainViewModel.uiState.value
             addTrackToMediaItems?.cancel()
 
-
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 moveToNextPosInQueue(mainViewModel)
 
@@ -162,12 +168,6 @@ fun createListeners(
 
                 //update image if needed
                 val song = mainViewModel.uiState.value.allAudioData[uiState.currentQueue[newIndex].hashKey] ?: return
-
-                if (song.duration == C.TIME_UNSET)
-                {
-
-                }
-
 
                 CoroutineScope(Dispatchers.Main).launch {
 
@@ -191,14 +191,14 @@ fun createListeners(
 
             }
 
-            //update image if needed
-            val song = mainViewModel.uiState.value.allAudioData[
-                mainViewModel.uiState.value.currentQueue[mainViewModel.uiState.value.posInQueue].hashKey
-            ] ?: return
+            val currentMediaId = boundPlayer.currentMediaItem?.mediaId
+            val duration = boundPlayer.duration
 
-            if (song.duration == 0L)
-            {
-                mainViewModel.updateDurationForSong(song.link, AppViewModels.player.playerManager.player!!.duration)
+            if (currentMediaId != null && duration != C.TIME_UNSET) {
+                val song = mainViewModel.uiState.value.allAudioData[currentMediaId]
+                if (song != null && song.duration == 0L) {
+                    mainViewModel.updateDurationForSong(currentMediaId, duration)
+                }
             }
 
             prepareAndAddNextTrackToMediaItems(mainViewModel)
@@ -265,10 +265,14 @@ fun createListeners(
 
 @OptIn(UnstableApi::class)
 fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel) {
+
     val uiState = mainViewModel.uiState.value
     if (uiState.shouldRebuild) return
 
     addTrackToMediaItems?.cancel()
+
+    if (uiState.repeatMode == repeatMods.REPEAT_ONE)
+        return
 
     addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
         val player = AppViewModels.player.playerManager.player

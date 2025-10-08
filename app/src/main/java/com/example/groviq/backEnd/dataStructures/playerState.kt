@@ -28,6 +28,7 @@ import com.example.groviq.getArtFromURI
 import com.example.groviq.hasInternetConnection
 import com.example.groviq.loadBitmapFromUrl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +51,7 @@ import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.coroutines.cancellation.CancellationException
 
 enum class playerStatus {
     IDLE,
@@ -258,6 +260,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
                 else repeatMods.NO_REPEAT
             )
         }
+        updateNextSongHash(this)
     }
 
     fun setAlbumTracks(
@@ -716,6 +719,7 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         }
     }
 
+    val songFromFolderGenerator = mutableMapOf<String, Job>()
 
     fun generateSongsFromFolder(viewFolder: ViewFolder) {
 
@@ -728,139 +732,162 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
             }
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        songFromFolderGenerator[viewFolder.uri] = viewModelScope.launch(Dispatchers.IO) {
 
-            val context = MyApplication.globalContext ?: return@launch
+            try {
+                val context = MyApplication.globalContext ?: return@launch
 
-            val files = findAudioInFolderRecursively(Uri.parse(viewFolder.uri))
-            if (files.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    updateState { state ->
-                        state.copy(
-                            localFilesFolders = state.localFilesFolders.map {
-                                if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 1f)
-                                else it
-                            }.toMutableList()
-                        )
+                val files = findAudioInFolderRecursively(Uri.parse(viewFolder.uri))
+                if (files.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        updateState { state ->
+                            state.copy(
+                                localFilesFolders = state.localFilesFolders.map {
+                                    if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 1f)
+                                    else it
+                                }.toMutableList()
+                            )
+                        }
                     }
+                    return@launch
                 }
-                return@launch
-            }
 
-            val existingLinks = uiState.value.allAudioData
-                .mapNotNull { it.value.fileUri }
-                .toSet()
+                val existingLinks = uiState.value.allAudioData
+                    .mapNotNull { it.value.fileUri }
+                    .toSet()
 
-            val newFiles = files.filter { it.toString() !in existingLinks }
-            if (newFiles.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    updateState { state ->
-                        state.copy(
-                            localFilesFolders = state.localFilesFolders.map {
-                                if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 1f)
-                                else it
-                            }.toMutableList()
-                        )
+                val newFiles = files.filter { it.toString() !in existingLinks }
+                if (newFiles.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        updateState { state ->
+                            state.copy(
+                                localFilesFolders = state.localFilesFolders.map {
+                                    if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 1f)
+                                    else it
+                                }.toMutableList()
+                            )
+                        }
                     }
+                    return@launch
                 }
-                return@launch
-            }
 
-            val total = newFiles.size
-            val songs = Collections.synchronizedList(mutableListOf<songData>())
-            val counter = AtomicInteger(0)
-            val semaphore = Semaphore(4) // максимум 4 файла одновременно — оптимально по I/O
-            val dispatcher = Dispatchers.IO.limitedParallelism(6)
+                val total = newFiles.size
+                val songs = Collections.synchronizedList(mutableListOf<songData>())
+                val counter = AtomicInteger(0)
+                val semaphore = Semaphore(4) // максимум 4 файла одновременно — оптимально по I/O
+                val dispatcher = Dispatchers.IO.limitedParallelism(6)
 
-            coroutineScope {
-                newFiles.forEach { file ->
-                    launch(dispatcher) {
-                        semaphore.withPermit {
-                            try {
-                                val metadata = extractMetadataFromFile(file)
+                coroutineScope {
+                    newFiles.forEach { file ->
+                        launch(dispatcher) {
+                            semaphore.withPermit {
+                                try {
+                                    val metadata = extractMetadataFromFile(file)
 
-                                val artPath = grooviqUI.elements.URICoverGetter
-                                    .saveAlbumArtPermanentFromUri(file, metadata.album + metadata.year)
+                                    val artPath = grooviqUI.elements.URICoverGetter
+                                        .saveAlbumArtPermanentFromUri(file, metadata.album + metadata.year)
 
-                                val song = songData(
-                                    link = file.toString(),
-                                    title = metadata.title,
-                                    album_original_link = metadata.album,
-                                    fileUri = file.toString(),
-                                    art_local_link = artPath,
-                                    artists = metadata.artistDto,
-                                    year = metadata.year,
-                                    number = parseTrackNumber(metadata.num),
-                                    isExternal = true
-                                )
+                                    val song = songData(
+                                        link = file.toString(),
+                                        title = metadata.title,
+                                        album_original_link = metadata.album,
+                                        fileUri = file.toString(),
+                                        art_local_link = artPath,
+                                        artists = metadata.artistDto,
+                                        year = metadata.year,
+                                        number = parseTrackNumber(metadata.num),
+                                        isExternal = true,
+                                        stream = streamInfo(isVideo = metadata?.isVideo ?: false)
+                                    )
 
-                                songs.add(song)
+                                    songs.add(song)
 
-                                val completed = counter.incrementAndGet()
-                                if (completed % 10 == 0 || completed == total) {
-                                    val progress = completed.toFloat() / total.toFloat()
-                                    withContext(Dispatchers.Main) {
-                                        updateState { state ->
-                                            state.copy(
-                                                localFilesFolders = state.localFilesFolders.map {
-                                                    if (it.uri == viewFolder.uri)
-                                                        it.copy(progressOfLoading = progress)
-                                                    else it
-                                                }.toMutableList()
-                                            )
+                                    val completed = counter.incrementAndGet()
+                                    if (completed % 10 == 0 || completed == total) {
+                                        val progress = completed.toFloat() / total.toFloat()
+                                        withContext(Dispatchers.Main) {
+                                            updateState { state ->
+                                                state.copy(
+                                                    localFilesFolders = state.localFilesFolders.map {
+                                                        if (it.uri == viewFolder.uri)
+                                                            it.copy(progressOfLoading = progress)
+                                                        else it
+                                                    }.toMutableList()
+                                                )
+                                            }
                                         }
                                     }
+
+                                    // лёгкая пауза для разгрузки GC при больших партиях
+                                    if (completed % 200 == 0) delay(50)
+
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
                                 }
-
-                                // лёгкая пауза для разгрузки GC при больших партиях
-                                if (completed % 200 == 0) delay(50)
-
-                            } catch (e: Exception) {
-                                e.printStackTrace()
                             }
                         }
                     }
                 }
-            }
 
-            // группировка и сохранение альбомов после завершения всех задач
-            val groupedByAlbum = songs.groupBy { it.album_original_link }
-            for ((albumName, albumSongs) in groupedByAlbum) {
+                // группировка и сохранение альбомов после завершения всех задач
+                val groupedByAlbum = songs.groupBy { it.album_original_link }
+                for ((albumName, albumSongs) in groupedByAlbum) {
 
-                val sortedSongs = albumSongs.sortedBy { it.number }
+                    val sortedSongs = albumSongs.sortedBy { it.number }
 
-                if (albumSongs.isNotEmpty()) {
-                    setAlbumTracks(
-                        albumName,
-                        sortedSongs,
-                        albumName,
-                        albumSongs[0].artists,
-                        albumSongs[0].year,
-                        isExternalSource = true
-                    )
-                    saveSongsFromSourceToRoom(albumName)
+                    if (albumSongs.isNotEmpty()) {
+                        setAlbumTracks(
+                            albumName,
+                            sortedSongs,
+                            albumName,
+                            albumSongs[0].artists,
+                            albumSongs[0].year,
+                            isExternalSource = true
+                        )
+                        saveSongsFromSourceToRoom(albumName)
+                    }
                 }
-            }
 
-            // финальное обновление UI
-            withContext(Dispatchers.Main) {
-                updateState { state ->
-                    state.copy(
-                        localFilesFolders = state.localFilesFolders.map {
-                            if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 1f)
-                            else it
-                        }.toMutableList()
-                    )
+                // финальное обновление UI
+                withContext(Dispatchers.Main) {
+                    updateState { state ->
+                        state.copy(
+                            localFilesFolders = state.localFilesFolders.map {
+                                if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 1f)
+                                else it
+                            }.toMutableList()
+                        )
+                    }
                 }
+
+                saveAllFolders()
+                saveAudioSourcesToRoom()
+
+            } catch (e: CancellationException) {
+
+                withContext(Dispatchers.Main) {
+                    updateState { state ->
+                        state.copy(
+                            localFilesFolders = state.localFilesFolders.map {
+                                if (it.uri == viewFolder.uri) it.copy(progressOfLoading = 0f)
+                                else it
+                            }.toMutableList()
+                        )
+                    }
+                }
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                songFromFolderGenerator.remove(viewFolder.uri)
             }
 
-            saveAllFolders()
-            saveAudioSourcesToRoom()
         }
     }
 
 
     fun deleteSongsFromFolder(viewFolder: ViewFolder) {
+
         viewModelScope.launch(Dispatchers.IO) {
 
             val urisToDelete = findAudioInFolderRecursively(Uri.parse(viewFolder.uri))

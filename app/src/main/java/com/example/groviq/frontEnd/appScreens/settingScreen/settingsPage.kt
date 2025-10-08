@@ -129,6 +129,9 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
                                 }
 
                                 IconButton(onClick = {
+
+                                    mainViewModel.songFromFolderGenerator[folder.uri]?.cancel()
+
                                     mainViewModel.updateState { state ->
                                         state.copy(
                                             localFilesFolders = state.localFilesFolders.toMutableList().apply {
@@ -136,6 +139,7 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
                                             }
                                         )
                                     }
+
                                     mainViewModel.deleteSongsFromFolder(folder)
                                 }) {
                                     Icon(Icons.Rounded.Close, contentDescription = null)

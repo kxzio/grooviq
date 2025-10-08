@@ -144,8 +144,6 @@ fun openedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, songPr
             )
             {
 
-                Text(text =  AppViewModels.player.playerManager.player.mediaItemCount.toString())
-
                 if (songsLoader == true)
                 {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
