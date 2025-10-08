@@ -268,6 +268,7 @@ class AudioPlayerManager(context: Context) {
         //clear all songs that we had by surfing the web, now we have to delete them, because they have no clue, since user played song
         mainViewModel.clearUnusedAudioSourcedAndSongs(searchViewModel)
 
+        updateNextSongHash(mainViewModel)
 
         currentPlaybackJob = playbackScope.launch {
 
@@ -346,8 +347,6 @@ class AudioPlayerManager(context: Context) {
                             .setTag(song.link)
                             .setMediaMetadata(mediaMetadataBuilder.build())
                             .build()
-
-                        updateNextSongHash(mainViewModel)
 
                         player!!.setMediaItem(mediaItem)
                         player!!.prepare()
@@ -431,8 +430,6 @@ class AudioPlayerManager(context: Context) {
 
                         //save updated stream
                         mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashkey]!!)
-
-                        updateNextSongHash(mainViewModel)
 
                         fetchQueueStream(mainViewModel)
 
