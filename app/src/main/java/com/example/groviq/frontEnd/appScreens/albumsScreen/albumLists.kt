@@ -113,11 +113,11 @@ fun albumLists(searchingScreenNav: NavHostController,
         {
 
 
-            Box(Modifier.background(MaterialTheme.colorScheme.background).hazeSource(hazeState))
+            Box(Modifier.background(MaterialTheme.colorScheme.background))
             {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.background(MaterialTheme.colorScheme.background).fillMaxWidth().padding(),
+                    modifier = Modifier.background(MaterialTheme.colorScheme.background).fillMaxWidth().padding().hazeSource(hazeState),
                     contentPadding = PaddingValues(top = 86.dp)
                 ) {
 
