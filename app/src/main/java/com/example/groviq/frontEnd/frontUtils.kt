@@ -327,25 +327,28 @@ fun asyncedImage(
             when (painter.state) {
                 is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
                     ?: Icon(
-                        Icons.Rounded.Image,
+                        Icons.Rounded.Album,
                         contentDescription = "Loading",
                         modifier = Modifier.fillMaxSize(0.7f)
+                        ,tint = Color(255, 255, 255, 100)
                     )
                 is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke() ?:
 
                 if (songData.isExternal)
                     {
                         Icon(
-                            Icons.Rounded.Image,
+                            Icons.Rounded.Album,
                             contentDescription = "Error",
                             modifier = Modifier.fillMaxSize(0.7f)
+                            ,tint = Color(255, 255, 255, 100)
                         )
                     }
                         else
                     Icon(
-                        Icons.Rounded.ImageNotSupported,
+                        Icons.Rounded.Album,
                         contentDescription = "Error",
                         modifier = Modifier.fillMaxSize(0.7f)
+                        ,tint = Color(255, 255, 255, 100)
                     )
                 else -> Unit
             }

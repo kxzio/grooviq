@@ -245,10 +245,18 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
 
     fun toogleShuffleMode() {
         updateState { state ->
-            val newShuffle = !state.isShuffle
-            onShuffleToogle(mainViewModel = this, newShuffle)
-            state.copy(isShuffle = newShuffle)
+
+            val newShuffle =
+                !state.isShuffle
+
+            val newState =
+                state.copy(
+                    isShuffle = newShuffle
+                )
+
+            newState
         }
+        onShuffleToogle(mainViewModel = this, uiState.value.isShuffle)
     }
 
     fun toogleRepeatMode() {

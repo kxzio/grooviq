@@ -1,10 +1,15 @@
 package com.example.groviq.backEnd.playEngine
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.service.nextSongHashPending
+
+//the requst of navigation artist
+val isQueueInBuildingProcess = mutableStateOf<Boolean>(false)
+
 
 data class queueElement(
     val hashKey     : String,
@@ -14,81 +19,90 @@ data class queueElement(
 )
 
 fun createQueueOnAudioSourceHash(mainViewModel: PlayerViewModel, requstedHash: String) {
-    val view = mainViewModel.uiState.value
 
-    if (mainViewModel.uiState.value.allAudioData[requstedHash] == null)
-        return
+    isQueueInBuildingProcess.value = true
 
-    val baseSongs = mainViewModel.uiState.value.audioData[view.playingAudioSourceHash]?.songIds
-        ?.mapNotNull { songId -> mainViewModel.uiState.value.allAudioData[songId] } ?: emptyList()
+    try {
+        val view = mainViewModel.uiState.value
 
-    val baseHashSet = baseSongs.map { it.link }.toSet()
+        if (mainViewModel.uiState.value.allAudioData[requstedHash] == null)
+            return
 
-    val oldOriginal = mainViewModel.uiState.value.originalQueue
+        val baseSongs = mainViewModel.uiState.value.audioData[view.playingAudioSourceHash]?.songIds
+            ?.mapNotNull { songId -> mainViewModel.uiState.value.allAudioData[songId] } ?: emptyList()
 
-    // map existing original elements by hashKey -> to reuse ids
-    val oldByHash = oldOriginal.associateBy { it.hashKey }
+        val baseHashSet = baseSongs.map { it.link }.toSet()
 
-    // the map of all base songs by hash
-    val baseMap = baseSongs.associateBy { it.link }
+        val oldOriginal = mainViewModel.uiState.value.originalQueue
 
-    val newQueue = mutableListOf<queueElement>()
+        // map existing original elements by hashKey -> to reuse ids
+        val oldByHash = oldOriginal.associateBy { it.hashKey }
 
-    // already added hashes
-    val addedBaseHashes = mutableSetOf<String>()
+        // the map of all base songs by hash
+        val baseMap = baseSongs.associateBy { it.link }
 
-    // take original queue and take used ADDED requests (and reuse ids for base tracks)
-    for (elem in oldOriginal) {
-        if (elem.addedByUser) {
-            // user-added — сохраняем как есть (и id)
-            newQueue.add(elem)
-        } else {
-            // base track
-            if (baseHashSet.contains(elem.hashKey) && !addedBaseHashes.contains(elem.hashKey)) {
-                val song = baseMap[elem.hashKey]!!
-                // попробуем взять существующий id для этого hash из старой очереди
+        val newQueue = mutableListOf<queueElement>()
+
+        // already added hashes
+        val addedBaseHashes = mutableSetOf<String>()
+
+        // take original queue and take used ADDED requests (and reuse ids for base tracks)
+        for (elem in oldOriginal) {
+            if (elem.addedByUser) {
+                // user-added — сохраняем как есть (и id)
+                newQueue.add(elem)
+            } else {
+                // base track
+                if (baseHashSet.contains(elem.hashKey) && !addedBaseHashes.contains(elem.hashKey)) {
+                    val song = baseMap[elem.hashKey]!!
+                    // попробуем взять существующий id для этого hash из старой очереди
+                    val existing = oldByHash[song.link]
+                    val idToUse = existing?.id ?: java.util.UUID.randomUUID().toString()
+                    newQueue.add(queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash, id = idToUse))
+                    addedBaseHashes.add(elem.hashKey)
+                }
+                // если base track не найден — пропускаем
+            }
+        }
+
+        // add all songs that belong to this source (если какие-то остались)
+        for (song in baseSongs) {
+            if (!addedBaseHashes.contains(song.link)) {
                 val existing = oldByHash[song.link]
                 val idToUse = existing?.id ?: java.util.UUID.randomUUID().toString()
                 newQueue.add(queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash, id = idToUse))
-                addedBaseHashes.add(elem.hashKey)
+                addedBaseHashes.add(song.link)
             }
-            // если base track не найден — пропускаем
         }
+
+        // save original queue
+        mainViewModel.setOriginalQueue(newQueue)
+        mainViewModel.setLastSourceBuilded(view.playingAudioSourceHash)
+
+        val originalQueue = mainViewModel.uiState.value.originalQueue.toMutableList()
+
+        val newCurrentQueue = if (view.isShuffle) {
+            val shuffled = originalQueue.shuffled().toMutableList()
+            val index = shuffled.indexOfFirst { it.hashKey == requstedHash }
+            if (index > 0) {
+                val elem = shuffled.removeAt(index)
+                shuffled.add(0, elem)
+            }
+            shuffled
+        } else {
+            originalQueue
+        }
+
+        // set queue
+        mainViewModel.setQueue(newCurrentQueue)
+        // set position to the element that matches requested hash (fallback to 0 if not found)
+        mainViewModel.setPosInQueue(newCurrentQueue.indexOfFirst { it.hashKey == requstedHash }.takeIf { it >= 0 } ?: 0)
+        updateNextSongHash(mainViewModel)
+
+    } finally {
+        isQueueInBuildingProcess.value = false
     }
 
-    // add all songs that belong to this source (если какие-то остались)
-    for (song in baseSongs) {
-        if (!addedBaseHashes.contains(song.link)) {
-            val existing = oldByHash[song.link]
-            val idToUse = existing?.id ?: java.util.UUID.randomUUID().toString()
-            newQueue.add(queueElement(hashKey = song.link, audioSource = view.playingAudioSourceHash, id = idToUse))
-            addedBaseHashes.add(song.link)
-        }
-    }
-
-    // save original queue
-    mainViewModel.setOriginalQueue(newQueue)
-    mainViewModel.setLastSourceBuilded(view.playingAudioSourceHash)
-
-    val originalQueue = mainViewModel.uiState.value.originalQueue.toMutableList()
-
-    val newCurrentQueue = if (view.isShuffle) {
-        val shuffled = originalQueue.shuffled().toMutableList()
-        val index = shuffled.indexOfFirst { it.hashKey == requstedHash }
-        if (index > 0) {
-            val elem = shuffled.removeAt(index)
-            shuffled.add(0, elem)
-        }
-        shuffled
-    } else {
-        originalQueue
-    }
-
-    // set queue
-    mainViewModel.setQueue(newCurrentQueue)
-    // set position to the element that matches requested hash (fallback to 0 if not found)
-    mainViewModel.setPosInQueue(newCurrentQueue.indexOfFirst { it.hashKey == requstedHash }.takeIf { it >= 0 } ?: 0)
-    updateNextSongHash(mainViewModel)
 }
 
 
@@ -134,33 +148,42 @@ fun moveToPrevPosInQueue(mainViewModel : PlayerViewModel)
 }
 
 fun toggleShuffle(mainViewModel: PlayerViewModel, isShuffle : Boolean) {
-    val view = mainViewModel.uiState.value
-    val current = view.currentQueue.toMutableList()
-    val currentSong = current.getOrNull(view.posInQueue) ?: return
 
-    val newQueue = if (isShuffle) {
-        // shuffle current, but keep currentSong as first (ищем по id)
-        val shuffled = current.shuffled().toMutableList()
-        val index = shuffled.indexOfFirst { it.id == currentSong.id }
-        if (index > 0) {
-            val elem = shuffled.removeAt(index)
-            shuffled.add(0, elem)
+    isQueueInBuildingProcess.value = true
+
+    try {
+        val view = mainViewModel.uiState.value
+        val current = view.currentQueue.toMutableList()
+        val currentSong = current.getOrNull(view.posInQueue) ?: return
+
+        val newQueue = if (isShuffle) {
+            // shuffle current, but keep currentSong as first (ищем по id)
+            val shuffled = current.shuffled().toMutableList()
+            val index = shuffled.indexOfFirst { it.id == currentSong.id }
+            if (index > 0) {
+                val elem = shuffled.removeAt(index)
+                shuffled.add(0, elem)
+            }
+            shuffled
+        } else {
+            // restore original queue and set position to the same element (ищем по id)
+            val ordered = view.originalQueue.toMutableList()
+            val idx = ordered.indexOfFirst { it.id == currentSong.id }
+            mainViewModel.setQueue(ordered)
+            mainViewModel.setPosInQueue(if (idx >= 0) idx else 0)
+            updateNextSongHash(mainViewModel)
+            return
         }
-        shuffled
-    } else {
-        // restore original queue and set position to the same element (ищем по id)
-        val ordered = view.originalQueue.toMutableList()
-        val idx = ordered.indexOfFirst { it.id == currentSong.id }
-        mainViewModel.setQueue(ordered)
-        mainViewModel.setPosInQueue(if (idx >= 0) idx else 0)
+
+        mainViewModel.setQueue(newQueue)
+        // after shuffling we put current at 0
+        mainViewModel.setPosInQueue(0)
         updateNextSongHash(mainViewModel)
-        return
+
+    } finally {
+        isQueueInBuildingProcess.value = false
     }
 
-    mainViewModel.setQueue(newQueue)
-    // after shuffling we put current at 0
-    mainViewModel.setPosInQueue(0)
-    updateNextSongHash(mainViewModel)
 }
 
 fun onShuffleToogle(mainViewModel: PlayerViewModel, isShuffle : Boolean)

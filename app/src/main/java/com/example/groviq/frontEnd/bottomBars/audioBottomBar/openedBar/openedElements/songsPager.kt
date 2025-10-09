@@ -45,6 +45,7 @@ import androidx.media3.ui.PlayerView
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
+import com.example.groviq.backEnd.playEngine.isQueueInBuildingProcess
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.grooviqUI
@@ -94,7 +95,11 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
         )
     )
 
+    val pagerInteractionEnabled by remember { derivedStateOf { !isQueueInBuildingProcess.value } }
+
     HorizontalPager(
+        key = { songsInQueue[it].id },
+        userScrollEnabled = pagerInteractionEnabled,
         state = pagerState,
         beyondViewportPageCount = 1,
         flingBehavior = PagerDefaults.flingBehavior(
@@ -105,6 +110,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                 easing = FastOutSlowInEasing
             ),
         ),
+
         modifier = Modifier
             .fillMaxWidth()
             .alpha(alpha)
@@ -161,57 +167,61 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
         }
     }
 
-    var ignoreNextPageChange by remember { mutableStateOf(false) }
-    var scrollJob by remember { mutableStateOf<Job?>(null) }
+    if (isQueueInBuildingProcess.value == false)
+    {
+        var ignoreNextPageChange by remember { mutableStateOf(false) }
+        var scrollJob by remember { mutableStateOf<Job?>(null) }
 
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }
-            .distinctUntilChanged()
-            .collect { page ->
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.settledPage }
+                .distinctUntilChanged()
+                .collect { page ->
 
-                if (ignoreNextPageChange) {
-                    ignoreNextPageChange = false
-                    return@collect
+                    if (ignoreNextPageChange) {
+                        ignoreNextPageChange = false
+                        return@collect
+                    }
+
+                    if (page < 0 || page >= songsInQueue.size) return@collect
+
+                    if (page == mainViewModel.uiState.value.posInQueue) return@collect
+
+                    val pageTrackId = songsInQueue.getOrNull(page)?.id
+                    val currentTrackId = mainViewModel.uiState.value
+                        .currentQueue.getOrNull(mainViewModel.uiState.value.posInQueue)?.id
+
+                    if (pageTrackId == currentTrackId) return@collect
+
+                    mainViewModel.setPosInQueue(page)
+
+                    try {
+                        AppViewModels.player.playerManager.playAtIndex(mainViewModel, searchViewModel, page)
+                    } catch (_: Throwable) {}
                 }
+        }
 
-                if (page < 0 || page >= songsInQueue.size) return@collect
+        val coroutineScope = rememberCoroutineScope()
 
-                if (page == mainViewModel.uiState.value.posInQueue) return@collect
+        LaunchedEffect(currentTrackId, posInQueue, songsInQueue.size) {
+            val newIndex = posInQueue
+            if (newIndex < 0 || newIndex >= songsInQueue.size) return@LaunchedEffect
 
-                val pageTrackId = songsInQueue.getOrNull(page)?.id
-                val currentTrackId = mainViewModel.uiState.value
-                    .currentQueue.getOrNull(mainViewModel.uiState.value.posInQueue)?.id
+            val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
+            if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) return@LaunchedEffect
 
-                if (pageTrackId == currentTrackId) return@collect
+            if (newIndex != pagerState.settledPage) {
+                scrollJob?.cancel()
+                scrollJob = coroutineScope.launch {
+                    snapshotFlow { pagerState.pageCount }
+                        .first { it == songsInQueue.size && it > 0 }
 
-                mainViewModel.setPosInQueue(page)
-
-                try {
-                    AppViewModels.player.playerManager.playAtIndex(mainViewModel, searchViewModel, page)
-                } catch (_: Throwable) {}
-            }
-    }
-
-    val coroutineScope = rememberCoroutineScope()
-
-
-    LaunchedEffect(currentTrackId, posInQueue, songsInQueue.size) {
-        val newIndex = posInQueue
-        if (newIndex < 0 || newIndex >= songsInQueue.size) return@LaunchedEffect
-
-        val pageTrackId = songsInQueue.getOrNull(newIndex)?.id
-        if (pageTrackId == currentTrackId && pagerState.settledPage == newIndex) return@LaunchedEffect
-
-        if (newIndex != pagerState.settledPage) {
-            scrollJob?.cancel()
-            scrollJob = coroutineScope.launch {
-                snapshotFlow { pagerState.pageCount }
-                    .first { it == songsInQueue.size && it > 0 }
-
-                ignoreNextPageChange = true
-                pagerState.animateScrollToPage(newIndex, animationSpec = tween(500, easing = FastOutSlowInEasing))
-                snapshotFlow { pagerState.settledPage }.first { it == newIndex }
-                ignoreNextPageChange = false
+                    ignoreNextPageChange = true
+                    if (pagerState.settledPage != newIndex) {
+                        pagerState.animateScrollToPage(newIndex, animationSpec = tween(500, easing = FastOutSlowInEasing))
+                    }
+                    snapshotFlow { pagerState.settledPage }.first { it == newIndex }
+                    ignoreNextPageChange = false
+                }
             }
         }
     }

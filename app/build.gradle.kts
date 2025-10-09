@@ -9,7 +9,7 @@ plugins {
         libs.plugins.kotlin.compose
     )
     id("com.chaquo.python")
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.20"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.10"
     id("org.jetbrains.kotlin.kapt")
 }
 
@@ -138,7 +138,6 @@ dependencies {
     kapt("androidx.room:room-compiler:2.5.2")
     implementation("androidx.room:room-ktx:2.5.2")
     implementation("dev.chrisbanes.haze:haze:1.6.10")
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

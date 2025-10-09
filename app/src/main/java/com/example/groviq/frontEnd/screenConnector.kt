@@ -70,6 +70,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
+import com.example.groviq.R
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.playerState
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
@@ -166,6 +167,7 @@ fun connectScreens(
             navControllers[screen] = rememberNavController()
         }
     }
+
 
     Box(Modifier)
     {
@@ -356,6 +358,7 @@ fun connectScreens(
 
         }
 
+
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -365,8 +368,9 @@ fun connectScreens(
                 .clip(RoundedCornerShape(36.dp))
                 .hazeEffect(hazeState)
         ) {
-            Box(Modifier.background(Color(20, 20, 20, 140))
-                .border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(36.dp)))
+            Box(Modifier.border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(36.dp)).
+            background(Color(20, 20, 20, 140))
+               )
             {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.0f),
@@ -405,6 +409,8 @@ fun connectScreens(
             }
         }
     }
+
+    return
 
     Box(Modifier.statusBarsPadding()
         .navigationBarsPadding())
