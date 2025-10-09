@@ -298,7 +298,7 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel) {
         if (mediaUri == null) return@launch
 
         val songArtResult = if (
-            mainViewModel.uiState.value.allAudioData[nextSong.link]?.art_link.isNullOrEmpty() == true ||
+            mainViewModel.uiState.value.allAudioData[nextSong.link]?.art_link.isNullOrEmpty() == true &&
             mainViewModel.uiState.value.allAudioData[nextSong.link]?.art_local_link.isNullOrEmpty()
         ) {
             null

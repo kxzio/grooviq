@@ -335,9 +335,17 @@ class PlayerService : androidx.media3.session.MediaSessionService() {
         try { playerNotificationManager.setPlayer(null) } catch (_: Throwable) {}
         try { mediaSession.release() } catch (_: Throwable) {}
         try { AppViewModels.player.playerManager.player.release() } catch (_: Throwable) {}
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            val notificationManager =
+                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(NOTIF_ID)
+        } catch (_: Throwable) {}
+
+        try {
+            stopSelf()
+        } catch (_: Throwable) {}
     }
-
-
 
     override fun onTaskRemoved(rootIntent: Intent?) {
 

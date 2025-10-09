@@ -226,7 +226,7 @@ fun Bitmap.isSmall(maxWidth: Int = 250, maxHeight: Int = 250): Boolean {
 }
 
 // 1) Функция: Bitmap -> сжатый byte[]
-fun bitmapToCompressedBytes(bitmap: Bitmap, format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG, quality: Int = 90): ByteArray {
+fun bitmapToCompressedBytes(bitmap: Bitmap, format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG, quality: Int = 60): ByteArray {
     val baos = ByteArrayOutputStream()
     bitmap.compress(format, quality, baos)
     return baos.toByteArray()

@@ -108,6 +108,7 @@ class MyApplication : Application(), ViewModelStoreOwner {
     override val viewModelStore: ViewModelStore by lazy { ViewModelStore() }
 
     override fun onCreate() {
+
         super.onCreate()
         instance = this
         globalContext = applicationContext

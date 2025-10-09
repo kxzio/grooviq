@@ -317,37 +317,37 @@ class AudioPlayerManager(context: Context) {
 
                 if (streamUrl != null) {
                     //back to UI layer
+
+                    val songArtResult = mainViewModel.awaitSongArt(mainViewModel, hashkey)
+
+                    val mediaMetadataBuilder = MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artists.joinToString { it.title })
+
+                    when (songArtResult) {
+                        is PlayerViewModel.SongArtResult.BitmapResult -> {
+                            val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
+                            val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+                            mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        }
+                        is PlayerViewModel.SongArtResult.UrlResult -> {
+                            mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
+                        }
+                    }
+
+                    val mediaUri: Uri = fileUri?.let {
+                        Uri.parse(fileUri)
+                    } ?: Uri.parse(streamUrl)
+
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(mediaUri)
+                        .setMediaId(song.link)
+                        .setTag(song.link)
+                        .setMediaMetadata(mediaMetadataBuilder.build())
+                        .build()
+
                     withContext(Dispatchers.Main)
                     {
-
-                        val songArtResult = mainViewModel.awaitSongArt(mainViewModel, hashkey)
-
-                        val mediaMetadataBuilder = MediaMetadata.Builder()
-                            .setTitle(song.title)
-                            .setArtist(song.artists.joinToString { it.title })
-
-                        when (songArtResult) {
-                            is PlayerViewModel.SongArtResult.BitmapResult -> {
-                                val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
-                                val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
-                                mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                            }
-                            is PlayerViewModel.SongArtResult.UrlResult -> {
-                                mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
-                            }
-                        }
-
-                        val mediaUri: Uri = fileUri?.let {
-                            Uri.parse(fileUri)
-                        } ?: Uri.parse(streamUrl)
-
-                        val mediaItem = MediaItem.Builder()
-                            .setUri(mediaUri)
-                            .setMediaId(song.link)
-                            .setTag(song.link)
-                            .setMediaMetadata(mediaMetadataBuilder.build())
-                            .build()
-
                         player!!.setMediaItem(mediaItem)
                         player!!.prepare()
                         player!!.repeatMode = Player.REPEAT_MODE_OFF
@@ -367,18 +367,17 @@ class AudioPlayerManager(context: Context) {
 
                         fetchQueueStream(mainViewModel)
 
-
                     }
+
                 }
             }
             else
             {
                 if (true) {
                     //back to UI layer
-                    withContext(Dispatchers.Main)
-                    {
-                        val songArtResult =
-                        if (mainViewModel.uiState.value.allAudioData[hashkey]?.art_link.isNullOrEmpty() == true ||
+
+                    val songArtResult =
+                        if (mainViewModel.uiState.value.allAudioData[hashkey]?.art_link.isNullOrEmpty() == true &&
                             mainViewModel.uiState.value.allAudioData[hashkey]?.art_local_link.isNullOrEmpty())
                         {
                             null
@@ -386,34 +385,36 @@ class AudioPlayerManager(context: Context) {
                             mainViewModel.awaitSongArt(mainViewModel, hashkey)
                         }
 
-                        val mediaMetadataBuilder = MediaMetadata.Builder()
-                            .setTitle(song.title)
-                            .setArtist(song.artists.joinToString { it.title })
+                    val mediaMetadataBuilder = MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artists.joinToString { it.title })
 
-                        when (songArtResult) {
-                            is PlayerViewModel.SongArtResult.BitmapResult -> {
-                                val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
-                                val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
-                                mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                            }
-                            is PlayerViewModel.SongArtResult.UrlResult -> {
-                                mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
-                            }
-
-                            null -> {
-
-                            }
+                    when (songArtResult) {
+                        is PlayerViewModel.SongArtResult.BitmapResult -> {
+                            val smallBitmap = Bitmap.createScaledBitmap(songArtResult.bitmap, 256, 256, true)
+                            val bytes = bitmapToCompressedBytes(smallBitmap, Bitmap.CompressFormat.JPEG, 85)
+                            mediaMetadataBuilder.setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        }
+                        is PlayerViewModel.SongArtResult.UrlResult -> {
+                            mediaMetadataBuilder.setArtworkUri(Uri.parse(songArtResult.url))
                         }
 
-                        val mediaUri: Uri? = fileUri?.let { Uri.parse(it) }
+                        null -> {
 
-                        val mediaItem = MediaItem.Builder()
-                            .setUri(mediaUri)
-                            .setMediaId(song.link)
-                            .setTag(song.link)
-                            .setMediaMetadata(mediaMetadataBuilder.build())
-                            .build()
+                        }
+                    }
 
+                    val mediaUri: Uri? = fileUri?.let { Uri.parse(it) }
+
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(mediaUri)
+                        .setMediaId(song.link)
+                        .setTag(song.link)
+                        .setMediaMetadata(mediaMetadataBuilder.build())
+                        .build()
+
+                    withContext(Dispatchers.Main)
+                    {
                         player!!.setMediaItem(mediaItem)
                         player!!.prepare()
                         player!!.repeatMode = Player.REPEAT_MODE_OFF
@@ -432,9 +433,9 @@ class AudioPlayerManager(context: Context) {
                         mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[hashkey]!!)
 
                         fetchQueueStream(mainViewModel)
-
-
                     }
+
+
                 }
             }
 
@@ -445,11 +446,8 @@ class AudioPlayerManager(context: Context) {
     }
 
     fun pause() {
-
         player?.playWhenReady = false
-
     }
-
 
     fun resume() {
 

@@ -95,6 +95,21 @@ import kotlinx.coroutines.flow.first
 import dev.chrisbanes.haze.*
 import kotlinx.coroutines.delay
 
+suspend fun NavHostController.awaitGraphReady() {
+
+    val ready = try {
+        this.graph
+        true
+    } catch (e: IllegalStateException) {
+        false
+    }
+    if (ready) return
+
+    snapshotFlow { this.currentBackStackEntry }
+        .filterNotNull()
+        .first()
+}
+
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Home         : Screen("home",        "Главная",      Icons.Rounded.Home)
     object Albums       : Screen("albums",      "Альбомы",      Icons.Rounded.Album)
@@ -164,6 +179,14 @@ fun connectScreens(
                         currentTab = Screen.Searching
                         val targetController = navControllers[Screen.Searching]!!
 
+                        try {
+                            targetController.awaitGraphReady()
+                        } catch (t: Throwable) {
+                            Log.w("ScreenConnector", "Failed waiting for graph ready", t)
+                            artistPendingNavigation.value = null
+                            return@LaunchedEffect
+                        }
+
                         val route = "${Screen.Searching.route}/artist/$encoded"
                         if (targetController.graph.findNode(route) != null)
                         {
@@ -182,6 +205,15 @@ fun connectScreens(
                         val encoded = Uri.encode(pendingAlbumLink)
                         currentTab = Screen.Searching
                         val targetController = navControllers[Screen.Searching]!!
+
+                        try {
+                            targetController.awaitGraphReady()
+                        } catch (t: Throwable) {
+                            Log.w("ScreenConnector", "Failed waiting for graph ready", t)
+                            artistPendingNavigation.value = null
+                            return@LaunchedEffect
+                        }
+
                         val route = "${Screen.Searching.route}/album/$encoded"
                         if (targetController.graph.findNode(route) != null)
                         {
@@ -199,6 +231,15 @@ fun connectScreens(
                         val encoded = Uri.encode(pendingRadioLink)
                         currentTab = Screen.Searching
                         val targetController = navControllers[Screen.Searching]!!
+
+                        try {
+                            targetController.awaitGraphReady()
+                        } catch (t: Throwable) {
+                            Log.w("ScreenConnector", "Failed waiting for graph ready", t)
+                            artistPendingNavigation.value = null
+                            return@LaunchedEffect
+                        }
+
                         val route = "${Screen.Searching.route}/radio/$encoded"
                         if (targetController.graph.findNode(route) != null)
                         {
