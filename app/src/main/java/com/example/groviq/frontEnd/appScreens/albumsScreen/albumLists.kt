@@ -112,7 +112,6 @@ fun albumLists(searchingScreenNav: NavHostController,
             Modifier.padding(horizontal = 16.dp).background(MaterialTheme.colorScheme.background))
         {
 
-
             Box(Modifier.background(MaterialTheme.colorScheme.background))
             {
                 LazyColumn(

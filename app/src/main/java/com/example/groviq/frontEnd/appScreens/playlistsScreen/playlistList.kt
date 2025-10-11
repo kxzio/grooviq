@@ -2,16 +2,28 @@ package com.example.groviq.frontEnd.appScreens.playlistsScreen
 
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DriveFileRenameOutline
@@ -21,17 +33,24 @@ import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.frontEnd.Screen
+import com.example.groviq.frontEnd.appScreens.albumsScreen.tabForAlbums
 import com.example.groviq.frontEnd.bottomBars.createPlaylistBar
 import com.example.groviq.frontEnd.bottomBars.isCreatePlaylistOpened
 import com.example.groviq.frontEnd.bottomBars.isRenamePlaylistOpened
@@ -40,6 +59,7 @@ import com.example.groviq.frontEnd.drawPlaylistCover
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import com.example.groviq.ui.theme.SfProDisplay
+import dev.chrisbanes.haze.hazeEffect
 
 @OptIn(
     UnstableApi::class
@@ -58,21 +78,72 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
     {
         val listState = rememberLazyListState()
 
-        Column(Modifier.padding(5.dp))
+        Column(Modifier.padding(horizontal = 16.dp))
         {
-            Text(
-                "Плейлисты : ", fontFamily = SfProDisplay
+
+            Box(Modifier.padding(top = 16.dp).clip(
+                RoundedCornerShape(16.dp)
+            ).
+            border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(16.dp))
+            .background(
+                Color(20, 20, 20, 170)
             )
 
-            Button(onClick = {
-                isCreatePlaylistOpened.value = true
-            }, Modifier.fillMaxWidth()){
-                Text("Создать плейлист")
+            )
+            {
+                val tabs =
+                    listOf(
+                        "Create playlist"
+                    )
+
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val totalWidth =
+                        maxWidth
+                    val tabWidth =
+                        totalWidth / tabs.size
+
+                    Column {
+                        Row(Modifier.fillMaxWidth())
+                        {
+                            tabs.forEachIndexed { index, title ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(50.dp)
+                                        .clickable(
+                                        ) { isCreatePlaylistOpened.value = true },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(title, fontSize = 16.sp, color =
+                                        Color(255, 255, 255)
+                                    )
+                                }
+
+                                if (index < tabs.lastIndex) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(1.dp)
+                                            .height(30.dp)
+                                            .background(
+                                                Color(255, 255, 255, 25)
+                                            )
+                                            .align(
+                                                Alignment.CenterVertically)
+                                    )
+                                }
+                            }
+                        }
+
+                    }
+                }
             }
+
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) {
                 items(
                     playlists
@@ -94,18 +165,29 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                             })
                         {
 
-                            Box(Modifier.size(60.dp))
+                            Box(Modifier.size(85.dp).clip(
+                                RoundedCornerShape(4.dp)
+                            ),)
                             {
                                 grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
                                     result.key,
                                     audioData    = audioData,
                                     allAudioData = allAudioData
+
                                 )
                             }
 
-                            Text(
-                                result.key
-                            )
+                            Column(Modifier.padding(16.dp))
+                            {
+                                Text(
+                                    result.key
+                                )
+
+                                Text(
+                                    "Playlist", color = Color(255, 255, 255, 100),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
                         }
 
                         Column()
@@ -116,7 +198,7 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                                     isRenamePlaylistOpened.value = true
                                 }
                             ) {
-                                Icon(Icons.Rounded.Edit, "")
+                                Icon(Icons.Rounded.Edit, "", tint = Color(255, 255, 255, 100))
                             }
 
                         }
