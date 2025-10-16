@@ -11,6 +11,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -194,6 +195,7 @@ class AudioPlayerManager(context: Context) {
 
     fun play(hashkey : String, mainViewModel: PlayerViewModel, searchViewModel: SearchViewModel, userPressed : Boolean = false) {
 
+        Log.e("grooviq", "play activated")
 
         //check bounding box
         if (mainViewModel.uiState.value.allAudioData[hashkey] == null)

@@ -34,9 +34,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircleOutline
+import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -76,6 +79,7 @@ import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
+import com.example.groviq.frontEnd.subscribeMe
 import com.example.groviq.vibrateLight
 import kotlinx.coroutines.flow.first
 import kotlin.math.abs
@@ -211,7 +215,7 @@ fun SwipeToQueueItem(
     audioSource : String,
     song: songData,
     mainViewModel: PlayerViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
 
     val density = LocalDensity.current
@@ -226,6 +230,9 @@ fun SwipeToQueueItem(
 
     val liked by mainViewModel.isAudioSourceContainsSong(song.link, "Favourite")
         .collectAsState(initial = false)
+
+    val playingHash                     by mainViewModel.uiState.subscribeMe    { it.playingHash }
+    val playingAudioSourceHash          by mainViewModel.uiState.subscribeMe    { it.playingAudioSourceHash }
 
     Box(
         contentAlignment = Alignment.Center,
@@ -312,12 +319,25 @@ fun SwipeToQueueItem(
 
                 Box()
                 {
+
                     asyncedImage(
                         song,
                         Modifier.size(43.dp).clip(
                             RoundedCornerShape(4.dp)
                         )
                     )
+
+                    if (playingHash == song.link && audioSource == playingAudioSourceHash)
+                    {
+                        Box(Modifier.size(43.dp).clip(
+                            RoundedCornerShape(4.dp)).background(Color(0, 0, 0, 160)
+                        ))
+                        {
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "", tint = Color(255, 255, 255), modifier = Modifier.align(
+                                Alignment.Center))
+                        }
+                    }
+
 
                     if ((song.localExists()).not() ?: true)
                         SquareProgressBox(song.progressStatus.downloadingProgress.toInt(), size = 43.dp, cornerRadius = 4.dp)
@@ -343,23 +363,28 @@ fun SwipeToQueueItem(
 
             Row()
             {
-                IconButton(
-                    onClick = {
-                        if (liked)
-                            mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
-                        else
-                            mainViewModel.addSongToAudioSource(song.link, "Favourite")
 
-                        mainViewModel.saveSongToRoom(song)
-                        mainViewModel.saveAudioSourcesToRoom()
+                if (liked)
+                {
+                    IconButton(
+                        onClick = {
+                            if (liked)
+                                mainViewModel.removeSongFromAudioSource(song.link, "Favourite")
+                            else
+                                mainViewModel.addSongToAudioSource(song.link, "Favourite")
+
+                            mainViewModel.saveSongToRoom(song)
+                            mainViewModel.saveAudioSourcesToRoom()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.CheckCircleOutline,
+                            contentDescription = "fav",
+                            tint = Color(255, 255, 255, 150)
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = "fav",
-                        tint = Color(255, 255, 255, if (liked) 255 else 100)
-                    )
                 }
+
                 IconButton(
                     onClick = {
                         openTrackSettingsBottomBar(song.link, audioSource)

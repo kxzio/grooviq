@@ -123,7 +123,8 @@ fun albumLists(searchingScreenNav: NavHostController,
 
                     items(albums) { result ->
                         Row(
-                            Modifier.clickable
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable
                             {
                                 val encoded = Uri.encode(result.key)
                                 searchingScreenNav.navigate("${Screen.Albums.route}/album/" + encoded)
@@ -144,15 +145,18 @@ fun albumLists(searchingScreenNav: NavHostController,
 
                                 )
 
-                            Column(Modifier.padding(16.dp)){
-
-                                Text(
-                                    audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"
-                                )
-                                Text(
-                                    audioData[result.key]?.artistsOfAudioSource?.joinToString { it.title } ?: "Неизвестный исполнитель",
-                                    color = Color(255, 255, 255, 100), modifier = Modifier.padding(top = 2.dp)
-                                )
+                            Box(Modifier.padding(start = 16.dp).fillMaxHeight(), contentAlignment = Alignment.CenterStart)
+                            {
+                                Column()
+                                {
+                                    Text(
+                                        audioData[result.key]?.nameOfAudioSource ?: "Неизвестный источник"
+                                    )
+                                    Text(
+                                        audioData[result.key]?.artistsOfAudioSource?.joinToString { it.title } ?: "Неизвестный исполнитель",
+                                        color = Color(255, 255, 255, 100), modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
                             }
 
                         }

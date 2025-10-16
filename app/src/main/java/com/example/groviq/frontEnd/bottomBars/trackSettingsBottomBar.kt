@@ -97,6 +97,8 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 
 var isTrackSettingsOpened: MutableState<Boolean> = mutableStateOf(false)
 var currentTrackHashForSettings: MutableState<String?> = mutableStateOf(null)
@@ -285,7 +287,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     Spacer(Modifier.height(16.dp))
 
     if (!liked) {
-        buttonForSettingBar("Добавить в любимое", Icons.Rounded.FavoriteBorder, {
+        buttonForSettingBar("Add to favourite", Icons.Rounded.FavoriteBorder, {
             mainViewModel.addSongToAudioSource(track!!.link, "Favourite")
             mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
             mainViewModel.saveAudioSourcesToRoom()
@@ -293,7 +295,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         })
     }
     else {
-        buttonForSettingBar("Убрать из любимых", Icons.Rounded.Favorite, {
+        buttonForSettingBar("Delete from favourite", Icons.Rounded.Favorite, {
             mainViewModel.removeSongFromAudioSource(track!!.link, "Favourite")
             mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
             mainViewModel.saveAudioSourcesToRoom()
@@ -304,7 +306,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
 
     if (mainViewModel.getPlaylists().containsKey(currentSettingsOpenedAudioSource.value))
     {
-        buttonForSettingBar("Удалить из плейлиста", Icons.Rounded.PlaylistAdd, {
+        buttonForSettingBar("Delete from playlist", Icons.Rounded.PlaylistAdd, {
             mainViewModel.removeSongFromAudioSource(track!!.link, currentSettingsOpenedAudioSource.value!! )
             mainViewModel.saveSongToRoom(mainViewModel.uiState.value.allAudioData[track!!.link]!!)
             mainViewModel.saveAudioSourcesToRoom()
@@ -312,7 +314,7 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         })
     }
 
-    buttonForSettingBar("Добавить в плейлист", Icons.Rounded.PlaylistAdd, {
+    buttonForSettingBar("Add to playlist", Icons.Rounded.PlaylistAdd, {
         onScreenMove(settingPages.ADD_TO_PLAYLIST_SCREEN)
     })
 
@@ -321,14 +323,14 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
     {
         if (track!!.localExists()) {
 
-            buttonForSettingBar("Удалить с устройства", Icons.Rounded.FileDownloadOff, {
+            buttonForSettingBar("Delete from downloaded", Icons.Rounded.FileDownloadOff, {
                 DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
                 onClose()
             })
 
         }
         else {
-            buttonForSettingBar("Скачать на устройство", Icons.Rounded.Download, {
+            buttonForSettingBar("Download", Icons.Rounded.Download, {
 
                 DownloadManager.enqueue(mainViewModel, track.link)
                 DownloadManager.start()
@@ -338,13 +340,13 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         }
     }
 
-    buttonForSettingBar("Перейти к альбому", Icons.Rounded.Album, {
+    buttonForSettingBar("Go to album", Icons.Rounded.Album, {
         showSheet.value = false
         openAlbum(track!!.album_original_link)
         onClose()
     })
 
-    buttonForSettingBar("Перейти к артисту", Icons.Rounded.People, {
+    buttonForSettingBar("Go to artist", Icons.Rounded.People, {
 
         if (track!!.artists.size > 1)
         {
@@ -357,22 +359,22 @@ fun drawMainSettingsPage(mainViewModel : PlayerViewModel, liked: Boolean, track:
         }
     })
 
-    buttonForSettingBar("Добавить в очередь", Icons.Rounded.Queue, {
+    buttonForSettingBar("Add to queue", Icons.Rounded.Queue, {
         addToCurrentQueue(mainViewModel, track!!.link, "")
         onClose()
     })
 
-    buttonForSettingBar("Просмотреть очередь", Icons.Rounded.QueueMusic, {
+    buttonForSettingBar("View queue", Icons.Rounded.QueueMusic, {
         onScreenMove(settingPages.QUEUE_SHOW_LIST_SCREEN)
     })
 
-    buttonForSettingBar("Очередь загрузок", Icons.Rounded.CloudQueue, {
+    buttonForSettingBar("Download queue", Icons.Rounded.CloudQueue, {
         onScreenMove(settingPages.DOWNLOAD_QUEUE_PAGE)
     })
 
     if (track!!.isExternal == false)
     {
-        buttonForSettingBar("Перейти к радио по треку", Icons.Rounded.Radio, {
+        buttonForSettingBar("Open radio for this track", Icons.Rounded.Radio, {
             showSheet.value = false
             openRadio(track!!.link)
             onClose()
@@ -423,30 +425,39 @@ fun drawPlaylistsToAdd(mainViewModel : PlayerViewModel, track: songData?, onClos
     val allAudioData            by mainViewModel.uiState.subscribeMe { it.allAudioData }
     val audioData               by mainViewModel.uiState.subscribeMe { it.audioData }
 
-    playlists.forEach { playlist ->
 
-        Row(modifier = Modifier.clickable {
 
-            mainViewModel.addSongToAudioSource(track!!.link, playlist.key)
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
 
-            mainViewModel.saveSongToRoom         ( mainViewModel.uiState.value.allAudioData[track!!.link]!!)
-            mainViewModel.saveAudioSourcesToRoom ( )
+        item {
+            Text("Select playlist...", color = Color(255, 255, 255), modifier = Modifier.padding(bottom = 16.dp))
+        }
 
-            onClose()
-        })
-        {
-            Box(modifier = Modifier.size(55.dp))
+        items(playlists.entries.toList()) { playlist ->
+            Row(modifier = Modifier.clickable {
+
+                mainViewModel.addSongToAudioSource(track!!.link, playlist.key)
+
+                mainViewModel.saveSongToRoom         ( mainViewModel.uiState.value.allAudioData[track!!.link]!!)
+                mainViewModel.saveAudioSourcesToRoom ( )
+
+                onClose()
+            })
             {
-                grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
-                    playlist.key,
-                    audioData,
-                    allAudioData
-                )
-            }
+                Box(modifier = Modifier.size(55.dp))
+                {
+                    grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
+                        playlist.key,
+                        audioData,
+                        allAudioData
+                    )
+                }
 
-            Text(text = playlist.key, color = Color(255, 255, 255), fontSize = 21.sp)
+                Text(text = playlist.key, Modifier.padding(16.dp), color = Color(255, 255, 255), fontSize = 21.sp)
+            }
         }
     }
+
 
 }
 
@@ -494,7 +505,7 @@ fun drawQueuePage(
 
     val haptic = LocalHapticFeedback.current
 
-    Text("Далее в очереди...", color = Color(255, 255, 255), modifier = Modifier.padding(15.dp))
+    Text("Next in queue..", color = Color(255, 255, 255), modifier = Modifier.padding(15.dp))
 
     if (filteredQueue.isEmpty())
         return
@@ -532,7 +543,7 @@ fun drawQueuePage(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
-                                contentDescription = "delete from queue",
+                                contentDescription = "Delete from queue",
                                 tint = Color(255, 255, 255, 100)
                             )
                         }
@@ -596,7 +607,7 @@ fun drawQueuePage(
                 Row()
                 {
                     Icon(Icons.Rounded.CleaningServices, "")
-                    Text("Ой..Тут пусто")
+                    Text("Its empty yet..")
                 }
             }
         }
@@ -615,7 +626,7 @@ fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
     val haptic = LocalHapticFeedback.current
 
     Text(
-        "Очередь скачивания...",
+        "Download queue : ",
         color = Color.White,
         modifier = Modifier.padding(15.dp)
     )
@@ -628,13 +639,17 @@ fun drawDownloadQueuePage(mainViewModel: PlayerViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.CleaningServices, contentDescription = null, tint = Color.Gray)
                 Spacer(Modifier.width(8.dp))
-                Text("Очередь пуста", color = Color.Gray)
+                Text("Download queue is empty...", color = Color.Gray)
             }
         }
         return
     }
 
-    iconOutlineButton("Остановить все", { DownloadManager.stop() }, Icons.Rounded.Close)
+    iconOutlineButton("Stop all",
+        {
+            DownloadManager.stop()
+        },
+        Icons.Rounded.Close)
 
     LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
         val combinedQueue = active.toList() + queue

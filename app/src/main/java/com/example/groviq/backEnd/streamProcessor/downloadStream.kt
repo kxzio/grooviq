@@ -531,20 +531,13 @@ object DownloadManager {
 
         currentJob = scope.launch {
             for ((vm, hash) in queue) {
-                val existingJob = downloadJobs[hash]
-                if (existingJob != null) {
-                    if (!existingJob.isActive) {
-                        downloadJobs.remove(hash)
-                    } else {
-                        continue
-                    }
-                }
+                if (!isActive) break
 
                 queuedDownloads.remove(hash)
                 activeDownloads.add(hash)
                 updateState()
 
-                val job = launch {
+                val job = launch(coroutineContext) {
                     try {
                         downloadAudioFile(vm, hash)
                     } catch (e: Exception) {
@@ -563,15 +556,17 @@ object DownloadManager {
             }
         }
     }
-    fun stop() {
-        currentJob?.cancel()
-        currentJob = null
-        activeDownloads.clear()
-        queuedDownloads.clear()
 
-        downloadJobs.values.forEach { it.cancel() }
+    fun stop() {
+
+        downloadJobs.values.forEach { it.cancel(CancellationException("Stopped by user")) }
         downloadJobs.clear()
 
+        currentJob?.cancel()
+        currentJob = null
+
+        activeDownloads.clear()
+        queuedDownloads.clear()
         updateState()
     }
 

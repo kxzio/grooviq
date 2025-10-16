@@ -37,11 +37,13 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FileDownloadOff
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Remove
@@ -326,6 +328,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                     {
                         Box(Modifier.matchParentSize())
                         {
+                            val col = MaterialTheme.colorScheme.background
                             grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
                                 audioSourcePath,
                                 audioData = audioData,
@@ -333,17 +336,14 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .fillMaxHeight()
-                                    .alpha(0.6f)
+                                    .alpha(0.5f)
                                     .drawWithContent {
                                         drawContent()
                                         drawRect(
                                             brush = Brush.verticalGradient(
-                                                0.40f to Color.Black,
-                                                1.0f to Color.Transparent,
-                                                startY = 0f,
-                                                endY = size.height * 1.0f
+                                                0.20f to Color.Transparent,
+                                                1.0f to col
                                             ),
-                                            blendMode = BlendMode.DstIn
                                         )
                                     }
                                 ,
@@ -441,7 +441,6 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 )
                                 {
-
                                     if (audioSource.isExternal)
                                     {
                                         Row(verticalAlignment = Alignment.CenterVertically)
@@ -499,7 +498,8 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                                 if (songs.all { it.localExists() })
                                                 {
                                                     songs.forEach { track ->
-                                                        DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
+                                                        if (track.isExternal == false)
+                                                            DownloadManager.deleteDownloadedAudioFile(mainViewModel, track.link)
                                                     }
                                                 }
                                                 else
@@ -515,22 +515,11 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                         {
                                             if (songs.all { it.localExists() } )
                                             {
-                                                Icon(Icons.Rounded.DeleteOutline, "", tint = Color(255, 255, 255, 170))
-
-                                                Text("Delete", Modifier.padding(start = 6.dp),
-                                                    color = Color(255, 255, 255, 170),
-                                                    fontWeight = FontWeight.Normal,
-                                                    letterSpacing = 0.04.em
-                                                )
+                                                Icon(Icons.Rounded.Delete, "", tint = Color(255, 255, 255, 170))
                                             }
                                             else {
                                                 Icon(Icons.Rounded.Download, "", tint = Color(255, 255, 255, 170))
 
-                                                Text("Download", Modifier.padding(start = 6.dp),
-                                                    color = Color(255, 255, 255, 170),
-                                                    fontWeight = FontWeight.Normal,
-                                                    letterSpacing = 0.04.em
-                                                )
                                             }
                                         }
                                     }

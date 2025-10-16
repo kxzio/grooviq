@@ -259,7 +259,7 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
             shape = RoundedCornerShape(18.dp),
             border = BorderStroke(1.dp,Color(255, 255, 255, 40) )
         ){
-            Text(if (isRename.not()) "Create" else "Rename", fontSize = 16.sp, color = Color(255, 255, 255, 140), modifier =
+            Text(if (isRename.not()) "Create" else "Rename", fontSize = 16.sp, color = Color(255, 255, 255, 255), modifier =
             Modifier.padding(12.dp))
         }
 
@@ -298,7 +298,7 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
             Spacer(Modifier.height(16.dp))
 
             Box(
-                Modifier.weight(1f).height(60.dp).border(1.dp, Color(255, 65, 65, 100), RoundedCornerShape(18.dp))
+                Modifier.weight(1f).height(60.dp).border(1.dp, Color(255, 65, 65, 200), RoundedCornerShape(18.dp))
                     .clickable (
                         interactionSource = interactionSource_,
                         indication = null,
@@ -318,7 +318,7 @@ fun drawPlaylistCreateBar(mainViewModel : PlayerViewModel, isRename : Boolean = 
                         255,
                         65,
                         65,
-                        100
+                        200
                     ), modifier =
                     Modifier.align(
                         Alignment.Center)

@@ -1076,6 +1076,7 @@ class SearchViewModel : ViewModel() {
             if (!foundNew && queue.isEmpty()) break
         }
 
+        
         if (collected.size < maxResults) {
             val fallbackSongs = allLocalSongs
                 .filter {

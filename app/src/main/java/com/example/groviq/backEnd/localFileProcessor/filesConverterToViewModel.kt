@@ -16,35 +16,47 @@ data class metadataForLocalSongs(
     val num: String?,
     val isVideo : Boolean?
 )
-
 @OptIn(UnstableApi::class)
 fun extractMetadataFromFile(uri: Uri): metadataForLocalSongs {
     val retriever = MediaMetadataRetriever()
-    retriever.setDataSource(MyApplication.globalContext, uri)
+    try {
+        retriever.setDataSource(MyApplication.globalContext, uri)
 
-    val nameOfFile = DocumentFile.fromSingleUri(MyApplication.globalContext, uri)?.name
+        val nameOfFile = DocumentFile.fromSingleUri(MyApplication.globalContext, uri)?.name
 
-    val title  = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) ?: nameOfFile
-    val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "Unknown Artist"
-    val album  = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "Unknown Album"
-    val year   = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR) ?: "Unknown Year"
-    val num_   = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER) ?: "0"
+        val title  = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) ?: nameOfFile
+        val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "Unknown Artist"
+        val album  = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "Unknown Album"
+        val year   = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR) ?: "Unknown Year"
+        val num_   = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER) ?: "0"
 
-    val format = nameOfFile?.substringAfterLast('.', "")
+        val format = nameOfFile?.substringAfterLast('.', "")
+        val isVideo = format in listOf("mp4", "mkv", "avi", "mov", "webm")
 
-    val isVideo = format in listOf("mp4", "mkv", "avi", "mov", "webm")
+        val artistDto = ArtistDto(title = artist, imageUrl = "", albums = emptyList())
+        return metadataForLocalSongs(
+            title = title ?: "Unknown",
+            album = album,
+            artistDto = listOf(artistDto),
+            year = year,
+            num = num_,
+            isVideo = isVideo
+        )
 
-    retriever.release()
-
-    val artistDto = ArtistDto(title = artist, imageUrl = "", albums = emptyList())
-    return metadataForLocalSongs(
-        title = title ?: "Unknown",
-        album = album,
-        artistDto = listOf(artistDto),
-        year = year,
-        num = num_,
-        isVideo = isVideo
-    )
+    } catch (e: Exception) {
+        e.printStackTrace()
+        val artistDto = ArtistDto(title = "Unknown Artist", imageUrl = "", albums = emptyList())
+        return metadataForLocalSongs(
+            title = DocumentFile.fromSingleUri(MyApplication.globalContext, uri)?.name ?: "Unknown",
+            album = "Unknown Album",
+            artistDto = listOf(artistDto),
+            year = "Unknown Year",
+            num = "0",
+            isVideo = false
+        )
+    } finally {
+        try { retriever.release() } catch (_: Exception) { /* ignore */ }
+    }
 }
 
 

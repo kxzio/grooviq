@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -105,6 +106,7 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                         totalWidth / tabs.size
 
                     Column {
+
                         Row(Modifier.fillMaxWidth())
                         {
                             tabs.forEachIndexed { index, title ->
@@ -143,7 +145,8 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(
                     playlists
@@ -152,7 +155,8 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                     Row()
                     {
                         Row(
-                            Modifier.weight(1f).clickable
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f).clickable
                             {
                                 val encoded =
                                     Uri.encode(
@@ -173,20 +177,21 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                                     result.key,
                                     audioData    = audioData,
                                     allAudioData = allAudioData
-
                                 )
                             }
 
-                            Column(Modifier.padding(16.dp))
+                            Box(Modifier.padding(start = 16.dp).fillMaxHeight(), contentAlignment = Alignment.CenterStart)
                             {
-                                Text(
-                                    result.key
-                                )
 
-                                Text(
-                                    "Playlist", color = Color(255, 255, 255, 100),
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
+                                Column {
+                                    Text(result.key)
+                                    Text(
+                                        "Playlist",
+                                        color = Color(255, 255, 255, 100),
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+
                             }
                         }
 

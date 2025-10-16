@@ -600,7 +600,7 @@ fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
                     )
                 }
                 0 -> {
-                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.fillMaxSize())
+                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.fillMaxSize(), tint = Color(255, 255, 255))
                 }
             }
         }
