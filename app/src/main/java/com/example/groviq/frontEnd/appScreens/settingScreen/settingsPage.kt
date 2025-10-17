@@ -54,7 +54,6 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
     val audioData                       by mainViewModel.uiState.subscribeMe    { it.audioData }
     val allAudioData                    by mainViewModel.uiState.subscribeMe    { it.allAudioData }
     val playingHash                     by mainViewModel.uiState.subscribeMe    { it.playingHash }
-
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -67,14 +66,18 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
             )
 
             val folder = ViewFolder(uri = it.toString(), displayName = it.lastPathSegment ?: "Папка")
-            mainViewModel.updateState { state ->
-                state.copy(
-                    localFilesFolders = state.localFilesFolders.toMutableList().apply {
-                        add(folder)
-                    }
-                )
+
+            if (folders.contains(folder).not())
+            {
+                mainViewModel.updateState { state ->
+                    state.copy(
+                        localFilesFolders = state.localFilesFolders.toMutableList().apply {
+                            add(folder)
+                        }
+                    )
+                }
+                mainViewModel.generateSongsFromFolder(folder)
             }
-            mainViewModel.generateSongsFromFolder(folder)
         }
     }
 
@@ -131,16 +134,8 @@ fun settingsPage(mainViewModel: PlayerViewModel) {
                                 IconButton(onClick = {
 
                                     mainViewModel.songFromFolderGenerator[folder.uri]?.cancel()
-
-                                    mainViewModel.updateState { state ->
-                                        state.copy(
-                                            localFilesFolders = state.localFilesFolders.toMutableList().apply {
-                                                remove(folder)
-                                            }
-                                        )
-                                    }
-
                                     mainViewModel.deleteSongsFromFolder(folder)
+
                                 }) {
                                     Icon(Icons.Rounded.Close, contentDescription = null)
                                 }

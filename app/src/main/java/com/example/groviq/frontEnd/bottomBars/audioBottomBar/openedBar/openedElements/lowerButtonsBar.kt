@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -25,6 +27,7 @@ import androidx.media3.common.util.UnstableApi
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.repeatMods
 import com.example.groviq.backEnd.dataStructures.songData
+import com.example.groviq.backEnd.lyricsProducer.fetchLyricsForSong
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.frontEnd.grooviqUI
 
@@ -101,6 +104,20 @@ fun grooviqUI.elements.openedElements.lowerActivityButtons(
                 ,
                 contentDescription = "like",
                 tint = Color(255, 255, 255)
+            )
+        }
+
+        IconButton(
+            onClick =
+            {
+                showLyrics.value = !showLyrics.value
+            },
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Lyrics
+                ,
+                contentDescription = "lyrics",
+                tint = Color(255, 255, 255, if (showLyrics.value) 255 else 100)
             )
         }
 

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -19,6 +20,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import androidx.media3.ui.PlayerView
 import com.example.groviq.AppViewModels
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
+import com.example.groviq.backEnd.lyricsProducer.fetchLyricsForSong
 import com.example.groviq.backEnd.playEngine.isQueueInBuildingProcess
 import com.example.groviq.backEnd.searchEngine.SearchViewModel
 import com.example.groviq.frontEnd.asyncedImage
@@ -56,7 +59,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-
+//the requst of navigation artist
+val lyricsForCurrentSong = mutableStateOf<Pair<String, String>>(Pair("", ""))
+val showLyrics           = mutableStateOf<Boolean>(false)
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -77,17 +82,13 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
         pageCount = { songsInQueue.size }
     )
 
-    val nestedScrollConnection = remember {
-        object :
-            NestedScrollConnection {}
-    }
 
     val song = allAudioData[playingHash]
 
     val hasVideo = (song?.stream?.isVideo == true)
 
     val targetAlpha = if (hasVideo) 0f else 1f
-    val alpha by animateFloatAsState(
+    val alphaForHidingPager by animateFloatAsState(
         targetValue = targetAlpha,
         animationSpec = tween(
             durationMillis = 300,
@@ -95,11 +96,25 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
         )
     )
 
+
+    LaunchedEffect(song?.link, showLyrics.value) {
+
+        if (showLyrics.value)
+        {
+            val currentLink = song?.link ?: return@LaunchedEffect
+            if (lyricsForCurrentSong.value.first == currentLink) return@LaunchedEffect
+
+            lyricsForCurrentSong.value = Pair(currentLink, "")
+            val lyrics = fetchLyricsForSong(song) ?: ""
+            lyricsForCurrentSong.value = Pair(currentLink, lyrics)
+        }
+    }
+
     val pagerInteractionEnabled by remember { derivedStateOf { !isQueueInBuildingProcess.value } }
 
     HorizontalPager(
         key = { songsInQueue[it].id },
-        userScrollEnabled = pagerInteractionEnabled,
+        userScrollEnabled = showLyrics.value.not() && pagerInteractionEnabled,
         state = pagerState,
         beyondViewportPageCount = 1,
         flingBehavior = PagerDefaults.flingBehavior(
@@ -113,13 +128,6 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
 
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(alpha)
-            .nestedScroll(nestedScrollConnection)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, dragAmount ->
-                    change.consume()
-                }
-            }
     ) { page ->
 
         val songInQueue = allAudioData[songsInQueue[page].hashKey]
@@ -153,16 +161,37 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                     },
                 contentAlignment = Alignment.TopCenter
             ) {
-                asyncedImage(
-                    songInQueue,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(8.dp)),
-                    blurRadius = 0f,
-                    turnOffPlaceholders = true,
-                    blendGrad = false,
-                )
+
+                val modif = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .alpha(if (showLyrics.value) 0.3f else alphaForHidingPager)
+
+                if ((showLyrics.value && hasVideo).not())
+                {
+                    asyncedImage(
+                        songInQueue,
+                        blurRadius = 0f,
+                        turnOffPlaceholders = true,
+                        blendGrad = false,
+                        modifier = modif
+                    )
+                }
+
+                if (showLyrics.value)
+                {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        LyricsView(
+                            lyrics = lyricsForCurrentSong.value.second,
+                        )
+                    }
+                }
             }
         }
     }

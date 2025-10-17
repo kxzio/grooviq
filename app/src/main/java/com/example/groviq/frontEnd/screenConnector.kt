@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.OptIn
+import androidx.collection.isNotEmpty
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,10 +36,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,19 +98,44 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import dev.chrisbanes.haze.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.yield
+
+@Composable
+fun rememberGraphReadyState(controller: NavHostController): State<Boolean> {
+    return produceState(initialValue = false, controller) {
+        value = try {
+            controller.graph.nodes.isNotEmpty()
+        } catch (_: Exception) {
+            false
+        }
+
+        snapshotFlow {
+            try {
+                controller.graph.nodes.isNotEmpty()
+            } catch (_: Exception) {
+                false
+            }
+        }.collect { ready ->
+            value = ready
+        }
+    }
+}
 
 suspend fun NavHostController.awaitGraphReady() {
-
     val ready = try {
-        this.graph
-        true
-    } catch (e: IllegalStateException) {
+        this.graph.nodes.isNotEmpty()
+    } catch (_: IllegalStateException) {
         false
     }
     if (ready) return
-
-    snapshotFlow { this.currentBackStackEntry }
-        .filterNotNull()
+    snapshotFlow {
+        try {
+            this.graph.nodes.isNotEmpty()
+        } catch (_: IllegalStateException) {
+            false
+        }
+    }
+        .filter { it }
         .first()
 }
 
@@ -174,84 +202,62 @@ fun connectScreens(
         Scaffold(Modifier.hazeSource(state = hazeState)
         ) { innerPadding ->
 
+            val targetController = navControllers[Screen.Searching]!!
+            val isGraphReady by rememberGraphReadyState(targetController)
+
+            // ---- Artist link ----
             val pendingArtistLink = artistPendingNavigation.value
-            LaunchedEffect(pendingArtistLink) {
-                    if (pendingArtistLink != null) {
-                        val encoded = Uri.encode(pendingArtistLink)
-                        currentTab = Screen.Searching
-                        val targetController = navControllers[Screen.Searching]!!
+            LaunchedEffect(pendingArtistLink, isGraphReady) {
+                val link = pendingArtistLink ?: return@LaunchedEffect
+                if (!isGraphReady) return@LaunchedEffect
 
-                        try {
-                            targetController.awaitGraphReady()
-                        } catch (t: Throwable) {
-                            Log.w("ScreenConnector", "Failed waiting for graph ready", t)
-                            artistPendingNavigation.value = null
-                            return@LaunchedEffect
-                        }
+                currentTab = Screen.Searching
+                val encoded = Uri.encode(link)
+                val route = "${Screen.Searching.route}/artist/$encoded"
 
-                        val route = "${Screen.Searching.route}/artist/$encoded"
-                        if (targetController.graph.findNode(route) != null)
-                        {
-                            targetController.navigate(route) {
-                                launchSingleTop = true
-                            }
-                        }
-
-                        artistPendingNavigation.value = null
+                if (targetController.graph.findNode(route) != null) {
+                    targetController.navigate(route) {
+                        launchSingleTop = true
                     }
                 }
+                artistPendingNavigation.value = null
+            }
 
+            // ---- Album link ----
             val pendingAlbumLink = albumPendingNavigation.value
-            LaunchedEffect(pendingAlbumLink) {
-                    if (pendingAlbumLink != null) {
-                        val encoded = Uri.encode(pendingAlbumLink)
-                        currentTab = Screen.Searching
-                        val targetController = navControllers[Screen.Searching]!!
+            LaunchedEffect(pendingAlbumLink, isGraphReady) {
+                val link = pendingAlbumLink ?: return@LaunchedEffect
+                if (!isGraphReady) return@LaunchedEffect
 
-                        try {
-                            targetController.awaitGraphReady()
-                        } catch (t: Throwable) {
-                            Log.w("ScreenConnector", "Failed waiting for graph ready", t)
-                            artistPendingNavigation.value = null
-                            return@LaunchedEffect
-                        }
+                currentTab = Screen.Searching
+                val encoded = Uri.encode(link)
+                val route = "${Screen.Searching.route}/album/$encoded"
 
-                        val route = "${Screen.Searching.route}/album/$encoded"
-                        if (targetController.graph.findNode(route) != null)
-                        {
-                            targetController.navigate(route) {
-                                launchSingleTop = true
-                            }
-                        }
-                        albumPendingNavigation.value = null
+                if (targetController.graph.findNode(route) != null) {
+                    targetController.navigate(route) {
+                        launchSingleTop = true
                     }
                 }
+                albumPendingNavigation.value = null
+            }
 
+            // ---- Radio link ----
             val pendingRadioLink = trackRadioPendingNavigation.value
-            LaunchedEffect(pendingRadioLink) {
-                    if (pendingRadioLink != null) {
-                        val encoded = Uri.encode(pendingRadioLink)
-                        currentTab = Screen.Searching
-                        val targetController = navControllers[Screen.Searching]!!
+            LaunchedEffect(pendingRadioLink, isGraphReady) {
+                val link = pendingRadioLink ?: return@LaunchedEffect
+                if (!isGraphReady) return@LaunchedEffect
 
-                        try {
-                            targetController.awaitGraphReady()
-                        } catch (t: Throwable) {
-                            Log.w("ScreenConnector", "Failed waiting for graph ready", t)
-                            artistPendingNavigation.value = null
-                            return@LaunchedEffect
-                        }
+                currentTab = Screen.Searching
+                val encoded = Uri.encode(link)
+                val route = "${Screen.Searching.route}/radio/$encoded"
 
-                        val route = "${Screen.Searching.route}/radio/$encoded"
-                        if (targetController.graph.findNode(route) != null)
-                        {
-                            targetController.navigate(route) {
-                                launchSingleTop = true
-                            }
-                        }
-                        trackRadioPendingNavigation.value = null
+                if (targetController.graph.findNode(route) != null) {
+                    targetController.navigate(route) {
+                        launchSingleTop = true
                     }
                 }
+                trackRadioPendingNavigation.value = null
+            }
 
             val stateHolder = rememberSaveableStateHolder()
 

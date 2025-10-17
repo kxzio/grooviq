@@ -11,15 +11,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Abc
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -35,8 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -102,8 +107,9 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                     }
                 }
             },
+            leadingIcon = { Icon(Icons.Rounded.Search, "")},
             label = {
-                Text("Поиск треков, альбомов, артистов")
+                Text("Search...")
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions.Default.copy(
@@ -124,7 +130,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                 }
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         )
 
         grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
@@ -140,7 +146,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
 
         val listState = rememberLazyListState()
 
-        Column()
+        Column(Modifier.padding(horizontal = 16.dp))
         {
             if (searchInProgress == true)
             {
@@ -153,11 +159,14 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(searchResults) { result ->
+                itemsIndexed(searchResults) { count, result ->
 
-                    Row(Modifier.clickable
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable
                     {
                         if (result.type == searchType.ALBUM) {
                             val link = "https://music.youtube.com/browse/${result.link_id}"
@@ -186,50 +195,69 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                         }
                     })
                     {
-                        asyncedImage(
-                            result.image_url,
-                            modifier = Modifier
-                                .size(65.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                        )
-                        Column()
-                        {
-                            Text(
-                                text = result.title
-                            )
-                            Text(
-                                text = result.author,
-                                color = Color(
-                                    255,
-                                    255,
-                                    255,
-                                    150
-                                )
+                        val normalizedResult = result.title.trim().replace("\\s+".toRegex(), " ").lowercase()
+                        val normalizedSearch = searchingRequest.value.trim().replace("\\s+".toRegex(), " ").lowercase()
+
+                        val sizeModifierIfResultIsCool = normalizedResult == normalizedSearch && count == 0
+
+                        val sizeModValue = 15
+
+                            asyncedImage(
+                                result.image_url,
+                                modifier = Modifier
+                                    .size(65.dp + if (sizeModifierIfResultIsCool) sizeModValue.dp else 0.dp)
+                                    .clip(RoundedCornerShape(if (result.type == searchType.ARTIST) 45.dp else 8.dp))
                             )
 
-                            var typeText =
-                                ""
-                            if (result.type == searchType.SONG) {
-                                typeText =
-                                    "Композиция"
-                            } else if (result.type == searchType.ALBUM) {
-                                typeText =
-                                    "Альбом"
-                            } else if (result.type == searchType.ARTIST) {
-                                typeText =
-                                    "Артист"
+                            Column(
+                                Modifier.padding(horizontal = 16.dp, vertical = if (sizeModifierIfResultIsCool) 16.dp else 0.dp))
+                            {
+                                Text(
+                                    fontWeight = if (sizeModifierIfResultIsCool) FontWeight.Normal else FontWeight.Normal,
+                                    text = result.title,
+                                    fontSize = if (sizeModifierIfResultIsCool) 22.sp else 16.sp
+                                )
+
+                                if (result.author.isNullOrEmpty().not())
+                                {
+                                    Text(
+                                        text = result.author,
+                                        color = Color(
+                                            255,
+                                            255,
+                                            255,
+                                            150
+                                        ),
+                                        fontSize = if (sizeModifierIfResultIsCool) 18.sp else 16.sp
+                                    )
+                                }
+
+                                var typeText =
+                                    ""
+                                if (result.type == searchType.SONG) {
+                                    typeText =
+                                        "Song"
+                                } else if (result.type == searchType.ALBUM) {
+                                    typeText =
+                                        "Album"
+                                } else if (result.type == searchType.ARTIST) {
+                                    typeText =
+                                        "Artist"
+                                }
+
+                                Text(
+                                    text = typeText,
+                                    fontSize = if (sizeModifierIfResultIsCool) 18.sp else 16.sp,
+                                    color = Color(
+                                        255,
+                                        255,
+                                        255,
+                                        60
+                                    )
+                                )
                             }
 
-                            Text(
-                                text = typeText,
-                                color = Color(
-                                    255,
-                                    255,
-                                    255,
-                                    60
-                                )
-                            )
-                        }
+
                     }
 
                 }

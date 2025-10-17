@@ -105,37 +105,37 @@ fun GroviqTheme(
                 fontFamily = SfProDisplay,
                 fontWeight = FontWeight.Normal,
                 fontSize = 18.sp,
-                letterSpacing = 0.25.sp
+                letterSpacing = 0.55.sp
             ),
             bodyMedium = TextStyle(
                 fontFamily = SfProDisplay,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
-                letterSpacing = 0.25.sp
+                letterSpacing = 0.55.sp
             ),
             bodySmall = TextStyle(
                 fontFamily = SfProDisplay,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
-                letterSpacing = 0.2.sp
+                letterSpacing = 0.55.sp
             ),
             titleLarge = TextStyle(
                 fontFamily = SfProDisplay,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
-                letterSpacing = 0.3.sp
+                letterSpacing = 0.55.sp
             ),
             titleMedium = TextStyle(
                 fontFamily = SfProDisplay,
                 fontWeight = FontWeight.Medium,
                 fontSize = 20.sp,
-                letterSpacing = 0.25.sp
+                letterSpacing = 0.55.sp
             ),
             labelLarge = TextStyle(
                 fontFamily = SfProDisplay,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
-                letterSpacing = 0.2.sp
+                letterSpacing = 0.55.sp
             )
         ),
         content = content

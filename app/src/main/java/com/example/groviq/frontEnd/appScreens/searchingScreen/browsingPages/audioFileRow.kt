@@ -16,6 +16,10 @@ import kotlin.math.roundToInt
 
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -35,6 +39,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircleOutline
+import androidx.compose.material.icons.rounded.Circle
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -76,12 +81,14 @@ import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
+import com.example.groviq.backEnd.dataStructures.playerStatus
 import com.example.groviq.backEnd.playEngine.addToCurrentQueue
 import com.example.groviq.frontEnd.asyncedImage
 import com.example.groviq.frontEnd.bottomBars.openTrackSettingsBottomBar
 import com.example.groviq.frontEnd.subscribeMe
 import com.example.groviq.vibrateLight
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlin.math.abs
 
 
@@ -333,8 +340,9 @@ fun SwipeToQueueItem(
                             RoundedCornerShape(4.dp)).background(Color(0, 0, 0, 160)
                         ))
                         {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "", tint = Color(255, 255, 255), modifier = Modifier.align(
-                                Alignment.Center))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "", tint = Color(255, 255, 255), modifier = Modifier
+                                .align(Alignment.Center)
+                            )
                         }
                     }
 
