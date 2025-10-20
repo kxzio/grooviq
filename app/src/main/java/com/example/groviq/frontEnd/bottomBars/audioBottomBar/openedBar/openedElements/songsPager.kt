@@ -172,7 +172,7 @@ fun grooviqUI.elements.openedElements.drawPagerForSongs(mainViewModel : PlayerVi
                 {
                     asyncedImage(
                         songInQueue,
-                        blurRadius = 0f,
+                        blurRadius = if (showLyrics.value) 30f else 0f,
                         turnOffPlaceholders = true,
                         blendGrad = false,
                         modifier = modif

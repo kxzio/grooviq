@@ -242,10 +242,10 @@ class PlayerViewModel(private val repository: DataRepository) : ViewModel() {
         updateState { it.copy(lastSourceBuilded = newSource) }
     }
 
-    fun toogleShuffleMode() {
+    fun toogleShuffleMode(override : Boolean = false) {
         updateState { state ->
 
-            val newShuffle =
+            val newShuffle = if (override) true else
                 !state.isShuffle
 
             val newState =

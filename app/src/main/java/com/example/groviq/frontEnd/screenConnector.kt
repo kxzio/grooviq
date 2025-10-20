@@ -343,7 +343,7 @@ fun connectScreens(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .height(150.dp)
+                        .height(50.dp)
                         .drawWithCache {
                             val gradient = Brush.verticalGradient(
                                 colors = listOf(

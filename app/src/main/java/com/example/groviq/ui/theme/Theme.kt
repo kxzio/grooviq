@@ -39,20 +39,19 @@ val SfProDisplay = FontFamily(
 )
 
 
+// главный цвет темы
+private val MainColor = Color(
+    218,
+    105,
+    105,
+    255
+)
+
+// Тёмная тема
 private val DarkColorScheme = darkColorScheme(
-    primary       = Color(
-        132,
-        169,
-        201,
-        255
-    ),
+    primary       = MainColor,
     onPrimary     = Color.White,
-    secondary     = Color(
-        132,
-        169,
-        201,
-        255
-    ),
+    secondary     = MainColor,
     onSecondary   = Color.White,
     tertiary      = Color(14, 14, 14),
     onTertiary    = Color.White,
@@ -60,7 +59,7 @@ private val DarkColorScheme = darkColorScheme(
     onBackground  = Color.White,
     surface       = Color(14, 14, 14),
     onSurface     = Color.White,
-    error         = Color(255, 69, 58), // красный для ошибок
+    error         = Color(255, 69, 58),
     onError       = Color.White,
     surfaceVariant = Color(40, 40, 40),
     onSurfaceVariant = Color.White.copy(alpha = 0.7f),
@@ -70,24 +69,28 @@ private val DarkColorScheme = darkColorScheme(
     inversePrimary  = Color(133, 98, 225)
 )
 
+// Светлая тема
+private val LightColorScheme = lightColorScheme(
+    primary       = MainColor,
+    onPrimary     = Color.White,
+    secondary     = MainColor,
+    onSecondary   = Color.White,
+    tertiary      = Color(238, 238, 238),
+    onTertiary    = Color(20, 20, 20),
+    background    = Color(236, 236, 236),
+    onBackground  = Color(15, 15, 15),
+    surface       = Color(242, 242, 242),
+    onSurface     = Color(15, 15, 15),
+    error         = Color(255, 69, 58),
+    onError       = Color.White,
+    surfaceVariant = Color(220, 220, 220),
+    onSurfaceVariant = Color.Black.copy(alpha = 0.7f),
+    outline       = Color(160, 160, 160),
+    inverseOnSurface = Color.White,
+    inverseSurface  = Color(30, 30, 30),
+    inversePrimary  = Color(133, 98, 225)
+)
 
-private val LightColorScheme =
-    lightColorScheme(
-        primary = Purple40,
-        secondary = PurpleGrey40,
-        tertiary = Pink40
-
-        /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-
-    )
 
 @Composable
 fun GroviqTheme(

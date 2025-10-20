@@ -2,12 +2,14 @@ package com.example.groviq.frontEnd.appScreens.searchingScreen
 
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -164,9 +166,15 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
             ) {
                 itemsIndexed(searchResults) { count, result ->
 
+                    val normalizedResult = result.title.trim().replace("\\s+".toRegex(), " ").lowercase()
+                    val normalizedSearch = searchingRequest.value.trim().replace("\\s+".toRegex(), " ").lowercase()
+
+                    val sizeModifierIfResultIsCool = normalizedResult == normalizedSearch && count == 0
+
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().clickable
+                        modifier =  Modifier.padding(vertical = if (sizeModifierIfResultIsCool) 16.dp else 0.dp).fillMaxWidth().clickable
                     {
                         if (result.type == searchType.ALBUM) {
                             val link = "https://music.youtube.com/browse/${result.link_id}"
@@ -195,11 +203,6 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                         }
                     })
                     {
-                        val normalizedResult = result.title.trim().replace("\\s+".toRegex(), " ").lowercase()
-                        val normalizedSearch = searchingRequest.value.trim().replace("\\s+".toRegex(), " ").lowercase()
-
-                        val sizeModifierIfResultIsCool = normalizedResult == normalizedSearch && count == 0
-
                         val sizeModValue = 15
 
                             asyncedImage(
@@ -210,7 +213,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                             )
 
                             Column(
-                                Modifier.padding(horizontal = 16.dp, vertical = if (sizeModifierIfResultIsCool) 16.dp else 0.dp))
+                                Modifier.padding(horizontal = 16.dp))
                             {
                                 Text(
                                     fontWeight = if (sizeModifierIfResultIsCool) FontWeight.Normal else FontWeight.Normal,
@@ -258,6 +261,11 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                             }
 
 
+                    }
+
+                    if (sizeModifierIfResultIsCool)
+                    {
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(255, 255, 255, 50)).padding(bottom = 8.dp))
                     }
 
                 }

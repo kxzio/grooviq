@@ -58,6 +58,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -340,7 +341,8 @@ fun SwipeToQueueItem(
                             RoundedCornerShape(4.dp)).background(Color(0, 0, 0, 160)
                         ))
                         {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "", tint = Color(255, 255, 255), modifier = Modifier
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "", tint = Color(255, 255, 255),
+                                modifier = Modifier
                                 .align(Alignment.Center)
                             )
                         }
@@ -354,8 +356,7 @@ fun SwipeToQueueItem(
 
                 Column(modifier = Modifier.padding(horizontal = 8.dp)) {
 
-                    Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp,
-                        color = Color(255, 255, 255, 210))
+                    Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp, modifier = Modifier.alpha(0.8f))
 
 
                     Spacer(Modifier.height(4.dp))
@@ -364,7 +365,7 @@ fun SwipeToQueueItem(
                         song.artists.joinToString { it.title },
                         maxLines = 1,
                         fontSize = 13.sp,
-                        color = Color(255, 255, 255, 90)
+                        modifier = Modifier.alpha(0.4f)
                     )
                 }
             }
@@ -388,7 +389,8 @@ fun SwipeToQueueItem(
                         Icon(
                             imageVector = Icons.Rounded.CheckCircleOutline,
                             contentDescription = "fav",
-                            tint = Color(255, 255, 255, 150)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.alpha(0.8f)
                         )
                     }
                 }
@@ -401,7 +403,6 @@ fun SwipeToQueueItem(
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
                         contentDescription = "fav",
-                        tint = Color(255, 255, 255, 255)
                     )
                 }
             }

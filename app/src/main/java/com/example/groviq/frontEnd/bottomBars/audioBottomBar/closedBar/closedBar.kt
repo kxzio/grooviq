@@ -118,12 +118,12 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                 gradientAlpha = gradientAlpha.value
             )
 
-            Box(Modifier.align(Alignment.TopStart))
+            Box(Modifier.align(Alignment.TopStart).padding(1.dp))
             {
                 LinearProgressIndicator(
                     progress = songProgressUi.value.progress,
                     modifier = Modifier
-                        .fillMaxWidth().height(4.dp).padding(1.dp),
+                        .fillMaxWidth().height(2.dp),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = Color(0, 0, 0, 0)
                 )
@@ -192,10 +192,9 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
 
                         Row()
                         {
-                            song.artists.forEach { artist ->
 
                                 Text(
-                                    artist.title + if (artist != song.artists.last()) ", " else "",
+                                    song.artists.joinToString { it.title },
                                     maxLines = 1, fontSize = 15.sp, color = Color(255, 255, 255, 100),
                                     modifier = Modifier.basicMarquee(
                                         iterations = Int.MAX_VALUE,
@@ -205,7 +204,7 @@ fun closedBar(mainViewModel : PlayerViewModel, onToogleSheet: () -> Unit, search
                                     ),
                                 )
 
-                            }
+
                         }
                     }
 
