@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Abc
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,8 +38,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -162,7 +169,7 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 itemsIndexed(searchResults) { count, result ->
 
@@ -174,7 +181,13 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier =  Modifier.padding(vertical = if (sizeModifierIfResultIsCool) 16.dp else 0.dp).fillMaxWidth().clickable
+                        modifier =  Modifier
+                            .padding(
+                                top     = if (sizeModifierIfResultIsCool) 10.dp else 0.dp,
+                                bottom  = if (sizeModifierIfResultIsCool) 10.dp else 0.dp,
+                            )
+                            .clip(RoundedCornerShape(if (sizeModifierIfResultIsCool) 16.dp else 0.dp))
+                            .fillMaxWidth().clickable
                     {
                         if (result.type == searchType.ALBUM) {
                             val link = "https://music.youtube.com/browse/${result.link_id}"
@@ -205,68 +218,84 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                     {
                         val sizeModValue = 15
 
-                            asyncedImage(
-                                result.image_url,
-                                modifier = Modifier
-                                    .size(65.dp + if (sizeModifierIfResultIsCool) sizeModValue.dp else 0.dp)
-                                    .clip(RoundedCornerShape(if (result.type == searchType.ARTIST) 45.dp else 8.dp))
-                            )
+                        Box(modifier = if (sizeModifierIfResultIsCool) Modifier.height(115.dp) else Modifier)
+                        {
 
-                            Column(
-                                Modifier.padding(horizontal = 16.dp))
+                            if (sizeModifierIfResultIsCool)
                             {
-                                Text(
-                                    fontWeight = if (sizeModifierIfResultIsCool) FontWeight.Normal else FontWeight.Normal,
-                                    text = result.title,
-                                    fontSize = if (sizeModifierIfResultIsCool) 22.sp else 16.sp
-                                )
+                                Column(Modifier.fillMaxWidth().graphicsLayer {
+                                    scaleX = 1.5f
+                                    scaleY = 1.5f
+                                    compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                                }){
 
-                                if (result.author.isNullOrEmpty().not())
-                                {
-                                    Text(
-                                        text = result.author,
-                                        color = Color(
-                                            255,
-                                            255,
-                                            255,
-                                            150
-                                        ),
-                                        fontSize = if (sizeModifierIfResultIsCool) 18.sp else 16.sp
+                                    asyncedImage(
+                                        result.image_url,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .alpha(0.5f),
+                                        blurRadius = 30f,
+                                        contentScale = ContentScale.FillBounds
                                     )
                                 }
-
-                                var typeText =
-                                    ""
-                                if (result.type == searchType.SONG) {
-                                    typeText =
-                                        "Song"
-                                } else if (result.type == searchType.ALBUM) {
-                                    typeText =
-                                        "Album"
-                                } else if (result.type == searchType.ARTIST) {
-                                    typeText =
-                                        "Artist"
-                                }
-
-                                Text(
-                                    text = typeText,
-                                    fontSize = if (sizeModifierIfResultIsCool) 18.sp else 16.sp,
-                                    color = Color(
-                                        255,
-                                        255,
-                                        255,
-                                        60
-                                    )
-                                )
                             }
 
+                            Row(Modifier.padding(
+                                horizontal  = if (sizeModifierIfResultIsCool) 16.dp else 0.dp,
+                                vertical    = if (sizeModifierIfResultIsCool) 16.dp else 0.dp))
+                            {
+                                asyncedImage(
+                                    result.image_url,
+                                    modifier = Modifier
+                                        .size(65.dp + if (sizeModifierIfResultIsCool) sizeModValue.dp else 0.dp)
+                                        .clip(RoundedCornerShape(if (result.type == searchType.ARTIST) 45.dp else 8.dp))
+                                )
+
+                                Column(
+                                    Modifier.padding(horizontal = 16.dp))
+                                {
+                                    Text(
+                                        fontWeight = if (sizeModifierIfResultIsCool) FontWeight.Normal else FontWeight.Normal,
+                                        text = result.title,
+                                        fontSize = if (sizeModifierIfResultIsCool) 22.sp else 16.sp
+                                    )
+
+                                    if (result.author.isNullOrEmpty().not())
+                                    {
+                                        Text(
+                                            text = result.author,
+                                            color = Color(255, 255, 255, 150),
+                                            fontSize = if (sizeModifierIfResultIsCool) 18.sp else 16.sp,
+                                            modifier = Modifier.padding(vertical = if (sizeModifierIfResultIsCool) 4.dp else 0.dp)
+                                        )
+                                    }
+
+                                    var typeText =
+                                        ""
+                                    if (result.type == searchType.SONG) {
+                                        typeText =
+                                            "Song"
+                                    } else if (result.type == searchType.ALBUM) {
+                                        typeText =
+                                            "Album"
+                                    } else if (result.type == searchType.ARTIST) {
+                                        typeText =
+                                            "Artist"
+                                    }
+
+                                    Text(
+                                        text = typeText,
+                                        fontSize = if (sizeModifierIfResultIsCool) 18.sp else 16.sp,
+                                        color = Color(255, 255, 255, 80),
+                                    )
+                                }
+                            }
+                        }
+
+
 
                     }
 
-                    if (sizeModifierIfResultIsCool)
-                    {
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(255, 255, 255, 50)).padding(bottom = 8.dp))
-                    }
 
                 }
             }

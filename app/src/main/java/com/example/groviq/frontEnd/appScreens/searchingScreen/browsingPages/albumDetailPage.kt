@@ -431,7 +431,7 @@ fun showDefaultAudioSource(audioSourcePath : String, mainViewModel : PlayerViewM
                                                                 brush = Brush.verticalGradient(
                                                                     colors = listOf(
                                                                         Color.Black.copy(alpha = 0f),
-                                                                        Color.Black.copy(alpha = 0.6f)
+                                                                        Color.Black.copy(alpha = 0.5f)
                                                                     ),
                                                                     startY = 0f,
                                                                     endY = size.height

@@ -86,6 +86,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -100,6 +101,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.alpha
@@ -131,6 +133,7 @@ import coil.size.Precision
 import android.graphics.RenderEffect as AndroidRenderEffect
 import coil.transform.*
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
+import com.commit451.coiltransformations.BlurTransformation
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.audioSource
 import com.example.groviq.backEnd.searchEngine.publucErrors
@@ -265,33 +268,29 @@ fun asyncedImage(
 
     val data = if (imageKey?.startsWith("/") ?: false) File(imageKey) else imageKey
 
-    val req = remember(imageKey) {
-        val builder = ImageRequest.Builder(context)
+    val request = remember(imageKey, blurRadius, customLoadSizeX, customLoadSizeY) {
+        ImageRequest.Builder(context)
             .data(data)
-            .setParameter("coil#disk_cache_key", imageKey)
+            .crossfade(500)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
-            .crossfade(500)
-
-        if (blurRadius > 0f) {
-            builder.allowHardware(false)
-                .bitmapConfig(Bitmap.Config.ARGB_8888)
-        } else {
-            builder.allowHardware(true)
-                .bitmapConfig(Bitmap.Config.RGB_565)
-                .allowRgb565(true)
-                .precision(Precision.INEXACT)
-        }
-
-        builder.build()
+            .allowHardware(blurRadius == 0f)
+            .apply {
+                if (blurRadius > 0f) {
+                    size(256, 256)
+                    transformations(BlurTransformation(context, blurRadius / 2))
+                } else {
+                    size(512, 512)
+                }
+            }
+            .build()
     }
 
-    val painter = rememberAsyncImagePainter(req)
+    val painter = rememberAsyncImagePainter(model = request)
 
     val mod = if (blendGrad) {
         modifier
             .fillMaxSize()
-            .blur(blurRadius.dp)
             .graphicsLayer { alpha = 0.99f }
             .drawWithContent {
                 drawContent()
@@ -311,7 +310,6 @@ fun asyncedImage(
         } else {
             modifier
                 .fillMaxSize()
-                .blur(blurRadius.dp)
         }
     }
 
@@ -370,7 +368,8 @@ fun asyncedImage(
     link: String?,
     modifier: Modifier = Modifier,
     onEmptyImageCallback: (@Composable () -> Unit)? = null,
-    blurRadius: Float = 0f
+    blurRadius: Float = 0f,
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     if (link == null) return
 
@@ -392,14 +391,14 @@ fun asyncedImage(
         contentAlignment = Alignment.Center
     ) {
         val mod = Modifier
-            .matchParentSize()
+            .fillMaxSize()
             .blur(blurRadius.dp)
 
         Image(
             painter = painter,
             contentDescription = null,
             modifier = mod,
-            contentScale = ContentScale.Crop
+            contentScale = contentScale
         )
 
         if (blurRadius == 0f) {
@@ -510,101 +509,130 @@ fun grooviqUI.elements.screenPlaceholders.errorsPlaceHoldersScreen(
 
 @Composable
 fun grooviqUI.elements.albumCoverPresenter.drawPlaylistCover(
-    audioSource: String,
-    audioData: MutableMap<String, audioSource>,
-    allAudioData: MutableMap<String, songData>,
+    audioSourceId: String,
+    audioData: Map<String, audioSource>,
+    allAudioData: Map<String, songData>,
     modifier: Modifier = Modifier
-        .fillMaxSize()
-        .aspectRatio(1f).clip(
-            RoundedCornerShape(8.dp)
-        ),
-    blur : Float = 0f,
-    drawOnlyFirst : Boolean = false
+        .aspectRatio(1f)
+        .clip(RoundedCornerShape(8.dp))
+        .fillMaxSize(),
+    blur: Float = 0f,
+    drawOnlyFirst: Boolean = false,
+    thumbnailSize: Int = 256 // размер для загрузки картинок
 ) {
-    val audioSource = audioData[audioSource] ?: return
-    val firstFourSongs = audioSource.songIds.mapNotNull { allAudioData[it] }.distinctBy { it.album_original_link }.take(4)
+    val audioSource = audioData[audioSourceId] ?: return
 
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        if (drawOnlyFirst)
-        {
-            asyncedImage(
-                firstFourSongs[0],
-                Modifier.fillMaxSize(),
-                blurRadius = blur
-            )
-        }
-        else
-        {
+    // Предварительно вычисляем уникальные песни
+    val firstFourSongs = remember(audioSource, allAudioData) {
+        audioSource.songIds.mapNotNull { allAudioData[it] }
+            .distinctBy { it.album_original_link }
+            .take(4)
+    }
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+
+        if (drawOnlyFirst && firstFourSongs.isNotEmpty()) {
+            key(firstFourSongs[0]) {
+                asyncedImage(
+                    songData = firstFourSongs[0],
+                    modifier = Modifier.fillMaxSize(),
+                    blurRadius = blur,
+                    customLoadSizeX = thumbnailSize,
+                    customLoadSizeY = thumbnailSize
+                )
+            }
+        } else {
             when (firstFourSongs.size) {
                 4 -> {
-                    LazyVerticalGrid(userScrollEnabled = false, columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
-                        items(firstFourSongs) { song ->
-                            asyncedImage(
-                                song,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .aspectRatio(1f),
-                                blurRadius = blur
-                            )
+                    Column(Modifier.fillMaxSize()) {
+                        for (y in 0 until 2) {
+                            Row(Modifier.weight(1f)) {
+                                for (x in 0 until 2) {
+                                    val index = y * 2 + x
+                                    key(firstFourSongs[index]) {
+                                        asyncedImage(
+                                            songData = firstFourSongs[index],
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight(),
+                                            blurRadius = blur,
+                                            customLoadSizeX = thumbnailSize,
+                                            customLoadSizeY = thumbnailSize
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 3 -> {
                     Column(Modifier.fillMaxSize()) {
-                        asyncedImage(
-                            firstFourSongs[2],
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            blurRadius = blur
-                        )
+                        key(firstFourSongs[2]) {
+                            asyncedImage(
+                                songData = firstFourSongs[2],
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                blurRadius = blur,
+                                customLoadSizeX = thumbnailSize,
+                                customLoadSizeY = thumbnailSize
+                            )
+                        }
                         Row(Modifier.weight(1f)) {
-                            asyncedImage(
-                                firstFourSongs[0],
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                blurRadius = blur
-                            )
-                            asyncedImage(
-                                firstFourSongs[1],
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                blurRadius = blur
-                            )
+                            for (i in 0..1) {
+                                key(firstFourSongs[i]) {
+                                    asyncedImage(
+                                        songData = firstFourSongs[i],
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight(),
+                                        blurRadius = blur,
+                                        customLoadSizeX = thumbnailSize,
+                                        customLoadSizeY = thumbnailSize
+                                    )
+                                }
+                            }
                         }
                     }
                 }
                 2 -> {
                     Row(Modifier.fillMaxSize()) {
-                        firstFourSongs.forEach {
-                            asyncedImage(
-                                it,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                blurRadius = blur
-                            )
+                        for (i in 0..1) {
+                            key(firstFourSongs[i]) {
+                                asyncedImage(
+                                    songData = firstFourSongs[i],
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    blurRadius = blur,
+                                    customLoadSizeX = thumbnailSize,
+                                    customLoadSizeY = thumbnailSize
+                                )
+                            }
                         }
                     }
                 }
                 1 -> {
-                    asyncedImage(
-                        firstFourSongs[0],
-                        Modifier.fillMaxSize(),
-                        blurRadius = blur
-                    )
+                    key(firstFourSongs[0]) {
+                        asyncedImage(
+                            songData = firstFourSongs[0],
+                            modifier = Modifier.fillMaxSize(),
+                            blurRadius = blur,
+                            customLoadSizeX = thumbnailSize,
+                            customLoadSizeY = thumbnailSize
+                        )
+                    }
                 }
                 0 -> {
-                    Icon(Icons.Rounded.PlaylistPlay, "", Modifier.fillMaxSize(), tint = Color(255, 255, 255))
+                    Icon(
+                        Icons.Rounded.PlaylistPlay,
+                        contentDescription = "Empty Playlist",
+                        modifier = Modifier.fillMaxSize(),
+                        tint = Color(255, 255, 255)
+                    )
                 }
             }
         }
-
     }
 }
 

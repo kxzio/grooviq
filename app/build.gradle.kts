@@ -115,6 +115,7 @@ dependencies {
     implementation("androidx.media3:media3-session:1.3.1")
 
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("com.github.Commit451:coil-transformations:2.0.2")
 
     implementation("androidx.compose.material:material-icons-extended:1.0.1")
 
