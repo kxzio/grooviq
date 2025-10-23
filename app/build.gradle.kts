@@ -46,8 +46,8 @@ android {
         }
 
         release {
-            isMinifyEnabled =
-                false
+            isMinifyEnabled   = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile(
                     "proguard-android-optimize.txt"
@@ -114,8 +114,10 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.media3:media3-session:1.3.1")
 
-    implementation("io.coil-kt:coil-compose:2.4.0")
-    implementation("com.github.Commit451:coil-transformations:2.0.2")
+    implementation("io.coil-kt.coil3:coil:3.0.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.0.0")
+    implementation("com.github.Commit451.coil-transformations:transformations:2.0.2")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.0")
 
     implementation("androidx.compose.material:material-icons-extended:1.0.1")
 

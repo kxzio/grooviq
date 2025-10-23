@@ -26,11 +26,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,9 +46,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import com.example.groviq.AppViewModels
@@ -60,6 +69,7 @@ import com.example.groviq.frontEnd.drawPlaylistCover
 import com.example.groviq.frontEnd.grooviqUI
 import com.example.groviq.frontEnd.subscribeMe
 import com.example.groviq.ui.theme.SfProDisplay
+import com.example.groviq.ui.theme.clashFont
 import dev.chrisbanes.haze.hazeEffect
 
 @OptIn(
@@ -82,7 +92,62 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
         Column(Modifier.padding(horizontal = 16.dp))
         {
 
-            Box(Modifier.padding(top = 16.dp).clip(
+            Box(Modifier.zIndex(5f))
+            {
+                val main = MaterialTheme.colorScheme.primary
+
+                Box(
+                    modifier = Modifier
+                        .padding(top = 20.dp)                .graphicsLayer {
+                            rotationX = -30f
+                            cameraDistance = 30 * density
+                            transformOrigin = TransformOrigin(0f, 0f)
+                        }                    .drawWithContent {
+                            drawContent()
+
+                            val radius = 500f
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        main.copy(alpha = 0.1f),
+                                        main.copy(alpha = 0.05f),
+                                        Color.Transparent
+                                    ),
+                                    center = Offset(0f, 0f),
+                                    radius = radius
+                                ),
+                                center = Offset(0f, 0f),
+                                radius = radius
+                            )
+                        }
+                ) {
+
+                    Column()
+                    {
+                        Row(verticalAlignment = Alignment.CenterVertically)
+                        {
+
+                            Icon(Icons.Rounded.Star, "", tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(50.dp).padding(end = 16.dp))
+
+                            Text(
+                                "Playlists",
+                                fontFamily = clashFont,
+                                fontSize = 36.sp,
+                                color = Color.White
+                            )
+                        }
+
+                        Text(
+                            "Your own music collection",
+                            fontSize = 16.sp,
+                            color = main
+                        )
+                    }
+                }
+            }
+
+            Box(Modifier.padding(top = 16.dp, bottom = 16.dp).clip(
                 RoundedCornerShape(16.dp)
             ).
             border(1.dp, Color(255, 255, 255, 28), RoundedCornerShape(16.dp))
@@ -118,9 +183,17 @@ fun playlistList(mainViewModel : PlayerViewModel, playlistNavigationLocal: NavHo
                                         ) { isCreatePlaylistOpened.value = true },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(title, fontSize = 16.sp, color =
+
+                                    Row(verticalAlignment = Alignment.CenterVertically)
+                                    {
+                                        Icon(Icons.Rounded.Add, "", tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp))
+
+                                        Text(title, modifier = Modifier.padding(start = 8.dp) ,fontSize = 16.sp, color =
                                         Color(255, 255, 255)
-                                    )
+                                        )
+                                    }
+
                                 }
 
                                 if (index < tabs.lastIndex) {

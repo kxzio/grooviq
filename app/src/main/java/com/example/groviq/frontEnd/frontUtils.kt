@@ -43,10 +43,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
+
 import com.example.groviq.backEnd.dataStructures.songData
 import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -126,12 +123,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
-import coil.compose.SubcomposeAsyncImage
-import coil.imageLoader
-import coil.request.CachePolicy
-import coil.size.Precision
-import android.graphics.RenderEffect as AndroidRenderEffect
-import coil.transform.*
+import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.crossfade
+import coil3.request.transformations
+import coil3.size.*
+import coil3.transform.Transformation
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
 import com.commit451.coiltransformations.BlurTransformation
 import com.example.groviq.MyApplication
@@ -148,6 +149,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import android.graphics.Color as AndroidColor
+
 
 class grooviqUI {
 
@@ -259,36 +261,34 @@ fun asyncedImage(
     customLoadSizeX: Int = 0,
     customLoadSizeY: Int = 0,
 ) {
-
-
     if (songData == null) return
 
     val context = LocalContext.current
-    val imageKey = songData.art_local_link ?: songData.art_link
+    val imageKey = songData.art_local_link ?: songData.art_link ?: return
 
-    val data = if (imageKey?.startsWith("/") ?: false) File(imageKey) else imageKey
+    val data = if (imageKey.startsWith("/")) File(imageKey) else imageKey
 
-    val request = remember(imageKey, blurRadius, customLoadSizeX, customLoadSizeY) {
+    val loadSize = remember(blurRadius, customLoadSizeX, customLoadSizeY) {
+        if (customLoadSizeX > 0 && customLoadSizeY > 0) {
+            coil3.size.Size(customLoadSizeX, customLoadSizeY)
+        } else {
+            if (blurRadius > 0f) coil3.size.Size(256, 256) else coil3.size.Size(512, 512)
+        }
+    }
+
+    val request = remember(imageKey, blurRadius, loadSize) {
         ImageRequest.Builder(context)
             .data(data)
             .crossfade(500)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
-            .allowHardware(blurRadius == 0f)
-            .apply {
-                if (blurRadius > 0f) {
-                    size(256, 256)
-                    transformations(BlurTransformation(context, blurRadius / 2))
-                } else {
-                    size(512, 512)
-                }
-            }
+            .allowHardware(false)
+            .precision(Precision.INEXACT)
+            .size(loadSize)
             .build()
     }
 
-    val painter = rememberAsyncImagePainter(model = request)
-
-    val mod = if (blendGrad) {
+    var imageModifier = if (blendGrad) {
         modifier
             .fillMaxSize()
             .graphicsLayer { alpha = 0.99f }
@@ -301,16 +301,15 @@ fun asyncedImage(
                         startY = 0f,
                         endY = size.height
                     ),
-                    blendMode = BlendMode.DstIn,
+                    blendMode = BlendMode.DstIn
                 )
             }
     } else {
-        if (blurRadius == 0f) {
-            modifier.fillMaxSize()
-        } else {
-            modifier
-                .fillMaxSize()
-        }
+        modifier.fillMaxSize()
+    }
+
+    if (blurRadius != 0f) {
+        imageModifier = imageModifier.blur(blurRadius.dp)
     }
 
     Box(
@@ -320,44 +319,40 @@ fun asyncedImage(
         ),
         contentAlignment = Alignment.Center
     ) {
-
         if (blurRadius == 0f && !turnOffPlaceholders) {
-            when (painter.state) {
-                is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
-                    ?: Icon(
-                        Icons.Rounded.Album,
-                        contentDescription = "Loading",
-                        modifier = Modifier.fillMaxSize(0.7f)
-                        ,tint = Color(255, 255, 255, 100)
-                    )
-                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke() ?:
-
-                if (songData.isExternal)
-                    {
-                        Icon(
-                            Icons.Rounded.Album,
-                            contentDescription = "Error",
-                            modifier = Modifier.fillMaxSize(0.7f)
-                            ,tint = Color(255, 255, 255, 100)
-                        )
-                    }
-                        else
+            SubcomposeAsyncImage(
+                model = request,
+                contentDescription = null,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop,
+                loading = {
                     Icon(
-                        Icons.Rounded.Album,
-                        contentDescription = "Error",
-                        modifier = Modifier.fillMaxSize(0.7f)
-                        ,tint = Color(255, 255, 255, 100)
+                        imageVector = Icons.Rounded.Album,
+                        contentDescription = "Loading",
+                        modifier = Modifier.fillMaxSize(0.7f),
+                        tint = Color(255, 255, 255, 100)
                     )
-                else -> Unit
-            }
+                },
+                error = {
+                    Icon(
+                        imageVector = Icons.Rounded.Album,
+                        contentDescription = "Error",
+                        modifier = Modifier.fillMaxSize(0.7f),
+                        tint = Color(255, 255, 255, 100)
+                    )
+                },
+                success = {
+                    SubcomposeAsyncImageContent()
+                }
+            )
+        } else {
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop
+            )
         }
-
-        Image(
-            painter = painter,
-            contentDescription = null,
-            modifier = mod,
-            contentScale = ContentScale.Crop
-        )
     }
 }
 
@@ -365,62 +360,107 @@ fun asyncedImage(
 @SuppressLint("UnusedCrossfadeTargetStateParameter")
 @Composable
 fun asyncedImage(
-    link: String?,
+    source : String,
     modifier: Modifier = Modifier,
     onEmptyImageCallback: (@Composable () -> Unit)? = null,
     blurRadius: Float = 0f,
-    contentScale: ContentScale = ContentScale.Crop
+    turnOffPlaceholders: Boolean = false,
+    blendGrad: Boolean = false,
+    turnOffBackground: Boolean = false,
+    customLoadSizeX: Int = 0,
+    customLoadSizeY: Int = 0,
 ) {
-    if (link == null) return
+    if (source == null) return
 
     val context = LocalContext.current
+    val imageKey = source ?: return
 
+    val data = if (imageKey.startsWith("/")) File(imageKey) else imageKey
 
-    val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(link)
-            .crossfade(true)
+    val loadSize = remember(blurRadius, customLoadSizeX, customLoadSizeY) {
+        if (customLoadSizeX > 0 && customLoadSizeY > 0) {
+            coil3.size.Size(customLoadSizeX, customLoadSizeY)
+        } else {
+            if (blurRadius > 0f) coil3.size.Size(256, 256) else coil3.size.Size(512, 512)
+        }
+    }
+
+    val request = remember(imageKey, blurRadius, loadSize) {
+        ImageRequest.Builder(context)
+            .data(data)
+            .crossfade(500)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
-            .setParameter("coil#disk_cache_key", link)
+            .allowHardware(false)
+            .precision(Precision.INEXACT)
+            .size(loadSize)
             .build()
-    )
+    }
+
+    val imageModifier = if (blendGrad) {
+        modifier
+            .fillMaxSize()
+            .graphicsLayer { alpha = 0.99f }
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0.7f to Color.Black,
+                        1.0f to Color.Transparent,
+                        startY = 0f,
+                        endY = size.height
+                    ),
+                    blendMode = BlendMode.DstIn
+                )
+            }
+            .blur(blurRadius.dp)
+    } else {
+        modifier.fillMaxSize().blur(blurRadius.dp)
+    }
 
     Box(
-        modifier = modifier.background(Color.LightGray.copy(alpha = 0.2f)),
+        modifier = modifier.background(
+            if (blendGrad || turnOffBackground) Color.Transparent
+            else Color.LightGray.copy(alpha = 0.2f)
+        ),
         contentAlignment = Alignment.Center
     ) {
-        val mod = Modifier
-            .fillMaxSize()
-            .blur(blurRadius.dp)
-
-        Image(
-            painter = painter,
-            contentDescription = null,
-            modifier = mod,
-            contentScale = contentScale
-        )
-
-        if (blurRadius == 0f) {
-            when (painter.state) {
-                is AsyncImagePainter.State.Loading -> onEmptyImageCallback?.invoke()
-                    ?: Icon(
-                        Icons.Rounded.Image,
+        if (blurRadius == 0f && !turnOffPlaceholders) {
+            SubcomposeAsyncImage(
+                model = request,
+                contentDescription = null,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop,
+                loading = {
+                    Icon(
+                        imageVector = Icons.Rounded.Album,
                         contentDescription = "Loading",
-                        modifier = Modifier.fillMaxSize(0.7f)
+                        modifier = Modifier.fillMaxSize(0.7f),
+                        tint = Color(255, 255, 255, 100)
                     )
-                is AsyncImagePainter.State.Error -> onEmptyImageCallback?.invoke()
-                    ?: Icon(
-                        Icons.Rounded.ImageNotSupported,
+                },
+                error = {
+                    Icon(
+                        imageVector = Icons.Rounded.Album,
                         contentDescription = "Error",
-                        modifier = Modifier.fillMaxSize(0.7f)
+                        modifier = Modifier.fillMaxSize(0.7f),
+                        tint = Color(255, 255, 255, 100)
                     )
-                else -> Unit
-            }
+                },
+                success = {
+                    SubcomposeAsyncImageContent()
+                }
+            )
+        } else {
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop
+            )
         }
     }
 }
-
 
 @Composable
 fun errorButton( onClick: () -> Unit,)

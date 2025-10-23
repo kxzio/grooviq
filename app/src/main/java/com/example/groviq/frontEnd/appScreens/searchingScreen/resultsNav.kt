@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImage
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
 import com.example.groviq.backEnd.dataStructures.songData
@@ -230,12 +229,11 @@ fun searchResultsNavigation(searchingScreenNav: NavHostController, searchViewMod
                                 }){
 
                                     asyncedImage(
-                                        result.image_url,
+                                        source = result.image_url,
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .alpha(0.5f),
                                         blurRadius = 30f,
-                                        contentScale = ContentScale.FillBounds
                                     )
                                 }
                             }

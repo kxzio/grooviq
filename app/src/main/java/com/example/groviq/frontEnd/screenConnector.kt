@@ -271,8 +271,6 @@ fun connectScreens(
                 pageCount = { items.size }
             )
 
-            val scope = rememberCoroutineScope()
-
             var isInAnimation by remember { mutableStateOf(false) }
 
             LaunchedEffect(currentTab) {
@@ -468,6 +466,7 @@ fun connectScreens(
         }
     }
 
+        return
 
         Box(Modifier.statusBarsPadding()
             .navigationBarsPadding())

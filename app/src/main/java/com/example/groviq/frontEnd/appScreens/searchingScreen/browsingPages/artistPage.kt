@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.example.groviq.AppViewModels
 import com.example.groviq.MyApplication
 import com.example.groviq.backEnd.dataStructures.PlayerViewModel
@@ -142,7 +141,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
 
             item {
                 asyncedImage(
-                    currentArtist.imageUrl,
+                    source = currentArtist.imageUrl!!,
                     modifier = Modifier.fillMaxWidth().height(120.dp)
                 )
             }
@@ -211,7 +210,7 @@ fun showArtistFromSurf(backStackEntry: NavBackStackEntry,
                     items(currentArtist.relatedArtists) { item ->
                         Column(Modifier.clickable { openArtist(item.url) }) {
                             asyncedImage(
-                                item.imageUrl,
+                                source = item.imageUrl!!,
                                 modifier = Modifier
                                     .size(120.dp)
                                     .clip(CircleShape)
