@@ -323,8 +323,8 @@ class AudioPlayerManager(context: Context) {
                     val songArtResult = mainViewModel.awaitSongArt(mainViewModel, hashkey)
 
                     val mediaMetadataBuilder = MediaMetadata.Builder()
-                        .setTitle(song.title)
-                        .setArtist(song.artists.joinToString { it.title })
+                        .setTitle   (song.title)
+                        .setArtist  (song.artists.joinToString { it.title })
 
                     when (songArtResult) {
                         is PlayerViewModel.SongArtResult.BitmapResult -> {
@@ -560,7 +560,7 @@ class AudioPlayerManager(context: Context) {
 
         currentRelatedTracksJob?.cancel()
 
-        currentRelatedTracksJob = CoroutineScope(Dispatchers.Main).launch {
+        currentRelatedTracksJob = CoroutineScope(Dispatchers.IO).launch {
             // NO REPEAT
 
             mainViewModel.setSongsLoadingStatus(true)

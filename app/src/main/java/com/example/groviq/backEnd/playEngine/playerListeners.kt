@@ -169,7 +169,7 @@ fun createListeners(
                 //update image if needed
                 val song = mainViewModel.uiState.value.allAudioData[uiState.currentQueue[newIndex].hashKey] ?: return
 
-                CoroutineScope(Dispatchers.Main).launch {
+                CoroutineScope(Dispatchers.IO).launch {
 
                     val artLink = song.art_link
                     val fileUri = song.fileUri?.takeIf { song.localExists() }
@@ -217,7 +217,7 @@ fun createListeners(
                     if (mainViewModel.uiState.value.allAudioData[mainViewModel.uiState.value.playingHash]?.isExternal == true)
                         return
 
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         searchViewModel.prepareRelatedTracks(
                             MyApplication.globalContext!!,
                             mainViewModel.uiState.value.playingHash,
@@ -242,7 +242,7 @@ fun createListeners(
     attachedPlayer = boundPlayer
     attachedListener = listener
 
-    snapshotJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+    snapshotJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
         snapshotFlow { songPendingIntentNavigationDirection.value }
             .collect { direction ->
                 when (direction) {
@@ -266,6 +266,7 @@ fun createListeners(
 @OptIn(UnstableApi::class)
 fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel) {
 
+
     val uiState = mainViewModel.uiState.value
     if (uiState.shouldRebuild) return
 
@@ -274,18 +275,23 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel) {
     if (uiState.repeatMode == repeatMods.REPEAT_ONE)
         return
 
-    addTrackToMediaItems = CoroutineScope(Dispatchers.Main).launch {
-        val player = AppViewModels.player.playerManager.player
+    addTrackToMediaItems = CoroutineScope(Dispatchers.IO).launch {
         val nextIndex = uiState.posInQueue + 1
         val nextSong = uiState.currentQueue.getOrNull(nextIndex)
             ?.let { uiState.allAudioData[it.hashKey] } ?: return@launch
 
-        val alreadyAdded = (0 until player.mediaItemCount)
-            .any { player.getMediaItemAt(it).mediaId == nextSong.link }
+        val player = AppViewModels.player.playerManager.player
+
+        val alreadyAdded = withContext(Dispatchers.Main) {
+            (0 until player.mediaItemCount)
+                .any { player.getMediaItemAt(it).mediaId == nextSong.link }
+        }
 
         if (alreadyAdded) {
-            if (!player.isCommandAvailable(Player.COMMAND_PLAY_PAUSE)) {
-                player.prepare()
+            withContext(Dispatchers.Main) {
+                if (!player.isCommandAvailable(Player.COMMAND_PLAY_PAUSE)) {
+                    player.prepare()
+                }
             }
             return@launch
         }
@@ -329,8 +335,9 @@ fun prepareAndAddNextTrackToMediaItems(mainViewModel: PlayerViewModel) {
             .setMediaMetadata(mediaMetadataBuilder.build())
             .build()
 
-        player.addMediaItem(mediaItem)
-        player.prepare()
-
+        withContext(Dispatchers.Main) {
+            player.addMediaItem(mediaItem)
+            player.prepare()
+        }
     }
 }

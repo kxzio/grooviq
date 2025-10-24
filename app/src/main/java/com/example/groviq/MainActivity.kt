@@ -108,20 +108,51 @@ class MyApplication : Application(), ViewModelStoreOwner {
     override val viewModelStore: ViewModelStore by lazy { ViewModelStore() }
 
     override fun onCreate() {
-
         super.onCreate()
         instance = this
         globalContext = applicationContext
 
-
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            appendLog(
-                this,
-                "UncaughtException",
-                "Crash in thread ${thread.name}: ${throwable.message}",
-                throwable
-            )
-            Thread.sleep(500)
+            val fullLog = buildString {
+                appendLine("===== APP CRASH DETECTED =====")
+                appendLine("Thread: ${thread.name}")
+                appendLine("Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())}")
+                appendLine()
+                appendLine("Message: ${throwable.message}")
+                appendLine("Cause: ${throwable.cause}")
+                appendLine()
+                appendLine("Stacktrace:")
+                val sw = java.io.StringWriter()
+                throwable.printStackTrace(java.io.PrintWriter(sw))
+                appendLine(sw.toString())
+                appendLine("===== END OF CRASH =====")
+            }
+
+
+            try {
+                val serverUrl = "http://192.168.0.128:5000/upload_log"
+                val connection = java.net.URL(serverUrl).openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.connectTimeout = 2000
+                connection.readTimeout = 2000
+                connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+
+                connection.outputStream.use { out ->
+                    out.write(fullLog.toByteArray(Charsets.UTF_8))
+                    out.flush()
+                }
+
+                connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            try {
+                Thread.sleep(1000)
+            } catch (_: InterruptedException) {}
+
             android.os.Process.killProcess(android.os.Process.myPid())
             exitProcess(10)
         }

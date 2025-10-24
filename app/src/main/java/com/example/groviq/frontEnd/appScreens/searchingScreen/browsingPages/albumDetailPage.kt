@@ -269,7 +269,7 @@ fun showAudioSourceOfRadio(backStackEntry: NavBackStackEntry,
                 publicErrors    = publicErrors,
                 path            = navigationSaver,
                 retryCallback   = {
-                    CoroutineScope(Dispatchers.Main).launch {
+                    CoroutineScope(Dispatchers.IO).launch {
                         searchViewModel.addRelatedTracksToAudioSource(MyApplication.globalContext!!, albumUrl,mainViewModel)
                     }
                 },

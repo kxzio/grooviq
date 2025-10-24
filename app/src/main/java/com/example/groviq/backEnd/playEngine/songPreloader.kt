@@ -30,20 +30,31 @@ class Preloader(private val dataSourceFactory: DataSource.Factory, private val c
     @OptIn(
         UnstableApi::class
     )
-    suspend fun doPreload(mediaItem: MediaItem, bytesToRead: Int): Boolean =
-        withContext(Dispatchers.IO) {
-            val uri = mediaItem.localConfiguration?.uri ?: mediaItem.localConfiguration?.uri ?: mediaItem.playbackProperties?.uri
-            val dataSpec = DataSpec(uri!!)
-            val dataSource = dataSourceFactory.createDataSource()
+    suspend fun doPreload(mediaItem: MediaItem, bytesToRead: Int): Boolean = withContext(Dispatchers.IO) {
+        val uri = mediaItem.localConfiguration?.uri ?: mediaItem.playbackProperties?.uri
+        ?: return@withContext false
 
-            try {
+        val dataSpec = DataSpec(uri)
+        val dataSource = dataSourceFactory.createDataSource()
+
+        // Установим верхний общий таймаут для прелоада (например 20s)
+        val overallTimeoutMs = 20_000L
+
+        try {
+            // withTimeoutOrNull гарантирует, что мы не будем висеть бесконечно
+            val result = withTimeoutOrNull(overallTimeoutMs) {
                 var totalRead = 0
                 var firstByteReceived = false
+                val buffer = ByteArray(64 * 1024)
 
                 DataSourceInputStream(dataSource, dataSpec).use { input ->
-                    val buffer = ByteArray(64 * 1024)
-
                     while (totalRead < bytesToRead) {
+                        // проверяем отмену между чтениями
+                        if (!isActive) {
+                            // не бросаем — просто заканчиваем корректно
+                            return@withTimeoutOrNull false
+                        }
+
                         val read = input.read(buffer)
                         if (read == -1) break
                         totalRead += read
@@ -57,10 +68,25 @@ class Preloader(private val dataSourceFactory: DataSource.Factory, private val c
 
                 println("✅ Preloaded ${mediaItem.mediaId}, ${totalRead / 1024} KB warmed")
                 true
-            } catch (e: IOException) {
-                println("⚠️ IO error while preloading: ${e.message}")
+            }
+
+            result ?: run {
+                println("⚠️ Preload timed out for ${mediaItem.mediaId}")
                 false
             }
+        } catch (e: IOException) {
+            println("⚠️ IO error while preloading ${mediaItem.mediaId}: ${e.message}")
+            false
+        } catch (ce: CancellationException) {
+            // coroutine was cancelled — propagate so callers can handle if needed
+            println("⚠️ Preload cancelled for ${mediaItem.mediaId}")
+            throw ce
+        } finally {
+            // попытка безопасно закрыть dataSource (если требуется)
+            try {
+                dataSource.close()
+            } catch (_: Throwable) {}
         }
+    }
 
 }

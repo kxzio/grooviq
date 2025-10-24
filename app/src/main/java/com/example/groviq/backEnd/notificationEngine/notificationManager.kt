@@ -56,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class pendingDirection {
     EMPTY,
@@ -127,7 +128,7 @@ class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
                     ""
                 )
 
-                CoroutineScope(Dispatchers.Main).launch {
+                CoroutineScope(Dispatchers.IO).launch {
 
                     //request to get the new one
                     fetchAudioStream(AppViewModels.player, uiState.value.playingHash)
@@ -143,14 +144,17 @@ class CustomPlayer(wrappedPlayer: Player) : ForwardingPlayer(wrappedPlayer) {
                                 .setUri(streamUrl )
                                 .build()
 
-                            val oldPosition = player.player.currentPosition
-                            val wasPlaying = player.player.playWhenReady
+                            val oldPosition  = player.player.currentPosition
+                            val wasPlaying   = player.player.playWhenReady
                             val currentIndex = player.player.currentMediaItemIndex
 
-                            player.player.replaceMediaItem(currentIndex, newItem)
-                            player.player.seekTo(currentIndex, oldPosition)
-                            player.player.prepare()
-                            player.player.playWhenReady = wasPlaying
+                            withContext(Dispatchers.Main)
+                            {
+                                player.player.replaceMediaItem(currentIndex, newItem)
+                                player.player.seekTo(currentIndex, oldPosition)
+                                player.player.prepare()
+                                player.player.playWhenReady = wasPlaying
+                            }
 
                             updateNextSongHash(AppViewModels.player)
 

@@ -169,6 +169,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
     val preloader = Preloader(AppViewModels.player.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
 
     CoroutineScope(Dispatchers.Main).launch {
+
         currentFetchQueueJob?.cancelAndJoin()
 
         val currentQueue = mainViewModel.uiState.value.currentQueue
@@ -176,8 +177,8 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
 
         val currentPos = mainViewModel.uiState.value.posInQueue
 
-        val safeFromIndex = (currentPos - 3).coerceAtLeast(0)
-        val safeToIndex = (currentPos + 3)  .coerceAtMost(currentQueue.size)
+        val safeFromIndex = (currentPos - 2).coerceAtLeast(0)
+        val safeToIndex = (currentPos + 2)  .coerceAtMost(currentQueue.size)
 
         val aroundSongs = currentQueue
             .subList(safeFromIndex, safeToIndex)
