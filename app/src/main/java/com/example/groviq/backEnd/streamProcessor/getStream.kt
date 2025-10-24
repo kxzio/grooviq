@@ -166,7 +166,7 @@ var currentFetchQueueJob: Job? = null
     UnstableApi::class
 )
 fun fetchQueueStream(mainViewModel: PlayerViewModel) {
-    val preloader = Preloader(AppViewModels.player.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
+    //val preloader = Preloader(AppViewModels.player.playerManager.cacheDataSourceFactory, MyApplication.globalContext!!)
 
     CoroutineScope(Dispatchers.Main).launch {
 
@@ -230,20 +230,7 @@ fun fetchQueueStream(mainViewModel: PlayerViewModel) {
                         }
                     }.awaitAll()
 
-                    supervisorScope {
-                        aroundSongsForPreload.mapNotNull { song ->
-                            val audioUrl = song.stream.streamUrl
-                            if (audioUrl != null) {
-                                async {
-                                    val mediaItem = MediaItem.Builder()
-                                        .setUri(audioUrl)
-                                        .setMediaId(song.link)
-                                        .build()
-                                    preloader.preload(mediaItem, bytesToRead = 256 * 1024)
-                                }
-                            } else null
-                        }.awaitAll()
-                    }
+
                 }
 
 
